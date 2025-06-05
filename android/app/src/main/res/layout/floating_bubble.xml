@@ -1,0 +1,20 @@
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content">
+
+    <ImageView
+        android:id="@+id/bubble_icon"
+        android:layout_width="60dp"
+        android:layout_height="60dp"
+        android:src="@mipmap/ic_launcher"
+        android:contentDescription="Floating Bubble" />
+
+    <ImageView
+        android:id="@+id/close_icon"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:src="@android:drawable/ic_menu_close_clear_cancel"
+        android:layout_gravity="top|end"
+        android:background="@android:color/transparent"
+        android:contentDescription="Close Bubble" />
+</FrameLayout>

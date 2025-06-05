@@ -1,0 +1,11 @@
+<appwidget-provider xmlns:xsi="http:/>/www.w3.org/2001/XMLSchema-instance"
+ xsi:noNamespaceSchemaLocation="nutriplanner_widget_info.xsd" xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="250dp"
+    android:minHeight="110dp"
+    android:updatePeriodMillis="1800000"
+    android:initialLayout="@layout/nutriplanner_widget"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen"
+    android:previewImage="@mipmap/ic_launcher" />
+
+    
