@@ -112,7 +112,7 @@ dependencies {
     implementation("com.facebook.react:react-android")
     implementation project(":react-native-linear-gradient")
     implementation("androidx.activity:activity:1.9.+")
-
+    implementation project(':react-native-maps')
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
     } else {
