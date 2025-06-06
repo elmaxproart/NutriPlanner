@@ -1,26 +1,50 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, Image, StyleSheet } from 'react-native';
 import * as Animatable from 'react-native-animatable';
 
 interface Props {
   error: string | null;
 }
 
-const ErrorBoundary: React.FC<Props> = ({ error }) => {
-  if (!error) {return null;}
+class ErrorBoundary extends React.Component<React.PropsWithChildren<Props>, { hasError: boolean; errorMessage: string | null }> {
+  constructor(props: React.PropsWithChildren<Props>) {
+    super(props);
+    this.state = { hasError: false, errorMessage: props.error || null };
+  }
 
-  return (
-    <Animatable.View animation="pulse" iterationCount="infinite" duration={1500} style={styles.container}>
-      <View style={styles.inner}>
-        <Animatable.Image source={require('../assets/icons/error.png')} style={styles.icon} />
-        <Text style={styles.text}>{error}</Text>
-      </View>
-    </Animatable.View>
-  );
-};
+  static getDerivedStateFromError(error: Error) {
+    console.error('ErrorBoundary caught an error:', error.message);
+    return { hasError: true, errorMessage: error.message };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('ErrorBoundary caught:', error, errorInfo);
+  }
+
+  componentDidUpdate(prevProps: Props) {
+    if (prevProps.error !== this.props.error) {
+      this.setState({ errorMessage: this.props.error, hasError: !!this.props.error });
+    }
+  }
+
+  render() {
+    if (!this.state.hasError || !this.state.errorMessage) {
+      return this.props.children;
+    }
+
+    return (
+      <Animatable.View animation="pulse" iterationCount="infinite" duration={1500} style={styles.container}>
+        <View style={styles.inner}>
+          <Image source={require('../assets/icons/error.png')} style={styles.icon} resizeMode="contain" />
+          <Text style={styles.text}>{this.state.errorMessage}</Text>
+        </View>
+      </Animatable.View>
+    );
+  }
+}
 
 const styles = StyleSheet.create({
-    icon: {
+  icon: {
     width: 60,
     height: 60,
     marginBottom: 15,

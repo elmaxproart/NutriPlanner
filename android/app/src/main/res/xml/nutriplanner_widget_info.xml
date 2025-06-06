@@ -7,5 +7,3 @@
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen"
     android:previewImage="@mipmap/ic_launcher" />
-
-    

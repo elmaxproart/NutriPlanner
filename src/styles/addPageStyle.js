@@ -1,7 +1,5 @@
 // styles.js
-import {StyleSheet, Dimensions} from 'react-native';
-
-const {width} = Dimensions.get('window');
+import {StyleSheet} from 'react-native';
 
 export const styles = StyleSheet.create({
   container: {
@@ -33,7 +31,7 @@ export const styles = StyleSheet.create({
     textAlign: 'center',
   },
 addButton: {
-  backgroundColor: '#181818', 
+  backgroundColor: '#181818',
   paddingVertical: 12,
   borderRadius: 10,
   alignItems: 'center',
@@ -59,7 +57,7 @@ addButton: {
     shadowRadius: 5,
     elevation: 5,
   },
-    addButton: {
+    addButton2: {
     backgroundColor: '#d64b28',
     flexDirection: 'row',
     padding: 10,

@@ -31,10 +31,21 @@
             <category android:name="android.intent.category.LAUNCHER" />
         </intent-filter>
       </activity>
+      
+ <!-- Service pour la bulle flottante -->
+        <service
+            android:name=".FloatingBubbleService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
 
-      <service android:name=".FloatingBubbleService" android:exported="false" />
+        <!-- Service pour le widget -->
+        <service
+            android:name=".WidgetRemoteViewsService"
+            android:permission="android.permission.BIND_REMOTEVIEWS"
+            android:exported="false" />
 
-        <!-- Receiver pour le widget -->
+        <!-- Widget Provider -->
         <receiver android:name=".NutriPlannerWidgetProvider" android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -43,18 +54,6 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/nutriplanner_widget_info" />
         </receiver>
-
-        <!-- Service pour actualiser le widget -->
-        <service android:name=".WidgetUpdateService" android:exported="false" />
-
-        <!-- Receiver pour redémarrer le service après un reboot -->
-        <receiver android:name=".BootReceiver" android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-            </intent-filter>
-        </receiver>
-
-
 
     </application>
 </manifest>

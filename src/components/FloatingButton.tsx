@@ -1,22 +1,68 @@
-import React, { useState } from 'react';
-import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, TouchableOpacity, Text, StyleSheet, DeviceEventEmitter, NativeModules } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import * as Animatable from 'react-native-animatable';
 import LinearGradient from 'react-native-linear-gradient';
 
 const FloatingButton: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const navigation = useNavigation();
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const navigation = useNavigation<any>();
+  const { FloatingBubbleModule } = NativeModules;
 
   const options = [
     { label: 'Ajouter un menu', screen: 'AddMenuPage' },
     { label: 'Voir les menus', screen: 'MenuScreen' },
   ];
 
-  const toggleMenu = () => setIsOpen(!isOpen);
+  useEffect(() => {
+    console.log('FloatingButton: Mounting component');
+
+    // Vérifier si le module natif est disponible
+    if (!FloatingBubbleModule) {
+      console.error('FloatingButton: FloatingBubbleModule not available');
+      return;
+    }
+
+    // Lancer le service de la bulle flottante
+    FloatingBubbleModule.startBubbleService().catch((error: any) => {
+      console.error('FloatingButton: Error starting bubble service:', error);
+    });
+
+    const positionSubscription = DeviceEventEmitter.addListener('FloatingBubblePosition', (data: number[]) => {
+      console.log('FloatingButton: Position update:', data);
+      setPosition({ x: data[0], y: data[1] });
+    });
+
+    const clickSubscription = DeviceEventEmitter.addListener('bubbleClick', () => {
+      console.log('FloatingButton: Bubble clicked, navigating to Home');
+      navigation.navigate('Dashboard');
+    });
+
+    const closeSubscription = DeviceEventEmitter.addListener('bubbleClose', () => {
+      console.log('FloatingButton: Bubble closed');
+      setIsOpen(false);
+    });
+
+    return () => {
+      console.log('FloatingButton: Unmounting component');
+      positionSubscription.remove();
+      clickSubscription.remove();
+      closeSubscription.remove();
+      // Arrêter le service lors du démontage
+      FloatingBubbleModule.stopBubbleService().catch((error: any) => {
+        console.error('FloatingButton: Error stopping bubble service:', error);
+      });
+    };
+  }, [FloatingBubbleModule, navigation]);
+
+  const toggleMenu = () => {
+    console.log('FloatingButton: Toggling menu, isOpen:', !isOpen);
+    setIsOpen(!isOpen);
+  };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { left: position.x, top: position.y }]}>
       {isOpen && (
         <Animatable.View animation="fadeIn" duration={300} style={styles.menu}>
           {options.map((option, index) => (
@@ -29,7 +75,8 @@ const FloatingButton: React.FC = () => {
               <TouchableOpacity
                 style={styles.menuItem}
                 onPress={() => {
-                  navigation.navigate(option.screen as never);
+                  console.log(`FloatingButton: Navigating to ${option.screen}`);
+                  navigation.navigate(option.screen);
                   setIsOpen(false);
                 }}
               >
@@ -47,17 +94,21 @@ const FloatingButton: React.FC = () => {
             end={{ x: 1, y: 1 }}
             style={styles.buttonGradient}
           >
-            <Animatable.Image
-              source={
-                isOpen
-                  ? require('../assets/close.png')
-                  : require('../assets/plus.png')
-              }
-              // eslint-disable-next-line react-native/no-inline-styles
-              style={{ width: 32, height: 32, tintColor: '#fff' }}
-              animation={isOpen ? 'rotate' : undefined}
-              duration={300}
-            />
+            <React.Fragment>
+              {isOpen ? (
+              <Animatable.Image
+                source={require('../assets/close.png')}
+                style={styles.image}
+                resizeMode="contain"
+              />
+              ) : (
+              <Animatable.Image
+                source={require('../assets/plus.png')}
+                style={styles.image}
+                resizeMode="contain"
+              />
+              )}
+            </React.Fragment>
           </LinearGradient>
         </Animatable.View>
       </TouchableOpacity>
@@ -66,10 +117,10 @@ const FloatingButton: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
+  image: { width: 32, height: 32, tintColor: '#fff' },
+
   container: {
     position: 'absolute',
-    bottom: 30,
-    right: 30,
     zIndex: 1000,
   },
   button: {

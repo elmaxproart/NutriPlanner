@@ -3,7 +3,7 @@ import { View, ActivityIndicator, Alert } from 'react-native';
 import auth from '@react-native-firebase/auth';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { BackHandler } from "react-native";
+import { BackHandler } from 'react-native';
 
 import LoginScreen from './screens/LoginScreen';
 import SignupScreen from './screens/Signup';
@@ -15,6 +15,7 @@ import OnboardingScreen from './screens/onboarding_screen/OnboardingScreen';
 import AddMenuPage from './screens/AddMenuPage';
 import EditScreen from './screens/EditScreen';
 import MenuPlanifiesScreen from './screens/MenuScreen';
+import ErrorBoundary from './components/ErrorBoundary';
 
 
 const Stack = createStackNavigator();
@@ -26,32 +27,32 @@ const App = () => {
 
 useEffect(() => {
   const backAction = () => {
-    Alert.alert("Quitter l'application", "Voulez-vous vraiment quitter ?", [
+    Alert.alert("Quitter l'application", 'Voulez-vous vraiment quitter ?', [
       {
-        text: "Annuler",
+        text: 'Annuler',
         onPress: () => null,
-        style: "cancel",
+        style: 'cancel',
       },
       {
-        text: "Oui",
+        text: 'Oui',
         onPress: () => BackHandler.exitApp(),
       },
     ]);
-    return true; 
+    return true;
   };
 
   const backHandler = BackHandler.addEventListener(
-    "hardwareBackPress",
+    'hardwareBackPress',
     backAction
   );
 
-  return () => backHandler.remove(); 
+  return () => backHandler.remove();
 }, []);
 
   useEffect(() => {
     const unsubscribe = auth().onAuthStateChanged((user) => {
       setUser(user);
-      if (initializing) setInitializing(false);
+      if (initializing) {setInitializing(false);}
     });
 
     return unsubscribe;
@@ -66,6 +67,7 @@ useEffect(() => {
   }
 
   return (
+    <ErrorBoundary error={null}>
     <NavigationContainer>
       <Stack.Navigator  screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
@@ -79,11 +81,16 @@ useEffect(() => {
           <Stack.Screen name="Home" component={Dashboard} />
         )}
         <Stack.Screen name="EditScreen" component={EditScreen} />
-         <Stack.Screen name="addMenu" component={AddMenuPage} /> 
+         <Stack.Screen name="addMenu" component={AddMenuPage} />
         <Stack.Screen name="menu" component={MenuPlanifiesScreen} />
       </Stack.Navigator>
     </NavigationContainer>
+    </ErrorBoundary>
   );
 };
+
+
+
+
 
 export default App;

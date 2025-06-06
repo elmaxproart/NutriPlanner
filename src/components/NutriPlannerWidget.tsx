@@ -1,9 +1,25 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, DeviceEventEmitter } from 'react-native';
 import * as Animatable from 'react-native-animatable';
 import LinearGradient from 'react-native-linear-gradient';
 
 const NutriPlannerWidget: React.FC = () => {
+  const [menuData, setMenuData] = useState<{ date: string; menuText: string } | null>(null);
+
+  useEffect(() => {
+    console.log('NutriPlannerWidget: Mounting component');
+
+    const subscription = DeviceEventEmitter.addListener('WidgetUpdate', (data: { date: string; menuText: string }) => {
+      console.log('NutriPlannerWidget: Received widget update:', data);
+      setMenuData(data);
+    });
+
+    return () => {
+      console.log('NutriPlannerWidget: Unmounting component');
+      subscription.remove();
+    };
+  }, []);
+
   return (
     <View style={styles.widget}>
       <LinearGradient
@@ -15,7 +31,11 @@ const NutriPlannerWidget: React.FC = () => {
         <Animatable.Text animation="flash" iterationCount="infinite" duration={2000} style={styles.title}>
           NutriPlanner
         </Animatable.Text>
-        <Text style={styles.subtitle}>Menu du jour: Chargement...</Text>
+        <Text style={styles.subtitle}>
+          {menuData
+            ? `Menu du ${menuData.date}: ${menuData.menuText}`
+            : 'Menu du jour: Chargement...'}
+        </Text>
       </LinearGradient>
     </View>
   );

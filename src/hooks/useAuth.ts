@@ -1,58 +1,36 @@
 import { useState, useEffect } from 'react';
 import auth from '@react-native-firebase/auth';
-import { signUp, login } from './SignUpFnAuth';
+import { logger } from '../utils/logger';
 
 export const useAuth = () => {
-  const [user, setUser] = useState<any>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsubscribe = auth().onAuthStateChanged(firebaseUser => {
-      setUser(firebaseUser);
+    const subscriber = auth().onAuthStateChanged(user => {
+      if (user) {
+        setUserId(user.uid);
+        logger.info('User authenticated', { userId: user.uid });
+      } else {
+        setUserId(null);
+        logger.info('No user authenticated');
+      }
       setLoading(false);
     });
-    return unsubscribe;
+    return subscriber;
   }, []);
 
-  const signup = async (email: string, password: string) => {
-    setLoading(true);
-    try {
-      const userCredential = await signUp(email, password);
-      setUser(userCredential);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur lors de la création du compte');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const signin = async (email: string, password: string) => {
-    setLoading(true);
-    try {
-      const userCredential = await login(email, password);
-      setUser(userCredential);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur lors de la connexion');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const signout = async () => {
-    setLoading(true);
+  const signOut = async () => {
     try {
       await auth().signOut();
-      setUser(null);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur lors de la déconnexion');
-    } finally {
-      setLoading(false);
+      setUserId(null);
+      logger.info('User signed out successfully');
+    } catch (err: any) {
+      logger.error('Sign out failed', { error: err.message });
+      setError(err.message || 'Erreur lors de la déconnexion');
     }
   };
 
-  return { user, loading, error, signup, signin, signout };
+  return { userId, loading, error, signOut };
 };

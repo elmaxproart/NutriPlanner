@@ -6,4 +6,7 @@ export type Unit =
   | 'unité'
   | 'cuillère à soupe'
   | 'cuillère à café'
-  | 'pincée';
+  | 'pincée'
+  | 'tranche'
+  | 'boîte'
+  | 'paquet';

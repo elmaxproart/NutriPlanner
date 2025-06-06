@@ -27,11 +27,11 @@ type MenuItem = {
   description: string;
   planningType?: 'jour' | 'semaine';
   addedAt?: any;
-  foodPick?: string; // image du plat
+  foodPick?: string;
   foodIngredients?: Ingredient[];
   price?: number;
   forFamilyPrice?: number;
-  day?: string; // ajouté pour le groupement par jour (si disponible)
+  day?: string;
 };
 
 const MenuPlanifiesScreen: React.FC = () => {
@@ -40,7 +40,7 @@ const MenuPlanifiesScreen: React.FC = () => {
   const [menusSemaine, setMenusSemaine] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // État modal et détail
+ 
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedItemDetail, setSelectedItemDetail] = useState<MenuItem | null>(null);
   const [currentStep, setCurrentStep] = useState(1);

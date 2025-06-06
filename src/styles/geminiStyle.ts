@@ -1,0 +1,188 @@
+import { StyleSheet, Dimensions } from 'react-native';
+
+const { width } = Dimensions.get('window');
+
+export const styles = StyleSheet.create({
+   cardImage: {
+    width: '100%',
+    height: 160,
+    borderRadius: 12,
+    marginBottom: 10,
+  },
+  container: {
+    flex: 1,
+    backgroundColor: '#0d0d0d',
+    padding: 16,
+  },
+  chatContainer: {
+    flex: 1,
+    paddingBottom: 20,
+    paddingHorizontal: 10,
+  },
+  messageContainer: {
+    marginVertical: 10,
+    maxWidth: width * 0.75,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+  },
+  userMessageContainer: {
+    alignSelf: 'flex-end',
+    justifyContent: 'flex-end',
+    marginLeft: 50,
+  },
+  aiMessageContainer: {
+    alignSelf: 'flex-start',
+    justifyContent: 'flex-start',
+    marginRight: 50,
+  },
+  messageBubble: {
+    padding: 12,
+    borderRadius: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+    maxWidth: '75%',
+    marginHorizontal: 8,
+  },
+  userMessageBubble: {
+    backgroundColor: '#2980b9',
+  },
+  aiMessageBubble: {
+    backgroundColor: '#1e1e1e',
+    borderBottomLeftRadius: 2,
+  },
+  messageText: {
+    fontSize: 16,
+    color: '#ffffff',
+    lineHeight: 22,
+  },
+  suggestionCard: {
+    backgroundColor: '#1e1e1e',
+    borderRadius: 16,
+    padding: 16,
+    marginVertical: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 5,
+  },
+  cardTitle: {
+    color: '#ffffff',
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 6,
+  },
+  cardDescription: {
+    color: '#b0b0b0',
+    fontSize: 14,
+    marginBottom: 10,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#333333',
+    backgroundColor: '#1a1a1a',
+  },
+  input: {
+    backgroundColor: '#2a2a2a',
+    padding: 14,
+    borderRadius: 10,
+    color: '#ffffff',
+    fontSize: 16,
+    marginBottom: 15,
+    flex: 1,
+    marginRight: 10,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+  },
+  sendButton: {
+    backgroundColor: '#d64b28',
+    borderRadius: 20,
+    padding: 10,
+    marginLeft: 10,
+    width: 50,
+    height: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // Styles manquants ajoutés
+  listItem: {
+    fontSize: 14,
+    color: '#ffffff',
+    marginVertical: 4,
+    paddingLeft: 10,
+  },
+  conversationItem: {
+    padding: 16,
+    backgroundColor: '#1e1e1e',
+    borderRadius: 8,
+    marginVertical: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  conversationDate: {
+    color: '#b0b0b0',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  conversationPreview: {
+    color: '#ffffff',
+    fontSize: 14,
+    marginTop: 4,
+  },
+  conversationList: {
+    paddingVertical: 10,
+  },
+  buttonGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  iconButton: {
+    padding: 10,
+    borderRadius: 25,
+    backgroundColor: '#333333',
+    marginHorizontal: 5,
+  },
+  utilityButtons: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    flexDirection: 'row',
+    zIndex: 10,
+  },
+  utilityButton: {
+    marginLeft: 8,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imageOption: {
+    margin: 8,
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  swipeActions: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 80,
+    height: '100%',
+    borderRadius: 8,
+  },
+  historyContainer: {
+    marginVertical: 10,
+  },
+});

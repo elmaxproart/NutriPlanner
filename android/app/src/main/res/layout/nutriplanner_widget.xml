@@ -1,25 +1,25 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
+    android:layout_height="wrap_content"
     android:orientation="vertical"
+    android:padding="16dp"
     android:background="@android:color/white"
-    android:padding="12dp">
+    android:gravity="center">
 
     <TextView
         android:id="@+id/widget_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="NutriPlanner"
+        android:text="Menus à venir"
         android:textSize="18sp"
         android:textStyle="bold"
-        android:textColor="#4285F4" />
+        android:textColor="@android:color/black"
+        android:layout_marginBottom="8dp"/>
 
-    <TextView
-        android:id="@+id/widget_menu"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Menu du jour: Chargement..."
-        android:textSize="14sp"
-        android:textColor="#333333"
-        android:layout_marginTop="4dp" />
+    <StackView
+        android:id="@+id/stack_view"
+        android:layout_width="match_parent"
+        android:layout_height="100dp"
+        android:loopViews="true" />
+
 </LinearLayout>

@@ -12,6 +12,7 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import AntDesign from 'react-native-vector-icons/AntDesign';
 import auth from '@react-native-firebase/auth';
+import React from 'react';
 
 const Welcome: React.FC<{navigation: any}> = ({navigation}) => {
   const imageSource: ImageSourcePropType = require('../assets/images/hamburgeur.jpg');

@@ -27,3 +27,17 @@ export type UserRole =
   | 'enfant'
   | 'conjoint'
   | 'autre';
+
+export type StoreCategory =
+  | 'supermarché'
+  | 'épicerie'
+  | 'boucherie'
+  | 'poissonnerie'
+  | 'marché local'
+  | 'en ligne';
+
+export  type MenuStatus =
+  |'planifié'
+  | 'terminé'
+  | 'annulé';
+

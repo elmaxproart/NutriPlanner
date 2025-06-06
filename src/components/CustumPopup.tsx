@@ -3,7 +3,6 @@ import { Modal, View, Text, Image, TouchableOpacity, StyleSheet } from 'react-na
 import * as Animatable from 'react-native-animatable';
 import LinearGradient from 'react-native-linear-gradient';
 
-// Icônes locales (à ajuster selon tes assets)
 const icons = {
   info: require('../assets/icons/info.png'),
   alert: require('../assets/icons/alert.png'),
@@ -21,8 +20,21 @@ type Props = {
 };
 
 const CustomPopup: React.FC<Props> = ({ visible, onClose, type, message, actionLabel = 'Fermer', onAction }) => {
+  console.log(`CustomPopup rendered: type=${type}, message=${message}, visible=${visible}`);
+
+  if (!visible) {return null;}
+
+  const handleActionPress = () => {
+    try {
+      onAction?.();
+      onClose();
+    } catch (error) {
+      console.error('CustomPopup action error:', error);
+    }
+  };
+
   return (
-    <Modal transparent visible={visible} animationType="fade">
+    <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <Animatable.View animation="zoomIn" duration={400} style={styles.container}>
           <LinearGradient
@@ -31,24 +43,24 @@ const CustomPopup: React.FC<Props> = ({ visible, onClose, type, message, actionL
             end={{ x: 1, y: 1 }}
             style={styles.gradient}
           >
-            <Image source={icons[type]} style={styles.icon} />
+            <Image source={icons[type]} style={styles.icon} resizeMode="contain" />
             <Text style={styles.title}>{type.charAt(0).toUpperCase() + type.slice(1)}</Text>
             <Text style={styles.message}>{message}</Text>
             <View style={styles.buttonContainer}>
               <TouchableOpacity
                 // eslint-disable-next-line react-native/no-inline-styles
                 style={[styles.button, onAction && { flex: 1, marginRight: 8 }]}
-                onPress={onClose}
+                onPress={() => {
+                  console.log('CustomPopup: Cancel button pressed');
+                  onClose();
+                }}
               >
                 <Text style={styles.buttonText}>Annuler</Text>
               </TouchableOpacity>
               {onAction && (
                 <TouchableOpacity
                   style={[styles.button, styles.actionButton]}
-                  onPress={() => {
-                    onAction();
-                    onClose();
-                  }}
+                  onPress={handleActionPress}
                 >
                   <LinearGradient
                     colors={['#4285f4', '#34a853']}
