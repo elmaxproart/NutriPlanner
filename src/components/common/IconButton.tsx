@@ -3,7 +3,7 @@ import { TouchableOpacity, StyleSheet } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 interface IconButtonProps {
-  iconName: string; // Nom de l'icône de MaterialCommunityIcons
+  iconName: string;
   onPress: () => void;
   size?: number;
   color?: string;

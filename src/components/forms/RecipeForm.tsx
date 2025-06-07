@@ -41,8 +41,10 @@ const UNIT_OPTIONS: Unit[] = [
 ];
 
 
+
 interface RecipeFormProps {
-  onSubmit: (recipe: Recette) => void;
+  onSubmit: (recipeData: Recette) => void;
+  onCancel: () => void;
   loading?: boolean;
   initialData?: Partial<Recette>;
   familyId: string;

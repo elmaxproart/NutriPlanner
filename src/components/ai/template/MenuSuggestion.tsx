@@ -1,17 +1,9 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import AntDesign from 'react-native-vector-icons/AntDesign';
 import { styles as geminiStyles } from '../../../styles/geminiStyle';
 import { Card } from '../../common/Card';
-
-interface Menu {
-  id: string;
-  typeRepas: string;
-  description: string;
-  plats: string[];
-  date?: string;
-  isVegetarian?: boolean;
-}
+import { Menu } from '../../../constants/entities';
 
 interface MenuSuggestionProps {
   menus: Menu[];
@@ -22,7 +14,7 @@ const MenuSuggestion = ({ menus, onSelectMenu }: MenuSuggestionProps) => {
   return (
     <View style={[geminiStyles.suggestionCard, localStyles.container]}>
       <View style={localStyles.header}>
-        <Icon name="food" size={24} color="#2980b9" style={localStyles.headerIcon} />
+        <AntDesign name="food" size={24} color="#2980b9" style={localStyles.headerIcon} />
         <Text style={[geminiStyles.messageText, localStyles.headerText]}>
           Voici vos suggestions de menus :
         </Text>
@@ -32,20 +24,20 @@ const MenuSuggestion = ({ menus, onSelectMenu }: MenuSuggestionProps) => {
           <Card key={menu.id || index} title={menu.typeRepas} style={localStyles.card}>
             <View style={localStyles.cardContent}>
               <View style={localStyles.menuInfo}>
-                {menu.isVegetarian && (
+                {menu.aiSuggestions && menu.aiSuggestions?.recettesAlternatives.length > 0 && (
                   <View style={localStyles.vegetarianBadge}>
-                    <Icon name="leaf" size={14} color="#27AE60" />
-                    <Text style={localStyles.badgeText}>Végétarien</Text>
+                    <AntDesign name="leaf" size={14} color="#27AE60" />
+                    <Text style={localStyles.badgeText}>Alternatives suggérées</Text>
                   </View>
                 )}
-                <Text style={geminiStyles.cardDescription}>{menu.description}</Text>
-                {menu.plats.length > 0 && (
+                <Text style={geminiStyles.cardDescription}>{menu.description || 'Pas de description'}</Text>
+                {menu.recettes.length > 0 && (
                   <View style={localStyles.platsContainer}>
-                    <Text style={localStyles.platsTitle}>Plats inclus :</Text>
-                    {menu.plats.map((plat, idx) => (
+                    <Text style={localStyles.platsTitle}>Recettes incluses :</Text>
+                    {menu.recettes.map((recette, idx) => (
                       <View key={idx} style={localStyles.platItem}>
-                        <Icon name="silverware" size={14} color="#b0b0b0" style={localStyles.platIcon} />
-                        <Text style={localStyles.platText}>{plat}</Text>
+                        <AntDesign name="silverware" size={14} color="#b0b0b0" style={localStyles.platIcon} />
+                        <Text style={localStyles.platText}>{recette.nom || 'Recette sans nom'}</Text>
                       </View>
                     ))}
                   </View>
@@ -55,13 +47,24 @@ const MenuSuggestion = ({ menus, onSelectMenu }: MenuSuggestionProps) => {
                     Prévu pour : {menu.date}
                   </Text>
                 )}
+                {menu.aiSuggestions && menu.aiSuggestions.ingredientsManquants.length > 0 && (
+                  <View style={localStyles.platsContainer}>
+                    <Text style={localStyles.platsTitle}>Ingrédients manquants :</Text>
+                    {menu.aiSuggestions?.ingredientsManquants.map((ing, idx) => (
+                      <View key={idx} style={localStyles.platItem}>
+                        <AntDesign name="basket" size={14} color="#b0b0b0" style={localStyles.platIcon} />
+                        <Text style={localStyles.platText}>{`${ing.nom} - ${ing.quantite} ${ing.unite}`}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
               </View>
               {onSelectMenu && (
                 <TouchableOpacity
                   onPress={() => onSelectMenu(menu)}
                   style={localStyles.actionButton}
                 >
-                  <Icon name="check-circle" size={20} color="#27AE60" />
+                  <AntDesign name="checkcircle" size={20} color="#27AE60" />
                   <Text style={localStyles.actionText}>Sélectionner</Text>
                 </TouchableOpacity>
               )}
@@ -70,7 +73,7 @@ const MenuSuggestion = ({ menus, onSelectMenu }: MenuSuggestionProps) => {
         ))
       ) : (
         <View style={localStyles.emptyContainer}>
-          <Icon name="food-off" size={40} color="#b0b0b0" />
+          <AntDesign name="food-off" size={40} color="#b0b0b0" />
           <Text style={localStyles.emptyText}>Aucun menu suggéré</Text>
         </View>
       )}

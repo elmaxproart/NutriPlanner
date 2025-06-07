@@ -1,102 +1,99 @@
-import React from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { FlatList, Text, TouchableOpacity, View, StyleSheet } from 'react-native';
 import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import AntDesign from 'react-native-vector-icons/AntDesign';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { styles as geminiStyles } from '../../styles/geminiStyle';
+import { useAIConversation } from '../../hooks/useAIConversation';
+import type { AiInteraction, Conversation } from '../../constants/entities';
 
-interface Conversation {
-  id: string;
-  date: string;
-  messages: { text: string; isUser: boolean }[];
-  title?: string;
+
+interface ItemAnimation {
+  animatedStyle: { transform: { scale: number }[] };
+  handlePressIn: () => void;
+  handlePressOut: () => void;
 }
 
-interface HistorySwipeProps {
-  conversations: Conversation[];
-  onLoadConversation: (conversation: Conversation) => void;
-  onDeleteConversation: (id: string) => void;
-  onArchiveConversation?: (id: string) => void;
+
+const useItemAnimation = (): ItemAnimation => {
+  const scale = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const handlePressIn = () => {
+    scale.value = withSpring(0.95);
+  };
+
+  const handlePressOut = () => {
+    scale.value = withSpring(1);
+  };
+
+  return { animatedStyle, handlePressIn, handlePressOut };
+};
+
+// Separate component for each conversation item
+interface ConversationItemProps {
+  item: Conversation;
+  onPress: () => void;
+  onDelete: () => void;
+  onArchive: () => void;
 }
 
-export const HistorySwipe = ({
-  conversations,
-  onLoadConversation,
-  onDeleteConversation,
-  onArchiveConversation,
-}: HistorySwipeProps) => {
-  const renderRightActions = (conversationId: string) => (
-    <TouchableOpacity
-      // eslint-disable-next-line react-native/no-inline-styles
-      style={[geminiStyles.swipeActions, { backgroundColor: '#E74C3C' }]}
-      onPress={() => onDeleteConversation(conversationId)}
-    >
-      <Icon name="delete" size={24} color="#fff" />
-      <Text style={localStyles.swipeActionText}>Supprimer</Text>
-    </TouchableOpacity>
-  );
+const ConversationItem: React.FC<ConversationItemProps> = React.memo(
+  ({ item, onPress, onDelete, onArchive }) => {
+    const { animatedStyle, handlePressIn, handlePressOut } = useItemAnimation();
 
-  const renderLeftActions = (conversationId: string) => (
-    <TouchableOpacity
-      // eslint-disable-next-line react-native/no-inline-styles
-      style={[geminiStyles.swipeActions, { backgroundColor: '#27AE60' }]}
-      onPress={() => onArchiveConversation?.(conversationId)}
-    >
-      <Icon name="archive" size={24} color="#fff" />
-      <Text style={localStyles.swipeActionText}>Archiver</Text>
-    </TouchableOpacity>
-  );
+    const renderRightActions = () => (
+      <TouchableOpacity
+        style={[geminiStyles.swipeActions, localStyles.deleteAction]}
+        onPress={onDelete}
+      >
+        <AntDesign name="delete" size={24} color="#fff" />
+        <Text style={localStyles.swipeActionText}>Supprimer</Text>
+      </TouchableOpacity>
+    );
 
-  const renderItem = ({ item }: { item: Conversation }) => {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const scale = useSharedValue(1);
+    const renderLeftActions = () => (
+      <TouchableOpacity
+        style={[geminiStyles.swipeActions, localStyles.archiveAction]}
+        onPress={onArchive}
+      >
+        <AntDesign name="archive" size={24} color="#fff" />
+        <Text style={localStyles.swipeActionText}>Archiver</Text>
+      </TouchableOpacity>
+    );
 
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const animatedStyle = useAnimatedStyle(() => ({
-      transform: [{ scale: scale.value }],
-    }));
-
-    const handlePressIn = () => {
-      scale.value = withSpring(0.95);
-    };
-
-    const handlePressOut = () => {
-      scale.value = withSpring(1);
-    };
-
-    const lastMessage = item.messages[item.messages.length - 1];
-    const previewText = lastMessage ? lastMessage.text.slice(0, 50) + (lastMessage.text.length > 50 ? '...' : '') : 'Aucune conversation';
+    const lastMessage = item.messages[item.messages.length - 1] as AiInteraction | undefined;
+    const previewText = lastMessage
+      ? (typeof lastMessage.content === 'string'
+          ? lastMessage.content
+          : JSON.stringify(lastMessage.content)
+        ).slice(0, 50) + (lastMessage.content.toString().length > 50 ? '...' : '')
+      : 'Aucune conversation';
 
     return (
-      <Swipeable
-        renderRightActions={() => renderRightActions(item.id)}
-        renderLeftActions={() => renderLeftActions(item.id)}
-      >
+      <Swipeable renderRightActions={renderRightActions} renderLeftActions={renderLeftActions}>
         <TouchableOpacity
           onPressIn={handlePressIn}
           onPressOut={handlePressOut}
-          onPress={() => onLoadConversation(item)}
+          onPress={onPress}
           style={[geminiStyles.conversationItem, localStyles.conversationItem]}
         >
           <Animated.View style={animatedStyle}>
             <View style={localStyles.conversationHeader}>
-              <Icon name="history" size={24} color="#2980b9" style={localStyles.icon} />
+              <AntDesign name="history" size={24} color="#2980b9" style={localStyles.icon} />
               <View style={localStyles.conversationInfo}>
-                <Text style={[geminiStyles.conversationDate, localStyles.date]}>
+                <Text style={[localStyles.conversationDate, localStyles.date]}>
                   {item.date}
                 </Text>
-                {item.title && (
-                  <Text style={localStyles.title}>
-                    {item.title}
-                  </Text>
-                )}
+                <Text style={localStyles.title}>{item.title}</Text>
               </View>
             </View>
-            <Text style={geminiStyles.conversationPreview}>
-              {previewText}
-            </Text>
+            <Text style={localStyles.conversationPreview}>{previewText}</Text>
             <View style={localStyles.messageCount}>
-              <Icon name="message-text" size={14} color="#b0b0b0" />
+              <AntDesign name="message1" size={14} color="#b0b0b0" />
               <Text style={localStyles.messageCountText}>
                 {item.messages.length} message{item.messages.length > 1 ? 's' : ''}
               </Text>
@@ -105,19 +102,64 @@ export const HistorySwipe = ({
         </TouchableOpacity>
       </Swipeable>
     );
-  };
+  }
+);
+
+interface HistorySwipeProps {
+  onLoadConversation?: (conversation: Conversation) => void;
+}
+
+export const HistorySwipe = ({ onLoadConversation }: HistorySwipeProps) => {
+  const { conversations, selectConversation, deleteConversation } = useAIConversation({
+    userId: '',
+    familyId: 'family1',
+  });
+
+  // Map conversations to ensure type safety
+  const formattedConversations: Conversation[] = useMemo(() => {
+    return conversations.map((conv: Conversation) => ({
+      id: conv.id || `conv-${Date.now()}`,
+      userId: conv.userId || '',
+      familyId: conv.familyId || 'family1',
+      date: conv.date || new Date().toISOString(),
+      messages: conv.messages || [],
+      title: conv.title || 'Conversation sans titre',
+      dateCreation: conv.dateCreation,
+      dateMiseAJour: conv.dateMiseAJour,
+    }));
+  }, [conversations]);
+
+  const renderItem = useCallback(
+    ({ item }: { item: Conversation }) => {
+      return (
+        <ConversationItem
+          item={item}
+          onPress={() => {
+            if (onLoadConversation) {
+              onLoadConversation(item);
+            } else {
+              selectConversation(item.id || '');
+            }
+          }}
+          onDelete={() => deleteConversation(item.id || '')}
+          onArchive={() => console.log(`Archiving conversation ${item.id || 'unknown'}`)}
+        />
+      );
+    },
+    [selectConversation, onLoadConversation, deleteConversation]
+  );
 
   return (
     <GestureHandlerRootView style={geminiStyles.historyContainer}>
       <FlatList
-        data={conversations}
+        data={formattedConversations}
         horizontal
         showsHorizontalScrollIndicator={false}
         renderItem={renderItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.id || `key-${Date.now()}`}
         ListEmptyComponent={
           <View style={localStyles.emptyContainer}>
-            <Icon name="chat-remove" size={40} color="#b0b0b0" />
+            <AntDesign name="chat-off" size={40} color="#b0b0b0" />
             <Text style={localStyles.emptyText}>Aucune conversation</Text>
           </View>
         }
@@ -168,6 +210,12 @@ const localStyles = StyleSheet.create({
     marginTop: 4,
     textAlign: 'center',
   },
+  deleteAction: {
+    backgroundColor: '#E74C3C',
+  },
+  archiveAction: {
+    backgroundColor: '#27AE60',
+  },
   emptyContainer: {
     flex: 1,
     alignItems: 'center',
@@ -178,6 +226,17 @@ const localStyles = StyleSheet.create({
     color: '#b0b0b0',
     fontSize: 16,
     marginTop: 10,
+  },
+  // Added missing styles locally
+  conversationDate: {
+    color: '#b0b0b0',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  conversationPreview: {
+    color: '#ffffff',
+    fontSize: 14,
+    marginTop: 4,
   },
 });
 

@@ -46,7 +46,7 @@ const MenuPlanifiesScreen: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(1);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) {return;}
 
     const fetchPlannedMenus = async () => {
       setLoading(true);
@@ -125,14 +125,14 @@ const MenuPlanifiesScreen: React.FC = () => {
   // Groupement des menus de la semaine par jour
   const groupedMenusByDay = menusSemaine.reduce<Record<string, MenuItem[]>>((acc, item) => {
     const day = item.day || 'Inconnu';
-    if (!acc[day]) acc[day] = [];
+    if (!acc[day]) {acc[day] = [];}
     acc[day].push(item);
     return acc;
   }, {});
 
   // Contenu du modal de détail
   const renderModalContent = () => {
-    if (!selectedItemDetail) return null;
+    if (!selectedItemDetail) {return null;}
 
     const {
       foodName,

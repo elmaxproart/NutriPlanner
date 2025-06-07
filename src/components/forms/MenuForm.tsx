@@ -7,7 +7,7 @@ import { ProgressBar } from '../common/ProgressBar';
 import { validateMenu } from '../../utils/dataValidators';
 import { formatDate, generateId } from '../../utils/helpers';
 import { logger } from '../../utils/logger';
-import type { Menu } from '../../constants/entities';
+import type { Menu, Recette } from '../../constants/entities';
 import { MealType, MenuStatus } from '../../constants/categories';
 import { useMenus } from '../../hooks/useMenus';
 import { useRecipes } from '../../hooks/useRecipes';
@@ -44,8 +44,8 @@ export const MenuForm = ({ onSubmit, loading = false, initialData, familyId, cre
 
   const [date, setDate] = useState(initialData?.date || formatDate(new Date()));
   const [typeRepas, setTypeRepas] = useState<MealType>(initialData?.typeRepas || MEAL_TYPE_OPTIONS[0]); // Use first option as default
-  const [recettes, setRecettes] = useState<{ recetteId: string; portionsServies: number }[]>(
-    initialData?.recettes || [{ recetteId: '', portionsServies: 1 }]
+  const [recettes, setRecettes] = useState<Recette[]>(
+    initialData?.recettes || []
   );
   const [description, setDescription] = useState(initialData?.description || '');
   const [notes, setNotes] = useState(initialData?.notes || '');
@@ -105,7 +105,7 @@ export const MenuForm = ({ onSubmit, loading = false, initialData, familyId, cre
   }, [calculateEstimatedMenuCost, validateForm, formErrors.length, fadeAnim]);
 
   const handleAddRecette = useCallback(() => {
-    setRecettes(prev => [...prev, { recetteId: '', portionsServies: 1 }]);
+    setRecettes(prev => [...prev]);
     logger.info('Ajout d’une recette au menu', { recettesLength: recettes.length + 1 });
   }, [recettes.length]);
 
@@ -183,8 +183,8 @@ export const MenuForm = ({ onSubmit, loading = false, initialData, familyId, cre
         <View key={index} style={styles.itemRowContainer}>
           <View style={styles.pickerContainer}>
             <Picker
-              selectedValue={recette.recetteId}
-              onValueChange={(itemValue) => handleRecetteChange(index, 'recetteId', itemValue as string)}
+              selectedValue={recette.id}
+              onValueChange={(itemValue) => handleRecetteChange(index, 'id', itemValue as string)}
               style={styles.picker}
             >
               <Picker.Item label="Sélectionner une recette" value="" />
@@ -194,8 +194,8 @@ export const MenuForm = ({ onSubmit, loading = false, initialData, familyId, cre
             </Picker>
           </View>
           <Input
-            value={recette.portionsServies.toString()}
-            onChangeText={(val) => handleRecetteChange(index, 'portionsServies', Number(val) || 1)}
+            value={recette.portions.toString()}
+            onChangeText={(val) => handleRecetteChange(index, 'portions', Number(val) || 1)}
             placeholder="Portions servies"
             iconName="account-group"
             iconPosition="left"
@@ -245,7 +245,7 @@ export const MenuForm = ({ onSubmit, loading = false, initialData, familyId, cre
         iconName="currency-eur"
         iconPosition="left"
         keyboardType="decimal-pad"
-        editable={false} // This field is calculated, not directly editable
+        editable={false}
       />
 
       <View style={styles.pickerContainer}>

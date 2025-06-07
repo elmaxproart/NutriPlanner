@@ -3,7 +3,7 @@ import { StyleSheet, Dimensions } from 'react-native';
 const { width } = Dimensions.get('window');
 
 export const styles = StyleSheet.create({
-   cardImage: {
+  cardImage: {
     width: '100%',
     height: 160,
     borderRadius: 12,
@@ -111,13 +111,67 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-
-  // Styles manquants ajoutés
-  listItem: {
+  // New styles
+  geminiLoadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    backgroundColor: '#1e1e1e',
+    borderRadius: 8,
+  },
+  geminiLoadingText: {
+    color: '#b0b0b0',
     fontSize: 14,
+    marginLeft: 8,
+  },
+  sentImage: {
+    width: 200,
+    height: 200,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  senderName: {
+    fontSize: 12,
+    color: '#b0b0b0',
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  timestamp: {
+    fontSize: 10,
+    color: '#666',
+    alignSelf: 'flex-end',
+    marginTop: 4,
+  },
+  copyIcon: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    padding: 4,
+  },
+  chatContentContainer: {
+    paddingBottom: 10,
+  },
+  imageGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
+  thumbnail: {
+    width: 100,
+    height: 100,
+    borderRadius: 8,
+  },
+  suggestionItem: {
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  suggestionText: {
     color: '#ffffff',
-    marginVertical: 4,
-    paddingLeft: 10,
+    fontSize: 16,
+  },
+  suggestionList: {
+    paddingBottom: 10,
   },
   conversationItem: {
     padding: 16,
@@ -130,18 +184,38 @@ export const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  conversationDate: {
-    color: '#b0b0b0',
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  conversationPreview: {
+  conversationText: {
     color: '#ffffff',
-    fontSize: 14,
-    marginTop: 4,
+    fontSize: 16,
   },
-  conversationList: {
-    paddingVertical: 10,
+  conversationActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 8,
+  },
+  smallIconButton: {
+    padding: 6,
+    borderRadius: 12,
+    backgroundColor: '#333',
+    marginLeft: 8,
+  },
+  newConversationButton: {
+    padding: 12,
+    backgroundColor: '#2a2a2a',
+    borderRadius: 8,
+    marginTop: 8,
+    alignItems: 'center',
+  },
+  newConversationText: {
+    color: '#2980b9',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  listItem: {
+    fontSize: 14,
+    color: '#ffffff',
+    marginVertical: 4,
+    paddingLeft: 10,
   },
   buttonGroup: {
     flexDirection: 'row',

@@ -16,23 +16,27 @@ export class RecipeService {
     try {
       const firestoreService = new FirestoreService(userId, familyId);
       const recipes = await firestoreService.getRecipes();
-      const recipe = recipes.find(r => r.id === recipeId) || null;
+      const recipe = recipes.find((r) => r.id === recipeId) || null;
       if (recipe) {logger.info('Recipe fetched by ID', { recipeId });}
       return recipe;
     } catch (error) {
-      logger.error('Error fetching recipe by ID', { error });
+      logger.error('Error fetching recipe by ID', { error: error instanceof Error ? error.message : error });
       throw new Error('Failed to fetch recipe');
     }
   }
 
-  async searchRecipes(criteria: { categorie?: string; difficulte?: string; maxTime: number }, userId: string, familyId: string): Promise<Recette[]> {
+  async searchRecipes(
+    criteria: { categorie?: string; difficulte?: string; maxTime: number },
+    userId: string,
+    familyId: string
+  ): Promise<Recette[]> {
     try {
       const firestoreService = new FirestoreService(userId, familyId);
       let recipes = await firestoreService.getRecipes();
-      if (criteria.categorie) {recipes = recipes.filter(r => r.categorie === criteria.categorie);}
-      if (criteria.difficulte) {recipes = recipes.filter(r => r.difficulte === criteria.difficulte);}
+      if (criteria.categorie) {recipes = recipes.filter((r) => r.categorie === criteria.categorie);}
+      if (criteria.difficulte) {recipes = recipes.filter((r) => r.difficulte === criteria.difficulte);}
       if (criteria.maxTime !== undefined) {
-        recipes = recipes.filter(r => {
+        recipes = recipes.filter((r) => {
           const prepTime = r.tempsPreparation || 0;
           const cookTime = r.tempsCuisson || 0;
           return prepTime + cookTime <= criteria.maxTime;
@@ -41,20 +45,25 @@ export class RecipeService {
       logger.info('Recipes searched', { criteria, count: recipes.length });
       return recipes;
     } catch (error) {
-      logger.error('Error searching recipes', { error });
+      logger.error('Error searching recipes', { error: error instanceof Error ? error.message : error });
       throw new Error('Failed to search recipes');
     }
   }
 
-  async suggestRecipes(ingredients: Ingredient[], preferences: { niveauEpices: number; cuisinesPreferees: string[] }, userId: string, familyId: string): Promise<Recette[]> {
+  async suggestRecipes(
+    ingredients: Ingredient[],
+    preferences: { niveauEpices: number; cuisinesPreferees: string[] },
+    userId: string,
+    familyId: string
+  ): Promise<Recette[]> {
     try {
-      const recipes = await this.geminiService.generateRecipeSuggestions(ingredients, preferences);
+      const recipes = await this.geminiService.generateRecipeSuggestionsFromAI(ingredients, preferences);
       const firestoreService = new FirestoreService(userId, familyId);
-      await Promise.all(recipes.map(recipe => firestoreService.addRecipe(recipe)));
+      await Promise.all(recipes.map((recipe) => firestoreService.addRecipe(recipe)));
       logger.info('Recipes suggested and saved', { count: recipes.length });
       return recipes;
     } catch (error) {
-      logger.error('Error suggesting recipes', { error });
+      logger.error('Error suggesting recipes', { error: error instanceof Error ? error.message : error });
       throw new Error('Failed to suggest recipes');
     }
   }
@@ -66,18 +75,20 @@ export class RecipeService {
       throw new Error(`Validation failed: ${errors.join(', ')}`);
     }
     try {
-      const analysis = await this.geminiService.analyzeRecipe(recipe);
+      const analysis = await this.geminiService.analyzeRecipeWithAI(recipe, []); // Pas de membres spécifiques ici
       const totalCalories = analysis.calories;
       const totalIngredients = recipe.ingredients.length;
-      const avgNutritionalValue = totalIngredients > 0 ? {
-        proteins: (analysis.calories * 0.2) / totalIngredients, // Approximation
-        carbs: (analysis.calories * 0.5) / totalIngredients,
-        fats: (analysis.calories * 0.3) / totalIngredients,
-      } : { proteins: 0, carbs: 0, fats: 0 };
+      const avgNutritionalValue = totalIngredients > 0
+        ? {
+            proteins: (analysis.calories * 0.2) / totalIngredients, // Approximation
+            carbs: (analysis.calories * 0.5) / totalIngredients,
+            fats: (analysis.calories * 0.3) / totalIngredients,
+          }
+        : { proteins: 0, carbs: 0, fats: 0 };
       logger.info('Nutritional value analyzed', { recipeId: recipe.id });
       return { calories: totalCalories, ...avgNutritionalValue };
     } catch (error) {
-      logger.error('Error analyzing nutritional value', { error });
+      logger.error('Error analyzing nutritional value', { error: error instanceof Error ? error.message : error });
       throw new Error('Failed to analyze nutritional value');
     }
   }
@@ -90,7 +101,7 @@ export class RecipeService {
       logger.info('Recipe cost estimated', { recipeId: recipe.id, cost });
       return cost;
     } catch (error) {
-      logger.error('Error estimating recipe cost', { error });
+      logger.error('Error estimating recipe cost', { error: error instanceof Error ? error.message : error });
       throw new Error('Failed to estimate recipe cost');
     }
   }

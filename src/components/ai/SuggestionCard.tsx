@@ -80,7 +80,7 @@ export const SuggestionCard = ({
           <TouchableOpacity onPress={handleCopy} style={localStyles.actionButton}>
             <Icon name={copied ? 'check' : 'content-copy'} size={20} color={copied ? '#27AE60' : '#2980b9'} />
 
-            <Text style={[localStyles.actionText, copied && { color: '#27AE60' }]}>
+            <Text style={[localStyles.actionText, copied &&  localStyles.colorperso]}>
               {copied ? 'Copié !' : 'Copier'}
             </Text>
           </TouchableOpacity>
@@ -101,6 +101,10 @@ export const SuggestionCard = ({
 };
 
 const localStyles = StyleSheet.create({
+
+    colorperso: {
+        color: '#27AE60',
+    },
   cardContainer: {
     padding: 16,
   },

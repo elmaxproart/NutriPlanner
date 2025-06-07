@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import { FirestoreService } from '../services/FirestoreService';
+import { FirestoreService } from '../services/FirestoreService'; // Assurez-vous que ce chemin est correct
 import {
   MembreFamille,
   Ingredient,
@@ -13,7 +13,7 @@ import {
   AiInteraction,
   Conversation,
 } from '../constants/entities';
-import { logger } from '../utils/logger';
+import { logger } from '../utils/logger'; // Assurez-vous que ce chemin est correct
 
 type CollectionType =
   | 'FamilyMembers'
@@ -29,6 +29,15 @@ type CollectionType =
   | 'conversations';
 
 export const useFirestore = (userId: string, familyId: string) => {
+  if (!userId || !familyId) {
+    // Il est préférable de gérer cela au niveau du composant appelant pour éviter un crash direct de l'application
+    // ou de retourner un état indiquant que le hook n'est pas prêt.
+    logger.error('userId et familyId sont requis pour initialiser useFirestore.');
+    // Vous pourriez retourner un objet { loading: false, error: '...' } ici au lieu de throw
+    // Pour l'instant, conservons le throw comme dans votre code initial.
+    throw new Error('userId et familyId sont requis pour initialiser useFirestore.');
+  }
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,10 +45,6 @@ export const useFirestore = (userId: string, familyId: string) => {
 
   const getCollection = useCallback(
     async <T>(collectionName: CollectionType, param?: string): Promise<T[]> => {
-      if (!userId || !familyId) {
-        logger.warn('userId or familyId is missing, cannot fetch collection.');
-        return [];
-      }
       setLoading(true);
       setError(null);
       try {
@@ -67,32 +72,35 @@ export const useFirestore = (userId: string, familyId: string) => {
             data = (await firestoreService.getStores()) as T[];
             break;
           case 'StoreItems':
-            if (!param) {throw new Error('storeId is required for StoreItems');}
+            if (!param) {throw new Error('storeId est requis pour récupérer les StoreItems.');}
             data = (await firestoreService.getStoreItems(param)) as T[];
             break;
           case 'HistoriqueRepas':
+            if (!param) {throw new Error('Un paramètre (ex. date ou menuId) est requis pour HistoriqueRepas.');}
             data = (await firestoreService.getHistoriqueRepas(param)) as T[];
             break;
           case 'aiInteractions':
-            data = (await firestoreService.getAiInteractions()) as T[];
+            if (!param) {throw new Error('conversationId est requis pour récupérer les aiInteractions.');}
+            data = (await firestoreService.getAiInteractionsForConversation(param)) as T[];
             break;
           case 'conversations':
             data = (await firestoreService.getConversations()) as T[];
             break;
           default:
-            throw new Error(`Collection "${collectionName}" not supported.`);
+            throw new Error(`Collection "${collectionName}" non prise en charge.`);
         }
-        logger.info(`${collectionName} fetched successfully`, { count: data.length });
+        logger.info(`${collectionName} récupérée avec succès`, { count: data.length });
         return data;
       } catch (err: any) {
-        logger.error(`Error fetching ${collectionName}`, { error: err.message, stack: err.stack });
-        setError(err.message || `Erreur lors de la récupération des ${collectionName}`);
+        const errorMsg = err.message || `Erreur lors de la récupération des ${collectionName}`;
+        logger.error(`Erreur lors de la récupération de ${collectionName}`, { error: errorMsg, stack: err.stack });
+        setError(errorMsg);
         return [];
       } finally {
         setLoading(false);
       }
     },
-    [familyId, firestoreService, userId]
+    [firestoreService]
   );
 
   const addEntity = useCallback(
@@ -108,7 +116,7 @@ export const useFirestore = (userId: string, familyId: string) => {
         | Omit<Store, 'id' | 'dateCreation' | 'dateMiseAJour'>
         | { storeId: string; item: Omit<StoreItem, 'id' | 'dateMiseAJour'> }
         | Omit<HistoriqueRepas, 'id' | 'dateCreation' | 'dateMiseAJour'>
-        | Omit<AiInteraction, 'id' | 'dateCreation' | 'dateMiseAJour'>
+        | { conversationId: string; interaction: Omit<AiInteraction, 'id' | 'dateCreation' | 'dateMiseAJour'> }
         | Omit<Conversation, 'id' | 'dateCreation' | 'dateMiseAJour'>
     ): Promise<string | null> => {
       setLoading(true);
@@ -145,20 +153,89 @@ export const useFirestore = (userId: string, familyId: string) => {
             id = await firestoreService.addHistoriqueRepas(entity as Omit<HistoriqueRepas, 'id' | 'dateCreation' | 'dateMiseAJour'>);
             break;
           case 'aiInteractions':
-            id = await firestoreService.addAiInteractionToConversation(entity as Omit<AiInteraction, 'id' | 'dateCreation' | 'dateMiseAJour'>);
+            const { conversationId, interaction } = entity as {
+              conversationId: string;
+              interaction: Omit<AiInteraction, 'id' | 'dateCreation' | 'dateMiseAJour'>;
+            };
+            if (!conversationId) {throw new Error('conversationId est requis pour ajouter une interaction.');}
+            id = await firestoreService.addAiInteractionToConversation(conversationId, interaction);
             break;
           case 'conversations':
             id = await firestoreService.addConversation(entity as Omit<Conversation, 'id' | 'dateCreation' | 'dateMiseAJour'>);
             break;
           default:
-            throw new Error(`Collection "${collectionName}" not supported for adding.`);
+            throw new Error(`Collection "${collectionName}" non prise en charge pour l'ajout.`);
         }
-        logger.info(`${collectionName} added successfully`, { id });
+        logger.info(`${collectionName} ajouté avec succès`, { id });
         return id;
       } catch (err: any) {
-        logger.error(`Error adding entity to ${collectionName}`, { error: err.message, stack: err.stack });
-        setError(err.message || `Erreur lors de l’ajout dans ${collectionName}`);
+        const errorMsg = err.message || `Erreur lors de l’ajout dans ${collectionName}`;
+        logger.error(`Erreur lors de l'ajout dans ${collectionName}`, { error: errorMsg, stack: err.stack });
+        setError(errorMsg);
         return null;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [firestoreService]
+  );
+
+  const deleteEntity = useCallback(
+    async (collectionName: CollectionType, id: string): Promise<boolean> => {
+      setLoading(true);
+      setError(null);
+      try {
+        let success = false;
+        switch (collectionName) {
+          case 'FamilyMembers':
+            success = await firestoreService.deleteFamilyMember(id);
+            break;
+          case 'Ingredients':
+            success = await firestoreService.deleteIngredient(id);
+            break;
+          case 'Recipes':
+            success = await firestoreService.deleteRecipe(id);
+            break;
+          case 'Menus':
+            success = await firestoreService.deleteMenu(id);
+            break;
+          case 'ShoppingLists':
+            success = await firestoreService.deleteShoppingList(id);
+            break;
+          case 'Budgets':
+            success = await firestoreService.deleteBudget(id);
+            break;
+          case 'Stores':
+            success = await firestoreService.deleteStore(id);
+            break;
+          case 'StoreItems':
+           // success = await firestoreService.deleteStoreItem(id);
+            break;
+          case 'HistoriqueRepas':
+            success = await firestoreService.deleteHistoriqueRepas(id);
+            break;
+          /*case 'aiInteractions':
+            // Note: If deleteAiInteraction in FirestoreService needs conversationId, you'd need to pass it here.
+            // Example: success = await firestoreService.deleteAiInteraction(someConversationId, id);
+            success = await firestoreService.deleteAiInteraction(id);
+            break;*/
+          case 'conversations':
+            success = await firestoreService.deleteConversation(id);
+            break;
+          default:
+            throw new Error(`Collection "${collectionName}" non prise en charge pour la suppression.`);
+        }
+        if (success) {
+          logger.info(`${collectionName} avec ID ${id} supprimé avec succès`);
+        } else {
+          logger.warn(`${collectionName} avec ID ${id} n'a pas pu être supprimé (peut-être non trouvé ou permissions).`);
+        }
+        return success;
+      } catch (err: any) {
+        const errorMsg = err.message || `Erreur lors de la suppression de ${collectionName}`;
+        logger.error(`Erreur lors de la suppression de ${collectionName}`, { error: errorMsg, stack: err.stack });
+        setError(errorMsg);
+        return false;
       } finally {
         setLoading(false);
       }
@@ -171,5 +248,6 @@ export const useFirestore = (userId: string, familyId: string) => {
     error,
     getCollection,
     addEntity,
+    deleteEntity,
   };
 };

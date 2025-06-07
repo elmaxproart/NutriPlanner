@@ -2,17 +2,12 @@ import React from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { styles as geminiStyles } from '../../styles/geminiStyle';
+import { styles as geminiStyles } from '../../styles/geminiStyle'; // Assuming geminiStyles defines card styling
+import { MembreFamille } from '../../constants/entities';
+import { calculateAge } from '../../utils/helpers';
 
 interface FamilyCardProps {
-  member: {
-    nom: string;
-    prenom?: string;
-    photoProfil?: string;
-    preferencesAlimentaires: string[];
-    restrictionsAlimentaires?: string[];
-    age?: number;
-  };
+  member: MembreFamille;
   onPress: () => void;
   onSendToAI?: (message: string) => void;
 }
@@ -32,7 +27,6 @@ export const FamilyCard = ({ member, onPress, onSendToAI }: FamilyCardProps) => 
   const handlePressIn = () => {
     scale.value = withSpring(0.95);
   };
-
   const handlePressOut = () => {
     scale.value = withSpring(1);
   };
@@ -40,26 +34,23 @@ export const FamilyCard = ({ member, onPress, onSendToAI }: FamilyCardProps) => 
   const handleButtonPressIn = () => {
     buttonScale.value = withSpring(0.9);
   };
-
   const handleButtonPressOut = () => {
     buttonScale.value = withSpring(1);
   };
 
-  const hasRestrictions = member.restrictionsAlimentaires && member.restrictionsAlimentaires.length > 0;
+  const hasRestrictions = member.restrictionsMedicales && member.restrictionsMedicales.length > 0;
 
   return (
-    <TouchableOpacity
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
-      onPress={onPress}
-      style={[geminiStyles.suggestionCard, localStyles.cardContainer]}
-    >
-      <Animated.View style={animatedStyle}>
+    <Animated.View style={[geminiStyles.cardDescription, localStyles.cardContainer, animatedStyle]}>
+      <TouchableOpacity
+        onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        style={geminiStyles.cardImage}
+      >
         <View style={localStyles.header}>
           <Image
-            source={{
-              uri: member.photoProfil || '../assets/images/default_profile.png',
-            }}
+            source={member.photoProfil ? { uri: member.photoProfil } : require('../../assets/images/ia.jpg')}
             style={localStyles.profileImage}
           />
           {hasRestrictions && (
@@ -68,46 +59,55 @@ export const FamilyCard = ({ member, onPress, onSendToAI }: FamilyCardProps) => 
             </View>
           )}
         </View>
+
         <Text style={geminiStyles.cardTitle}>
           {member.prenom ? `${member.prenom} ${member.nom}` : member.nom}
         </Text>
-        {member.age && (
+        {calculateAge(member.dateNaissance) && (
           <Text style={localStyles.ageText}>
-            Âge : {member.age} ans
+            Âge : {calculateAge(member.dateNaissance)} ans
           </Text>
         )}
+
         <View style={localStyles.preferencesContainer}>
           <Icon name="food-apple" size={16} color="#27AE60" style={localStyles.icon} />
           <Text style={geminiStyles.cardDescription}>
             Préférences : {member.preferencesAlimentaires.length > 0 ? member.preferencesAlimentaires.join(', ') : 'Aucune'}
           </Text>
         </View>
+
         {hasRestrictions && (
           <View style={localStyles.restrictionsContainer}>
-            <Icon name="alert-circle-outline" size={16} color="#E74C3C" style={localStyles.icon} />
+            <Icon name="allergy" size={16} color="#E74C3C" style={localStyles.icon} />
             <Text style={localStyles.restrictionsText}>
-              Restrictions : {member.restrictionsAlimentaires?.join(', ')}
+              Restrictions : {member.preferencesAlimentaires?.join(', ')}
             </Text>
           </View>
         )}
-        <TouchableOpacity
-          onPressIn={handleButtonPressIn}
-          onPressOut={handleButtonPressOut}
-          onPress={() => onSendToAI?.(`Suggérer un repas pour ${member.nom}`)}
-          style={localStyles.actionButton}
-        >
-          <Animated.View style={[localStyles.actionButtonInner, animatedButtonStyle]}>
-            <Icon name="chef-hat" size={20} color="#ffffff" />
-            <Text style={localStyles.actionButtonText}>Suggérer un repas</Text>
-          </Animated.View>
-        </TouchableOpacity>
-      </Animated.View>
-    </TouchableOpacity>
+
+        {onSendToAI && (
+          <TouchableOpacity
+            onPressIn={handleButtonPressIn}
+            onPressOut={handleButtonPressOut}
+            onPress={() => onSendToAI(`Suggérer un repas pour ${member.prenom || member.nom}`)}
+            style={localStyles.actionButton}
+          >
+            <Animated.View style={[localStyles.actionButtonInner, animatedButtonStyle]}>
+              <Icon name="robot-happy-outline" size={18} color="#ffffff" />
+              <Text style={localStyles.actionButtonText}>
+                Suggérer un repas
+              </Text>
+            </Animated.View>
+          </TouchableOpacity>
+        )}
+      </TouchableOpacity>
+    </Animated.View>
   );
 };
 
 const localStyles = StyleSheet.create({
   cardContainer: {
+    // These styles are specific to how FamilyCard looks within the geminiStyles.card context
     padding: 20,
     marginVertical: 10,
     position: 'relative',
@@ -136,6 +136,7 @@ const localStyles = StyleSheet.create({
     color: '#b0b0b0',
     fontSize: 14,
     marginBottom: 8,
+    textAlign: 'center', // Center align age text
   },
   preferencesContainer: {
     flexDirection: 'row',
@@ -150,7 +151,7 @@ const localStyles = StyleSheet.create({
   restrictionsText: {
     color: '#E74C3C',
     fontSize: 14,
-    flex: 1,
+    flex: 1, // Allow text to wrap
     flexWrap: 'wrap',
   },
   icon: {
@@ -178,3 +179,4 @@ const localStyles = StyleSheet.create({
 });
 
 export default FamilyCard;
+

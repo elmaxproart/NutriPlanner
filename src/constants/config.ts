@@ -1,5 +1,5 @@
-export const GEMINI_API_KEY = 'TA_CLÉ_API_GEMINI';
-export const GEMINI_API_URL = 'https://api.gemini.com/v1';
+export const GEMINI_API_KEY = 'AIzaSyAW1p2ooZ6e-rFAljiciIYbHWemGCX3r1I';
+export const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta';
 
 export const APP_CONFIG = {
   defaultCurrency: 'EUR',

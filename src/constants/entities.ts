@@ -4,6 +4,7 @@
 import type { IngredientCategory, RecipeCategory, MealType, UserRole, StoreCategory } from './categories';
 import type { Unit } from './units';
 import type { Currency } from './config';
+import { ImageSourcePropType } from 'react-native';
 
 
 /**
@@ -276,21 +277,23 @@ export interface HistoriqueRepas {
 export interface Menu extends BaseEntity {
   date: string; // AAAA-MM-DD: La date à laquelle ce repas est planifié ou a été consommé.
   typeRepas: MealType; // ex: 'Petit déjeuner', 'Déjeuner', 'Dîner', 'Collation'.
-  recettes: Recette[] // Références aux IDs de Recettes.
+  recettes: Omit<Recette[] , 'id'>; // Références aux IDs de Recettes.
   foodName?: string; // Optionnel: Un nom générique pour l'aliment si aucune recette spécifique n'est utilisée.
   foodPick?: string; // Optionnel: Un choix spécifique pour le repas (ex: "Pizza commandée").
   description?: string; // Notes additionnelles sur le repas.
   coutTotalEstime?: number;
+  image?: ImageSourcePropType;
   coutReel?: number;
   statut: 'planifié' | 'terminé' | 'annulé';
   notes?: string;
   feedback?: {
-    userId: string; // Référence à MembreFamille.userId.
-    note: number; // Note de 1 à 5.
+    userId: string;
+    note: number;
+    date: string;
     commentaire: string;
   }[];
   aiSuggestions?: {
-    recettesAlternatives: string[]; // Suggestions d'IDs de recettes alternatives.
+    recettesAlternatives: string[];
     ingredientsManquants: { nom: string; quantite: number; unite: Unit }[]; // Ingrédients manquants pour ce menu.
   };
 }

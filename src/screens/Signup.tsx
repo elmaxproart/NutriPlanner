@@ -9,59 +9,79 @@ import {
   StyleSheet,
   StatusBar,
   ImageSourcePropType,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import AntDesign from 'react-native-vector-icons/AntDesign';
-import { signUp } from '../hooks/SignUpFnAuth';
+import { useSignUpFnAuth } from '../hooks/SignUpFnAuth';
+import { ModalComponent } from '../components/common/Modal';
+import { StackNavigationProp } from '@react-navigation/stack';
 
-const Signup: React.FC<{ navigation: any }> = ({ navigation }) => {
+// Define the root stack param list for navigation types
+type RootStackParamList = {
+  Login: undefined;
+  // Add other routes relevant to Signup's navigation actions if any
+};
+
+// Define navigation prop type
+type SignupScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Login'>;
+
+interface SignupProps {
+  navigation: SignupScreenNavigationProp;
+}
+
+const Signup: React.FC<SignupProps> = ({ navigation }) => {
   const imageSource: ImageSourcePropType = require('../assets/images/hamburgeur.jpg');
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [confirmPassword, setConfirmPassword] = React.useState('');
-  const [isLoding ,setIsloding] =React.useState(false)
+
+  const { signUp, loading: isLoading, error: authError } = useSignUpFnAuth();
+
+  const [isErrorModalVisible, setIsErrorModalVisible] = React.useState(false);
+  const [errorMessage, setErrorMessage] = React.useState('');
+  const [isInfoModalVisible, setIsInfoModalVisible] = React.useState(false);
+  const [infoMessage, setInfoMessage] = React.useState('');
+
 
   const handleSignup = async () => {
     if (password.length < 6) {
-      Alert.alert('Erreur', 'Le mot de passe doit contenir au moins 6 caractères.');
+      setErrorMessage('Le mot de passe doit contenir au moins 6 caractères.');
+      setIsErrorModalVisible(true);
       return;
     }
-
     if (password !== confirmPassword) {
-      Alert.alert('Erreur', 'Les mots de passe ne correspondent pas.');
+      setErrorMessage('Les mots de passe ne correspondent pas.');
+      setIsErrorModalVisible(true);
       return;
     }
 
     try {
-      setIsloding(true)
-      await signUp(email, password);
-      setIsloding(false);
-      navigation.replace('Login');
 
-    } catch (err) {
-      Alert.alert('Erreur', err instanceof Error ? err.message : String(err));
+      const result = await signUp(email, password, { nom: '', prenom: '' }); // Pass initialData if needed
+      if (result) {
+        setInfoMessage('Compte créé avec succès ! Veuillez vous connecter.');
+        setIsInfoModalVisible(true);
+        navigation.replace('Login'); // Navigate after successful signup
+      } else if (authError) {
+          setErrorMessage(authError);
+          setIsErrorModalVisible(true);
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || String(err));
+      setIsErrorModalVisible(true);
     }
   };
 
-   if (isLoding) {
-      return (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
-          <ActivityIndicator size="large" color="#FF6B00" />
-        </View>
-      );
-    }
-  
-
   const handleGoogleSignup = () => {
-    Alert.alert('Info', 'Connexion via Google à implémenter.');
-    // TODO: Logique d'auth Google
+    setInfoMessage('Connexion via Google à implémenter.');
+    setIsInfoModalVisible(true);
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar backgroundColor="#000" barStyle="light-content" />
+      <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+
       <View style={styles.imageContainer}>
         <Image source={imageSource} style={styles.image} resizeMode="cover" />
         <LinearGradient
@@ -74,49 +94,75 @@ const Signup: React.FC<{ navigation: any }> = ({ navigation }) => {
         <Text style={styles.title}>Create Account</Text>
 
         <TextInput
+          style={styles.input}
           placeholder="Email"
           placeholderTextColor="#aaa"
-          style={styles.input}
+          keyboardType="email-address"
+          autoCapitalize="none"
           value={email}
           onChangeText={setEmail}
         />
         <TextInput
+          style={styles.input}
           placeholder="Password"
           placeholderTextColor="#aaa"
           secureTextEntry
-          style={styles.input}
           value={password}
           onChangeText={setPassword}
         />
         <TextInput
+          style={styles.input}
           placeholder="Confirm Password"
           placeholderTextColor="#aaa"
           secureTextEntry
-          style={styles.input}
           value={confirmPassword}
           onChangeText={setConfirmPassword}
         />
 
-        <TouchableOpacity onPress={handleSignup} style={{ width: '100%' }}>
-          <LinearGradient colors={['#fc4a1a', '#f7b733']} style={styles.loginButton}>
-            <Text style={styles.loginText}>
-              <AntDesign name="adduser" size={18} color="#fff" /> Sign Up
-            </Text>
-          </LinearGradient>
+        <TouchableOpacity
+          // eslint-disable-next-line react-native/no-inline-styles
+          style={[styles.loginButton, { backgroundColor: '#f7b733' }]}
+          onPress={handleSignup}
+          disabled={isLoading} // Disable button when loading
+        >
+          {isLoading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.loginText}>Sign Up</Text>
+          )}
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={handleGoogleSignup} style={{ width: '100%' }}>
-          <LinearGradient colors={['#4285F4', '#34A853']} style={styles.googleButton}>
-            <Text style={styles.loginText}>
-              <AntDesign name="google" size={18} color="#fff" /> Sign up with Google
-            </Text>
-          </LinearGradient>
+        <TouchableOpacity
+          // eslint-disable-next-line react-native/no-inline-styles
+          style={[styles.googleButton, { backgroundColor: '#4285F4' }]}
+          onPress={handleGoogleSignup}
+        >
+          <AntDesign name="google" size={20} color="#fff" />
+          <Text style={styles.loginText}>Sign up with Google</Text>
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => navigation.navigate('Login')}>
           <Text style={styles.linkText}>Already have an account? Login</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Modals for messages */}
+      <ModalComponent
+        visible={isErrorModalVisible}
+        onClose={() => setIsErrorModalVisible(false)}
+        title="Erreur"
+      >
+        <Text style={styles.modalMessageText}>{errorMessage}</Text>
+      </ModalComponent>
+
+      <ModalComponent
+        visible={isInfoModalVisible}
+        onClose={() => setIsInfoModalVisible(false)}
+        title="Information"
+      >
+        <Text style={styles.modalMessageText}>{infoMessage}</Text>
+      </ModalComponent>
+
     </SafeAreaView>
   );
 };
@@ -176,6 +222,8 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 15,
     alignItems: 'center',
+    justifyContent: 'center', // Center content for ActivityIndicator
+    flexDirection: 'row', // Align icon and text if used
   },
   googleButton: {
     width: '100%',
@@ -183,6 +231,9 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 20,
     alignItems: 'center',
+    flexDirection: 'row', // Align icon and text
+    justifyContent: 'center', // Center content
+    gap: 10, // Space between icon and text
   },
   loginText: {
     color: '#fff',
@@ -191,4 +242,12 @@ const styles = StyleSheet.create({
   linkText: {
     color: '#f7b733',
   },
+  // New style for modal message text (consistent with GeminiChat)
+  modalMessageText: {
+    color: '#FFF',
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 10,
+  },
 });
+

@@ -7,9 +7,17 @@ import {
   Recette,
   AiInteraction,
 } from '../constants/entities';
+import { PREDEFINED_STORES } from '../constants/stores';
 import { logger } from '../utils/logger';
 import { getErrorMessage, formatDateForFirestore } from '../utils/helpers';
 
+
+interface FunctionCallResponse {
+  type: 'function_call';
+  value: { name: string; args: Record<string, any> };
+}
+
+type AiResponse = string | object | FunctionCallResponse;
 
 export interface Part {
   text?: string;
@@ -31,21 +39,21 @@ export interface Part {
 }
 
 export interface Content {
-  role: 'user' | 'model' | 'function';
+  role: 'user' | 'model' | 'function' | 'system';
   parts: Part[];
 }
 
 export interface SafetySetting {
-  category: string; // ex: 'HARM_CATEGORY_HATE_SPEECH'
-  threshold: string; // ex: 'BLOCK_NONE', 'BLOCK_LOW_AND_ABOVE'
+  category: string;
+  threshold: string;
 }
 
 export interface GenerationConfig {
   stopSequences?: string[];
-  responseMimeType?: string; // ex: 'application/json'
+  responseMimeType?: string;
   responseSchema?: object;
-  temperature?: number; // 0.0 - 2.0
-  topP?: number; // 0.0 - 1.0
+  temperature?: number;
+  topP?: number;
   topK?: number;
   candidateCount?: number;
   maxOutputTokens?: number;
@@ -80,40 +88,33 @@ export interface GenerateContentRequest {
   cachedContent?: string;
 }
 
-export interface Candidate {
-  content: Content;
-  finishReason: string;
-  safetyRatings: any[];
-  citationMetadata?: any;
-  tokenCount?: number;
-  groundingAttributions?: any[];
-  groundingMetadata?: any;
-  avgLogprobs?: number;
-  logprobsResult?: any;
-  urlRetrievalMetadata?: any;
-  urlContextMetadata?: any;
-  index?: number;
-}
-
-export interface PromptFeedback {
-  blockReason?: string;
-  safetyRatings?: any[];
-}
-
-export interface UsageMetadata {
-  promptTokenCount: number;
-  candidatesTokenCount: number;
-  totalTokenCount: number;
-}
-
 export interface GenerateContentResponse {
-  candidates?: Candidate[];
-  promptFeedback?: PromptFeedback;
-  usageMetadata?: UsageMetadata;
+  candidates?: {
+    content: Content;
+    finishReason: string;
+    safetyRatings: any[];
+    citationMetadata?: any;
+    tokenCount?: number;
+    groundingAttributions?: any[];
+    groundingMetadata?: any;
+    avgLogprobs?: number;
+    logprobsResult?: any;
+    urlRetrievalMetadata?: any;
+    urlContextMetadata?: any;
+    index?: number;
+  }[];
+  promptFeedback?: {
+    blockReason?: string;
+    safetyRatings?: any[];
+  };
+  usageMetadata?: {
+    promptTokenCount: number;
+    candidatesTokenCount: number;
+    totalTokenCount: number;
+  };
   modelVersion?: string;
   responseId?: string;
 }
-// --- FIN DES TYPES GEMINI ---
 
 export class GeminiService {
   private apiKey: string;
@@ -148,7 +149,12 @@ export class GeminiService {
       if (typeof interaction.content === 'string') {
         parts.push({ text: interaction.content });
       } else if (interaction.content && typeof interaction.content === 'object') {
-        if ('type' in interaction.content && interaction.content.type === 'image' && 'data' in interaction.content && 'mimeType' in interaction.content) {
+        if (
+          'type' in interaction.content &&
+          interaction.content.type === 'image' &&
+          'data' in interaction.content &&
+          'mimeType' in interaction.content
+        ) {
           parts.push({
             inlineData: {
               mimeType: interaction.content.mimeType as string,
@@ -158,9 +164,16 @@ export class GeminiService {
         } else if ('text' in interaction.content) {
           parts.push({ text: interaction.content.text as string });
         } else if ('functionCall' in interaction.content) {
-          parts.push({ functionCall: interaction.content.functionCall as { name: string; args: Record<string, any> } });
+          parts.push({
+            functionCall: interaction.content.functionCall as { name: string; args: Record<string, any> },
+          });
         } else if ('functionResponse' in interaction.content) {
-          parts.push({ functionResponse: interaction.content.functionResponse as { name: string; response: { name: string; content: string | object } } });
+          parts.push({
+            functionResponse: interaction.content.functionResponse as {
+              name: string;
+              response: { name: string; content: string | object };
+            },
+          });
         } else {
           parts.push({ text: JSON.stringify(interaction.content) });
         }
@@ -179,16 +192,22 @@ export class GeminiService {
       tools?: Tool[];
       toolConfig?: ToolConfig;
     }
-  ): Promise<string | object> {
+  ): Promise<AiResponse> {
     await this.checkNetwork();
-    logger.info('Envoi d\'une requête à l\'API Gemini', { model: this.modelName, newMessage, chatHistoryLength: chatHistory.length });
+    logger.info('Envoi d\'une requête à l\'API Gemini', {
+      model: this.modelName,
+      newMessage,
+      chatHistoryLength: chatHistory.length,
+    });
 
     try {
       const currentContents: Content[] = this.buildGeminiContents(chatHistory);
       const newMessageParts: Part[] = [];
       if (newMessage.text) {newMessageParts.push({ text: newMessage.text });}
       if (newMessage.imageUrl && newMessage.imageDataBase64 && newMessage.imageMimeType) {
-        newMessageParts.push({ inlineData: { mimeType: newMessage.imageMimeType, data: newMessage.imageDataBase64 } });
+        newMessageParts.push({
+          inlineData: { mimeType: newMessage.imageMimeType, data: newMessage.imageDataBase64 },
+        });
       } else if (newMessage.imageUrl && !newMessage.imageDataBase64) {
         logger.warn('Image fournie avec une URL mais sans données base64. L\'image ne sera pas envoyée.');
       }
@@ -197,7 +216,9 @@ export class GeminiService {
 
       const requestBody: GenerateContentRequest = {
         contents: currentContents,
-        systemInstruction: options?.systemInstruction ? { role: 'system', parts: [{ text: options.systemInstruction }] } : undefined,
+        systemInstruction: options?.systemInstruction
+          ? { role: 'system', parts: [{ text: options.systemInstruction }] }
+          : undefined,
         generationConfig: {
           temperature: 0.7,
           maxOutputTokens: 1000,
@@ -236,7 +257,10 @@ export class GeminiService {
             try {
               return JSON.parse(generatedContent.text);
             } catch (jsonErr) {
-              logger.error('Échec de l\'analyse JSON de la réponse Gemini', { text: generatedContent.text, error: jsonErr });
+              logger.error('Échec de l\'analyse JSON de la réponse Gemini', {
+                text: generatedContent.text,
+                error: jsonErr,
+              });
               throw new Error('La réponse de l\'IA n\'est pas un JSON valide.');
             }
           }
@@ -247,14 +271,19 @@ export class GeminiService {
         }
         return 'Réponse de l\'IA sans texte clair ou appel de fonction.';
       } else if (data.promptFeedback?.blockReason) {
-        const safetyRatings = data.promptFeedback.safetyRatings?.map(s => `${s.category}: ${s.probability}`).join(', ') || 'N/A';
-        const errorMsg = `Contenu bloqué par les filtres de sécurité de Gemini : ${data.promptFeedback.blockReason}. Détails : ${safetyRatings}`;
+        const safetyRatings =
+          data.promptFeedback.safetyRatings?.map(s => `${s.category}: ${s.probability}`).join(', ') || 'N/A';
+        const errorMsg = `Contenu bloqué par les filtres de sécurité de Gemini : ${
+          data.promptFeedback.blockReason
+        }. Détails : ${safetyRatings}`;
         logger.warn(errorMsg, { promptFeedback: data.promptFeedback });
         throw new Error(errorMsg);
       }
       throw new Error('Aucun contenu généré par l\'API Gemini.');
     } catch (error) {
-      logger.error('Échec de la génération de contenu avec Gemini API :', { error: getErrorMessage(error) });
+      logger.error('Échec de la génération de contenu avec Gemini API :', {
+        error: getErrorMessage(error),
+      });
       throw new Error(`Échec de la génération de contenu : ${getErrorMessage(error)}`);
     }
   }
@@ -274,20 +303,28 @@ export class GeminiService {
     }
   ): Promise<void> {
     await this.checkNetwork();
-    logger.info('Envoi d\'une requête de streaming à l\'API Gemini', { model: this.modelName, newMessage, chatHistoryLength: chatHistory.length });
+    logger.info('Envoi d\'une requête de streaming à l\'API Gemini', {
+      model: this.modelName,
+      newMessage,
+      chatHistoryLength: chatHistory.length,
+    });
 
     try {
       const currentContents: Content[] = this.buildGeminiContents(chatHistory);
       const newMessageParts: Part[] = [];
       if (newMessage.text) {newMessageParts.push({ text: newMessage.text });}
       if (newMessage.imageUrl && newMessage.imageDataBase64 && newMessage.imageMimeType) {
-        newMessageParts.push({ inlineData: { mimeType: newMessage.imageMimeType, data: newMessage.imageDataBase64 } });
+        newMessageParts.push({
+          inlineData: { mimeType: newMessage.imageMimeType, data: newMessage.imageDataBase64 },
+        });
       }
       currentContents.push({ role: 'user', parts: newMessageParts });
 
       const requestBody: GenerateContentRequest = {
         contents: currentContents,
-        systemInstruction: options?.systemInstruction ? { role: 'system', parts: [{ text: options.systemInstruction }] } : undefined,
+        systemInstruction: options?.systemInstruction
+          ? { role: 'system', parts: [{ text: options.systemInstruction }] }
+          : undefined,
         generationConfig: {
           temperature: 0.7,
           maxOutputTokens: 1000,
@@ -312,7 +349,9 @@ export class GeminiService {
 
       if (!response.ok) {
         const errorBody = await response.json();
-        const errorMsg = `Erreur API Gemini Stream (${response.status}) : ${errorBody.error?.message || 'Erreur inconnue'}`;
+        const errorMsg = `Erreur API Gemini Stream (${response.status}) : ${
+          errorBody.error?.message || 'Erreur inconnue'
+        }`;
         logger.error(errorMsg, { errorBody, requestBody });
         onError(new Error(errorMsg));
         return;
@@ -345,8 +384,12 @@ export class GeminiService {
               break;
             }
           } else if (parsedChunk.promptFeedback?.blockReason) {
-            const safetyRatings = parsedChunk.promptFeedback.safetyRatings?.map(s => `${s.category}: ${s.probability}`).join(', ') || 'N/A';
-            const errorMsg = `Contenu bloqué par les filtres de sécurité : ${parsedChunk.promptFeedback.blockReason}. Détails : ${safetyRatings}`;
+            const safetyRatings =
+              parsedChunk.promptFeedback.safetyRatings?.map(s => `${s.category}: ${s.probability}`).join(', ') ||
+              'N/A';
+            const errorMsg = `Contenu bloqué par les filtres de sécurité : ${
+              parsedChunk.promptFeedback.blockReason
+            }. Détails : ${safetyRatings}`;
             logger.warn(errorMsg, { promptFeedback: parsedChunk.promptFeedback });
             onError(new Error(errorMsg));
             return;
@@ -368,8 +411,19 @@ export class GeminiService {
     numDays: number = 3,
     numMealsPerDay: number = 3
   ): Promise<Menu[]> {
+    if (!ingredients || !familyData) {
+      throw new Error('Les ingrédients et les données de la famille sont requis pour générer des suggestions de menus.');
+    }
+
     const familyDetails = familyData
-      .map(m => `${m.nom} (${m.role}) : Préférences=${m.preferencesAlimentaires.join(', ')}, Allergies=${m.allergies.join(', ')}, Restrictions=${m.restrictionsMedicales.join(', ')}, Niveau d'épices=${m.aiPreferences.niveauEpices}, Apport calorique=${m.aiPreferences.apportCaloriqueCible} kcal, Cuisines préférées=${m.aiPreferences.cuisinesPreferees.join(', ')}`)
+      .map(
+        m =>
+          `${m.nom} (${m.role}) : Préférences=${m.preferencesAlimentaires.join(', ')}, Allergies=${m.allergies.join(
+            ', '
+          )}, Restrictions=${m.restrictionsMedicales.join(', ')}, Niveau d'épices=${m.aiPreferences.niveauEpices}, Apport calorique=${
+            m.aiPreferences.apportCaloriqueCible
+          } kcal, Cuisines préférées=${m.aiPreferences.cuisinesPreferees.join(', ')}`
+      )
       .join('\n');
 
     const ingredientsList = ingredients.map(i => `${i.nom} (${i.quantite} ${i.unite})`).join(', ');
@@ -427,8 +481,9 @@ export class GeminiService {
     `;
 
     try {
-      const systemInstruction = 'Vous êtes un expert culinaire IA. Votre tâche est de générer des plans de repas personnalisés et structurés au format JSON, en respectant strictement les besoins alimentaires de la famille.';
-      const generatedContent = await this.generateContent(
+      const systemInstruction =
+        'Vous êtes un expert culinaire IA. Votre tâche est de générer des plans de repas personnalisés et structurés au format JSON, en respectant strictement les besoins alimentaires de la famille.';
+      const generatedContent = (await this.generateContent(
         [],
         { text: prompt },
         {
@@ -439,7 +494,7 @@ export class GeminiService {
             maxOutputTokens: 3000,
           },
         }
-      ) as object[];
+      )) as object[];
 
       const menus: Menu[] = (generatedContent as any[]).map(item => ({
         ...item,
@@ -462,7 +517,9 @@ export class GeminiService {
       logger.info('Suggestions de menus générées par l\'IA', { count: menus.length });
       return menus;
     } catch (error) {
-      logger.error('Erreur lors de la génération des suggestions de menus', { error: getErrorMessage(error) });
+      logger.error('Erreur lors de la génération des suggestions de menus', {
+        error: getErrorMessage(error),
+      });
       throw new Error(`Échec de la génération des suggestions de menus : ${getErrorMessage(error)}`);
     }
   }
@@ -471,6 +528,10 @@ export class GeminiService {
     menu: Menu,
     currentIngredients: Ingredient[]
   ): Promise<{ nom: string; quantite: number; unite: string; magasinSuggeré?: string }[]> {
+    if (!menu || !currentIngredients) {
+      throw new Error('Le menu et les ingrédients actuels sont requis pour générer une liste de courses.');
+    }
+
     const menuDetails = JSON.stringify(menu, null, 2);
     const existingIngredients = currentIngredients.map(i => `${i.nom} (${i.quantite} ${i.unite})`).join(', ') || 'Aucun';
 
@@ -494,21 +555,23 @@ export class GeminiService {
     `;
 
     try {
-      const systemInstruction = 'Vous êtes un assistant précis pour la gestion des stocks et la création de listes de courses. Votre réponse doit être un tableau JSON valide d\'ingrédients manquants.';
-      const generatedContent = await this.generateContent(
+      const systemInstruction =
+        'Vous êtes un assistant précis pour la gestion des stocks et la création de listes de courses. Votre réponse doit être un tableau JSON valide d\'ingrédients manquants.';
+      const generatedContent = (await this.generateContent(
         [],
         { text: prompt },
         {
           systemInstruction,
           generationConfig: { responseMimeType: 'application/json', temperature: 0.3 },
         }
-      ) as object[];
+      )) as { nom: string; quantite: number; unite: string; magasinSuggeré?: string }[];
 
-      const shoppingList = generatedContent as { nom: string; quantite: number; unite: string; magasinSuggeré?: string }[];
-      logger.info('Liste de courses générée par l\'IA', { menuId: menu.id, itemCount: shoppingList.length });
-      return shoppingList;
+      logger.info('Liste de courses générée par l\'IA', { menuId: menu.id, itemCount: generatedContent.length });
+      return generatedContent;
     } catch (error) {
-      logger.error('Erreur lors de la génération de la liste de courses', { error: getErrorMessage(error) });
+      logger.error('Erreur lors de la génération de la liste de courses', {
+        error: getErrorMessage(error),
+      });
       throw new Error(`Échec de la génération de la liste de courses : ${getErrorMessage(error)}`);
     }
   }
@@ -517,9 +580,18 @@ export class GeminiService {
     recipe: Recette,
     familyData: MembreFamille[]
   ): Promise<{ calories: number; spicesLevel: number; suitability: { [membreId: string]: 'adapté' | 'non adapté' | 'modifié' } }> {
+    if (!recipe || !familyData) {
+      throw new Error('La recette et les données de la famille sont requises pour l\'analyse.');
+    }
+
     const recipeDetails = JSON.stringify(recipe, null, 2);
     const familyDetails = familyData
-      .map(m => `${m.nom} (${m.role}) : Préférences=${m.preferencesAlimentaires.join(', ')}, Allergies=${m.allergies.join(', ')}, Restrictions=${m.restrictionsMedicales.join(', ')}`)
+      .map(
+        m =>
+          `${m.nom} (${m.role}) : Préférences=${m.preferencesAlimentaires.join(', ')}, Allergies=${m.allergies.join(
+            ', '
+          )}, Restrictions=${m.restrictionsMedicales.join(', ')}`
+      )
       .join('\n');
 
     const prompt = `
@@ -545,15 +617,16 @@ export class GeminiService {
     `;
 
     try {
-      const systemInstruction = 'Vous êtes un expert en analyse alimentaire. Fournissez des évaluations nutritionnelles et d\'adéquation précises au format JSON.';
-      const generatedContent = await this.generateContent(
+      const systemInstruction =
+        'Vous êtes un expert en analyse alimentaire. Fournissez des évaluations nutritionnelles et d\'adéquation précises au format JSON.';
+      const generatedContent = (await this.generateContent(
         [],
         { text: prompt },
         {
           systemInstruction,
           generationConfig: { responseMimeType: 'application/json', temperature: 0.2 },
         }
-      ) as { calories: number; spicesLevel: number; suitability: { [membreId: string]: 'adapté' | 'non adapté' | 'modifié' } };
+      )) as { calories: number; spicesLevel: number; suitability: { [membreId: string]: 'adapté' | 'non adapté' | 'modifié' } };
 
       logger.info('Recette analysée par l\'IA', { recipeId: recipe.id, analysis: generatedContent });
       return generatedContent;
@@ -567,6 +640,10 @@ export class GeminiService {
     ingredients: Ingredient[],
     preferences: { niveauEpices: number; cuisinesPreferees: string[]; mealType?: string }
   ): Promise<Recette[]> {
+    if (!ingredients || !preferences) {
+      throw new Error('Les ingrédients et les préférences sont requis pour générer des suggestions de recettes.');
+    }
+
     const ingredientsList = ingredients.map(i => `${i.nom} (${i.quantite} ${i.unite})`).join(', ');
 
     const prompt = `
@@ -608,22 +685,24 @@ export class GeminiService {
     `;
 
     try {
-      const systemInstruction = 'Vous êtes une IA créative spécialisée dans la génération de recettes. Proposez des recettes variées et appétissantes au format JSON strict.';
-      const generatedContent = await this.generateContent(
+      const systemInstruction =
+        'Vous êtes une IA créative spécialisée dans la génération de recettes. Proposez des recettes variées et appétissantes au format JSON strict.';
+      const generatedContent = (await this.generateContent(
         [],
         { text: prompt },
         {
           systemInstruction,
           generationConfig: { responseMimeType: 'application/json', temperature: 0.7, candidateCount: 3, maxOutputTokens: 2000 },
         }
-      ) as object[];
+      )) as object[];
 
-      const recipes: Recette[] = (generatedContent as any[]).map(item => ({
+     const recipes: Recette[] = (generatedContent as any[]).map(item => ({
         ...item,
         id: `recette_${Date.now()}_${Math.random().toString(36).substring(7)}`,
         dateCreation: formatDateForFirestore(new Date()),
         dateMiseAJour: formatDateForFirestore(new Date()),
       }));
+
 
       recipes.forEach(recipe => {
         if (!recipe.id) {recipe.id = `recette_${Date.now()}_${Math.random().toString(36).substring(7)}`;}
@@ -634,12 +713,65 @@ export class GeminiService {
       logger.info('Suggestions de recettes générées par l\'IA', { count: recipes.length });
       return recipes;
     } catch (error) {
-      logger.error('Erreur lors de la génération des suggestions de recettes', { error: getErrorMessage(error) });
+      logger.error('Erreur lors de la génération des suggestions de recettes', {
+        error: getErrorMessage(error),
+      });
       throw new Error(`Échec de la génération des suggestions de recettes : ${getErrorMessage(error)}`);
     }
   }
 
-  async checkIngredientAvailability(ingredientName: string, location: { latitude: number; longitude: number }): Promise<object> {
+  /**
+   * Calcule la distance entre deux points géographiques (en kilomètres) en utilisant la formule de Haversine.
+   * @param lat1 Latitude du point 1
+   * @param lon1 Longitude du point 1
+   * @param lat2 Latitude du point 2
+   * @param lon2 Longitude du point 2
+   * @returns Distance en kilomètres
+   */
+  private calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const toRadians = (degrees: number) => (degrees * Math.PI) / 180;
+    const R = 6371; // Rayon de la Terre en kilomètres
+
+    const dLat = toRadians(lat2 - lat1);
+    const dLon = toRadians(lon2 - lon1);
+
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
+  /**
+   * Vérifie si un magasin est ouvert à la date et l'heure actuelles.
+   * @param store Le magasin à vérifier
+   * @returns true si le magasin est ouvert, false sinon
+   */
+  private isStoreOpen(store: typeof PREDEFINED_STORES[0]): boolean {
+    const now = new Date();
+    const day = now.toLocaleString('fr-FR', { weekday: 'long' }).replace(/^\w/, c => c.toUpperCase()); // Ex: "Vendredi"
+    const currentTime = now.toTimeString().slice(0, 5); // Ex: "16:32"
+
+    const todaySchedule = store.horaires?.find(h => h.jour === day);
+    if (!todaySchedule || todaySchedule.ouverture === 'fermé') {
+      return false;
+    }
+
+    return currentTime >= todaySchedule.ouverture && currentTime <= todaySchedule.fermeture;
+  }
+
+  async checkIngredientAvailability(
+    ingredientName: string,
+    location: { latitude: number; longitude: number }
+  ): Promise<{ message: string; rawToolResponse: Array<any> }> {
+    if (!ingredientName) {
+      throw new Error('Le nom de l\'ingrédient est requis.');
+    }
+    if (!location || typeof location.latitude !== 'number' || typeof location.longitude !== 'number') {
+      throw new Error('Les coordonnées de localisation doivent être des nombres valides.');
+    }
+
     const prompt = `Vérifiez la disponibilité de l'ingrédient "${ingredientName}" dans les magasins proches des coordonnées latitude ${location.latitude}, longitude ${location.longitude}.`;
 
     const tools: Tool[] = [
@@ -651,7 +783,7 @@ export class GeminiService {
             parameters: {
               type: 'object',
               properties: {
-                ingredient: { type: 'string', description: "Nom de l'ingrédient à rechercher." },
+                ingredient: { type: 'string', description: 'Nom de l\'ingrédient à rechercher.' },
                 latitude: { type: 'number', description: "Latitude de la position actuelle de l'utilisateur." },
                 longitude: { type: 'number', description: "Longitude de la position actuelle de l'utilisateur." },
               },
@@ -663,8 +795,9 @@ export class GeminiService {
     ];
 
     try {
-      const systemInstruction = 'Vous êtes un assistant intelligent capable de vérifier la disponibilité des ingrédients dans les magasins proches. Vous avez accès à un outil appelé \'findStoresWithIngredient\'.';
-      const response = await this.generateContent(
+      const systemInstruction =
+        'Vous êtes un assistant intelligent capable de vérifier la disponibilité des ingrédients dans les magasins proches. Vous avez accès à un outil appelé \'findStoresWithIngredient\'.';
+      const response = (await this.generateContent(
         [],
         { text: prompt },
         {
@@ -673,24 +806,91 @@ export class GeminiService {
           toolConfig: { functionCallingConfig: { mode: 'AUTO' } },
           generationConfig: { temperature: 0.1 },
         }
-      );
+      )) as AiResponse;
 
       if (typeof response === 'object' && 'type' in response && response.type === 'function_call') {
-        const functionCall = response.value as { name: string; args: Record<string, any> };
+        const functionCall = (response as FunctionCallResponse).value;
         logger.info('Appel de fonction demandé par Gemini :', functionCall);
 
         if (functionCall.name === 'findStoresWithIngredient') {
           const { ingredient, latitude, longitude } = functionCall.args;
-          const simulatedStores = [
-            { name: 'Superette du Coin', distance: '1.2 km', inStock: true, price: 2.50 },
-            { name: 'Marché Central', distance: '3.5 km', inStock: false },
-          ];
-          const toolResponse = `Ingrédient : ${ingredient}. Magasins trouvés : ${JSON.stringify(simulatedStores)}.`;
 
-          const functionResponseContent: Content[] = [
-            { role: 'user', parts: [{ text: prompt }] },
-            { role: 'model', parts: [{ functionCall }] },
-            { role: 'function', parts: [{ functionResponse: { name: functionCall.name, response: { name: functionCall.name, content: toolResponse } } }] },
+          const storesWithIngredient: Array<{
+            name: string;
+            distance: string;
+            inStock: boolean;
+            price?: number;
+            stock?: number;
+            address: string;
+            isOpen: boolean;
+            contact?: { telephone?: string; email?: string; siteWeb?: string };
+          }> = [];
+
+          for (const store of PREDEFINED_STORES) {
+            if (store.localisation?.latitude === 0 && store.localisation?.longitude === 0) {
+              continue;
+            }
+
+            const distance = this.calculateDistance(
+              latitude,
+              longitude,
+              store.localisation?.latitude || 0,
+              store.localisation?.longitude || 0
+            ).toFixed(2);
+
+            const isOpen = this.isStoreOpen(store);
+
+            const matchingItem = store.articles.find(
+              item => item.nom.toLowerCase().includes(ingredient.toLowerCase()) && item.stockDisponible > 0
+            );
+
+            storesWithIngredient.push({
+              name: store.nom,
+              distance: `${distance} km`,
+              inStock: !!matchingItem,
+              price: matchingItem ? matchingItem.prixUnitaire : undefined,
+              stock: matchingItem ? matchingItem.stockDisponible : undefined,
+              address: store.localisation?.adresse || 'Adresse non disponible',
+              isOpen,
+              contact: store.contact,
+            });
+          }
+
+          storesWithIngredient.sort((a, b) => {
+            if (a.inStock !== b.inStock) {return a.inStock ? -1 : 1;}
+            return parseFloat(a.distance) - parseFloat(b.distance);
+          });
+
+          if (storesWithIngredient.length === 0) {
+            throw new Error('Aucun magasin trouvé à proximité pour cet ingrédient.');
+          }
+
+          const toolResponse = `Ingrédient : ${ingredient}. Magasins trouvés : ${JSON.stringify(storesWithIngredient)}.`;
+
+          const functionResponseContent: AiInteraction[] = [
+            {
+              content: prompt,
+              isUser: true,
+              timestamp: formatDateForFirestore(new Date()),
+              type: 'text',
+            },
+            {
+              content: { functionCall },
+              isUser: false,
+              timestamp: formatDateForFirestore(new Date()),
+              type: 'tool_use',
+            },
+            {
+              content: {
+                functionResponse: {
+                  name: functionCall.name,
+                  response: { name: functionCall.name, content: toolResponse },
+                },
+              },
+              isUser: false,
+              timestamp: formatDateForFirestore(new Date()),
+              type: 'tool_response',
+            },
           ];
 
           const finalResponse = await this.generateContent(
@@ -698,12 +898,21 @@ export class GeminiService {
             { text: JSON.stringify(toolResponse) },
             { systemInstruction, tools, toolConfig: { functionCallingConfig: { mode: 'NONE' } } }
           );
-          return { message: finalResponse as string, rawToolResponse: simulatedStores };
+
+          return {
+            message: typeof finalResponse === 'string' ? finalResponse : JSON.stringify(finalResponse),
+            rawToolResponse: storesWithIngredient,
+          };
         }
       }
-      return { message: response as string };
+      return {
+        message: typeof response === 'string' ? response : JSON.stringify(response),
+        rawToolResponse: [],
+      };
     } catch (error) {
-      logger.error('Erreur lors de la vérification de la disponibilité des ingrédients', { error: getErrorMessage(error) });
+      logger.error('Erreur lors de la vérification de la disponibilité des ingrédients', {
+        error: getErrorMessage(error),
+      });
       throw new Error(`Échec de la vérification de la disponibilité : ${getErrorMessage(error)}`);
     }
   }
@@ -715,16 +924,22 @@ export class GeminiService {
     chatHistory: AiInteraction[] = [],
     systemInstruction?: string
   ): Promise<string> {
+    if (!message) {
+      throw new Error('Le message est requis pour poser une question générale.');
+    }
+
     try {
       const response = await this.generateContent(
         chatHistory,
         { text: message, imageDataBase64, imageMimeType },
         {
-          systemInstruction: systemInstruction || 'Vous êtes un assistant familial amical et informatif. Répondez avec clarté et bienveillance.',
+          systemInstruction:
+            systemInstruction || 'Vous êtes un assistant familial amical et informatif. Répondez avec clarté et bienveillance.',
         }
       );
       if (typeof response === 'string') {return response;}
-      if (typeof response === 'object' && 'message' in response && typeof response.message === 'string') {return response.message;}
+      if (typeof response === 'object' && 'message' in response && typeof response.message === 'string')
+        {return response.message;}
       throw new Error('Réponse inattendue ou non textuelle de l\'IA.');
     } catch (error) {
       logger.error('Erreur lors de la question générale à l\'IA', { error: getErrorMessage(error) });
@@ -733,9 +948,14 @@ export class GeminiService {
   }
 
   async getNutritionalInfo(query: string): Promise<object> {
+    if (!query) {
+      throw new Error('La requête est requise pour obtenir des informations nutritionnelles.');
+    }
+
     const prompt = `Fournissez des informations nutritionnelles détaillées (calories, protéines, glucides, lipides, fibres) pour "${query}". Répondez au format JSON.`;
     try {
-      const systemInstruction = 'Vous êtes un expert en nutrition. Fournissez des données nutritionnelles précises au format JSON.';
+      const systemInstruction =
+        'Vous êtes un expert en nutrition. Fournissez des données nutritionnelles précises au format JSON.';
       const response = await this.generateContent(
         [],
         { text: prompt },
@@ -744,12 +964,18 @@ export class GeminiService {
       if (typeof response === 'object') {return response;}
       throw new Error('Réponse nutritionnelle non structurée de l\'IA.');
     } catch (error) {
-      logger.error('Erreur lors de l\'obtention des informations nutritionnelles', { error: getErrorMessage(error) });
+      logger.error('Erreur lors de l\'obtention des informations nutritionnelles', {
+        error: getErrorMessage(error),
+      });
       throw new Error(`Échec des informations nutritionnelles : ${getErrorMessage(error)}`);
     }
   }
 
   async troubleshootProblem(problem: string): Promise<string> {
+    if (!problem) {
+      throw new Error('Le problème est requis pour le dépannage.');
+    }
+
     const prompt = `Aidez-moi à résoudre le problème suivant : "${problem}". Proposez une solution claire et concise, avec des étapes si nécessaire.`;
     try {
       const systemInstruction = 'Vous êtes un expert en résolution de problèmes culinaires et domestiques.';
@@ -767,6 +993,10 @@ export class GeminiService {
   }
 
   async getCreativeIdeas(context: string): Promise<string[]> {
+    if (!context) {
+      throw new Error('Le contexte est requis pour générer des idées créatives.');
+    }
+
     const prompt = `Générez 5 idées créatives basées sur le contexte suivant : "${context}". Présentez-les sous forme de liste numérotée claire et inspirante.`;
     try {
       const systemInstruction = 'Vous êtes une source d\'idées créatives et utiles pour la cuisine et la maison.';

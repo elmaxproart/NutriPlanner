@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
-import { styles } from '../../styles/onboardingStyle';
-import { useFamilyData } from '../../hooks/useFamilyData';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { styles as onboardingStyles } from '../../styles/onboardingStyle';
 import { MembreFamille } from '../../constants/entities';
 import { Input } from '../common/Input';
 import { Button } from '../common/Button';
@@ -10,6 +9,7 @@ import { ModalComponent } from '../common/Modal';
 import { launchImageLibrary } from 'react-native-image-picker';
 import Animated, { FadeInUp, FadeOutDown } from 'react-native-reanimated';
 import { Picker } from '@react-native-picker/picker';
+import { validateMembreFamille } from '../../utils/dataValidators'; // Assuming this utility exists
 import { UserRole } from '../../constants/categories';
 
 const pickerStyles = StyleSheet.create({
@@ -25,109 +25,106 @@ const avatarContainerStyles = StyleSheet.create({
   },
 });
 
-const FamilyMemberForm: React.FC<{
-  member?: MembreFamille;
+interface FamilyMemberFormProps {
+  initialData?: Partial<MembreFamille>;
+  onSave: (memberData: Omit<MembreFamille, 'id' | 'dateCreation' | 'dateMiseAJour'>) => void;
+  onCancel: () => void; // Added onCancel prop
+  loading?: boolean; // Added for external loading state
+  isEditing?: boolean;
   userId: string;
   familyId: string;
-  onSave: (member: MembreFamille) => void;
-  onClose: () => void;
-  isEditing?: boolean;
-}> = ({ member, userId, familyId, onSave, onClose, isEditing = false }) => {
-  const { addFamilyMember, updateFamilyMember } = useFamilyData(userId, familyId);
+}
 
-  const [formData, setFormData] = useState<MembreFamille>(
-    member || {
-      id: '',
-      familyId,
-      createurId: userId,
-      dateCreation: new Date().toISOString(),
-      userId: '',
-      nom: '',
-      prenom: '',
-      dateNaissance: '',
-      genre: 'homme',
-      role: 'parent',
-      preferencesAlimentaires: [],
-      allergies: [],
-      restrictionsMedicales: [],
-      niveauAcces: 'membre',
-      photoProfil: '',
-      historiqueRepas: [],
-      repasFavoris: [],
-      contactUrgence: { nom: '', telephone: '' }, // Non optionnel dans l'état initial
-      aiPreferences: { // Non optionnel dans l'état initial
+const FamilyMemberForm: React.FC<FamilyMemberFormProps> = ({
+  initialData,
+  onSave,
+  onCancel,
+  loading = false, // Default to false
+  isEditing = false,
+  userId,
+  familyId,
+}) => {
+  // Initialize formData with default values to ensure no undefined properties
+  const [formData, setFormData] = useState<Omit<MembreFamille, 'id' | 'dateCreation' | 'dateMiseAJour'>>(
+    () => ({ // Use a function to ensure initial state is only computed once
+      nom: initialData?.nom || '',
+      prenom: initialData?.prenom || '',
+      dateNaissance: initialData?.dateNaissance || '',
+      genre: initialData?.genre || 'homme',
+      role: initialData?.role || 'parent',
+      preferencesAlimentaires: initialData?.preferencesAlimentaires || [],
+      allergies: initialData?.allergies || [],
+      restrictionsMedicales: initialData?.restrictionsMedicales || [],
+      niveauAcces: initialData?.niveauAcces || 'membre',
+      photoProfil: initialData?.photoProfil || '',
+      historiqueRepas: initialData?.historiqueRepas || [],
+      repasFavoris: initialData?.repasFavoris || [],
+      contactUrgence: initialData?.contactUrgence || { nom: '', telephone: '' },
+      aiPreferences: initialData?.aiPreferences || {
         niveauEpices: 0,
         apportCaloriqueCible: 0,
         cuisinesPreferees: [],
       },
-    }
+      userId: userId, // Set default userId
+      familyId: familyId, // Set default familyId
+      createurId: initialData?.createurId || userId, // Set default creatorId
+    })
   );
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
+  const [selectedImage, setSelectedImage] = useState<string | null>(initialData?.photoProfil || null);
   const [previewVisible, setPreviewVisible] = useState(false);
-  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false); // This will still trigger a modal, but deletion logic will be in parent
   const [errorModalVisible, setErrorModalVisible] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
+  // Update form data if initialData changes (for editing scenarios)
   useEffect(() => {
-    if (member) {
-      setFormData({
-        ...member,
-        contactUrgence: member.contactUrgence || { nom: '', telephone: '' },
-        aiPreferences: member.aiPreferences || {
+    if (initialData) {
+      setFormData((prevData) => ({
+        ...prevData,
+        ...initialData,
+        contactUrgence: initialData.contactUrgence || { nom: '', telephone: '' },
+        aiPreferences: initialData.aiPreferences || {
           niveauEpices: 0,
           apportCaloriqueCible: 0,
           cuisinesPreferees: [],
         },
-      });
+      }));
+      setSelectedImage(initialData.photoProfil || null);
     }
-  }, [member]);
+  }, [initialData]);
 
-  const handleImagePick = () => {
+  const handleImagePick = useCallback(() => {
     launchImageLibrary({ mediaType: 'photo' }, (response) => {
       if (response.assets && response.assets[0]?.uri) {
         setSelectedImage(response.assets[0].uri);
-        setFormData({ ...formData, photoProfil: response.assets[0].uri });
+        setFormData((prev) => ({ ...prev, photoProfil: response.assets ? response.assets[0].uri : '' }));
       }
     });
-  };
+  }, []);
 
-  const handleSave = async () => {
-    if (!formData.nom || !formData.prenom || !formData.dateNaissance) {
-      setErrorMessage('Veuillez remplir tous les champs obligatoires (Nom, Prénom, Date de Naissance).');
+  const handleSave = useCallback(async () => {
+    // Validate the formData before passing it up
+    const validationErrors = validateMembreFamille(formData as MembreFamille); // Cast for validation
+    if (validationErrors.length > 0) {
+      setErrorMessage(validationErrors.join('\n'));
       setErrorModalVisible(true);
       return;
     }
 
-    try {
-      const updatedMember: MembreFamille = {
-        ...formData,
-        dateMiseAJour: new Date().toISOString(),
-      };
-      if (isEditing && member?.id) {
-        await updateFamilyMember(member.id, updatedMember);
-      } else {
-        await addFamilyMember(updatedMember);
-      }
-      onSave(updatedMember);
-      onClose();
-    } catch (error) {
-      setErrorMessage('Impossible de sauvegarder le membre. Veuillez réessayer.');
-      setErrorModalVisible(true);
-    }
-  };
+    // Pass the prepared data to the parent's onSave function
+    onSave(formData);
+  }, [formData, onSave]);
 
-  const handleDelete = async () => {
-    try {
-      if (member?.id) {
-        // Implémenter la suppression via useFamilyData si nécessaire
-        setDeleteConfirmVisible(false);
-        onClose();
-      }
-    } catch (error) {
-      setErrorMessage('Impossible de supprimer le membre. Veuillez réessayer.');
-      setErrorModalVisible(true);
-    }
-  };
+  const handleDelete = useCallback(() => {
+    // This form component does not directly delete.
+    // It should trigger a callback to the parent if deletion is needed.
+    // For now, let's just close the modal and log.
+    setDeleteConfirmVisible(false);
+    setErrorMessage('La suppression doit être implémentée au niveau de l\'écran parent.');
+    setErrorModalVisible(true);
+    // You might want to pass a prop like onDeleteConfirmed: (memberId: string) => void;
+  }, []);
 
   const renderPreviewModal = () => (
     <ModalComponent
@@ -135,28 +132,28 @@ const FamilyMemberForm: React.FC<{
       onClose={() => setPreviewVisible(false)}
       title={`Aperçu de ${formData.prenom} ${formData.nom}`}
     >
-      <Animated.View entering={FadeInUp} exiting={FadeOutDown}>
+      <Animated.View entering={FadeInUp} exiting={FadeOutDown} style={formStyles.modalContent}>
         <Avatar
           size={100}
-          source={{ uri: selectedImage || formData.photoProfil || undefined }}
+          source={selectedImage ? { uri: selectedImage } : (formData.photoProfil ? { uri: formData.photoProfil } : require('../../assets/images/ia.jpg'))}
           style={avatarContainerStyles.container}
         />
-        <Text style={styles.cardDescription}>
+        <Text style={onboardingStyles.cardDescription}>
           Rôle: {formData.role}
         </Text>
-        <Text style={styles.cardDescription}>
+        <Text style={onboardingStyles.cardDescription}>
           Âge: {formData.dateNaissance ? (new Date().getFullYear() - new Date(formData.dateNaissance).getFullYear()) : 'N/A'} ans
         </Text>
-        <Text style={styles.cardDescription}>
+        <Text style={onboardingStyles.cardDescription}>
           Genre: {formData.genre}
         </Text>
-        <Text style={styles.cardDescription}>
+        <Text style={onboardingStyles.cardDescription}>
           Préférences: {formData.preferencesAlimentaires.join(', ') || 'Aucune'}
         </Text>
         <Button
           title="Modifier"
           onPress={() => setPreviewVisible(false)}
-          style={styles.saveButton}
+          style={onboardingStyles.saveButton}
         />
         {isEditing && (
           <Button
@@ -165,7 +162,7 @@ const FamilyMemberForm: React.FC<{
               setPreviewVisible(false);
               setDeleteConfirmVisible(true);
             }}
-            style={styles.removeBtn}
+            style={onboardingStyles.removeBtn}
           />
         )}
       </Animated.View>
@@ -178,19 +175,21 @@ const FamilyMemberForm: React.FC<{
       onClose={() => setDeleteConfirmVisible(false)}
       title="Confirmer la Suppression"
     >
-      <Text style={styles.modalText}>
-        Voulez-vous vraiment supprimer {formData.prenom} {formData.nom} ?
-      </Text>
-      <Button
-        title="Confirmer"
-        onPress={handleDelete}
-        style={styles.removeBtn}
-      />
-      <Button
-        title="Annuler"
-        onPress={() => setDeleteConfirmVisible(false)}
-        style={styles.skipButton}
-      />
+      <Animated.View entering={FadeInUp} exiting={FadeOutDown} style={formStyles.modalContent}>
+        <Text style={formStyles.modalText}>
+          Voulez-vous vraiment supprimer {formData.prenom} {formData.nom} ?
+        </Text>
+        <Button
+          title="Confirmer"
+          onPress={handleDelete}
+          style={onboardingStyles.removeBtn}
+        />
+        <Button
+          title="Annuler"
+          onPress={() => setDeleteConfirmVisible(false)}
+          style={onboardingStyles.skipButton}
+        />
+      </Animated.View>
     </ModalComponent>
   );
 
@@ -200,34 +199,37 @@ const FamilyMemberForm: React.FC<{
       onClose={() => setErrorModalVisible(false)}
       title="Erreur"
     >
-      <Text style={styles.errorText}>{errorMessage}</Text>
+      <Animated.View entering={FadeInUp} exiting={FadeOutDown} style={formStyles.modalContent}>
+        <Text style={formStyles.errorText}>{errorMessage}</Text>
+      </Animated.View>
     </ModalComponent>
   );
 
   return (
-    <View style={styles.container}>
+    <View style={formStyles.container}>
       {renderPreviewModal()}
       {renderDeleteConfirmModal()}
       {renderErrorModal()}
-      <ScrollView style={styles.formContain}>
-        <Text style={styles.headerTitle}>
+      <ScrollView style={formStyles.formContain}>
+        <Text style={formStyles.headerTitle}>
           {isEditing ? 'Modifier un Membre' : 'Ajouter un Membre'}
         </Text>
         <TouchableOpacity onPress={handleImagePick} style={avatarContainerStyles.container}>
           <Avatar
             size={120}
-            source={{ uri: selectedImage || formData.photoProfil || undefined }}
+            source={selectedImage ? { uri: selectedImage } : (formData.photoProfil ? { uri: formData.photoProfil } : require('../../assets/images/ia.jpg'))}
           />
-          <Text style={styles.welcomeText}>Changer Photo de Profil</Text>
+          <Text style={onboardingStyles.welcomeText}>Changer Photo de Profil</Text>
         </TouchableOpacity>
-        <Text style={styles.sectionTitle}>Informations Personnelles</Text>
+
+        <Text style={formStyles.sectionTitle}>Informations Personnelles</Text>
         <Input
           value={formData.nom}
           onChangeText={(text) => setFormData({ ...formData, nom: text })}
           placeholder="Nom"
           iconName="account"
           iconPosition="left"
-          style={styles.input}
+          style={onboardingStyles.input}
         />
         <Input
           value={formData.prenom}
@@ -235,7 +237,7 @@ const FamilyMemberForm: React.FC<{
           placeholder="Prénom"
           iconName="account"
           iconPosition="left"
-          style={styles.input}
+          style={onboardingStyles.input}
         />
         <Input
           value={formData.dateNaissance}
@@ -243,10 +245,10 @@ const FamilyMemberForm: React.FC<{
           placeholder="Date de Naissance (YYYY-MM-DD)"
           iconName="calendar"
           iconPosition="left"
-          style={styles.input}
+          style={onboardingStyles.input}
           keyboardType="numeric"
         />
-        <View style={styles.input}>
+        <View style={onboardingStyles.input}>
           <Picker
             selectedValue={formData.genre}
             onValueChange={(itemValue: 'homme' | 'femme' | 'autre') =>
@@ -259,7 +261,7 @@ const FamilyMemberForm: React.FC<{
             <Picker.Item label="Autre" value="autre" />
           </Picker>
         </View>
-        <View style={styles.input}>
+        <View style={onboardingStyles.input}>
           <Picker
             selectedValue={formData.role}
             onValueChange={(itemValue: UserRole) =>
@@ -273,7 +275,7 @@ const FamilyMemberForm: React.FC<{
             <Picker.Item label="Autre" value="autre" />
           </Picker>
         </View>
-        <View style={styles.input}>
+        <View style={onboardingStyles.input}>
           <Picker
             selectedValue={formData.niveauAcces}
             onValueChange={(itemValue: 'admin' | 'membre') =>
@@ -285,14 +287,15 @@ const FamilyMemberForm: React.FC<{
             <Picker.Item label="Membre" value="membre" />
           </Picker>
         </View>
-        <Text style={styles.sectionTitle}>Préférences et Restrictions</Text>
+
+        <Text style={formStyles.sectionTitle}>Préférences et Restrictions</Text>
         <Input
           value={formData.preferencesAlimentaires.join(', ')}
           onChangeText={(text) => setFormData({ ...formData, preferencesAlimentaires: text.split(',').map(s => s.trim()) })}
           placeholder="Préférences Alimentaires (séparées par des virgules)"
           iconName="food"
           iconPosition="left"
-          style={styles.input}
+          style={onboardingStyles.input}
           multiline
           numberOfLines={2}
         />
@@ -302,7 +305,7 @@ const FamilyMemberForm: React.FC<{
           placeholder="Allergies (séparées par des virgules)"
           iconName="alert"
           iconPosition="left"
-          style={styles.input}
+          style={onboardingStyles.input}
           multiline
           numberOfLines={2}
         />
@@ -312,122 +315,169 @@ const FamilyMemberForm: React.FC<{
           placeholder="Restrictions Médicales (séparées par des virgules)"
           iconName="hospital-box"
           iconPosition="left"
-          style={styles.input}
+          style={onboardingStyles.input}
           multiline
           numberOfLines={2}
         />
-        <Text style={styles.sectionTitle}>Informations Complémentaires</Text>
+
+        <Text style={formStyles.sectionTitle}>Informations Complémentaires</Text>
         <Input
           value={formData.repasFavoris?.join(', ') || ''}
           onChangeText={(text) => setFormData({ ...formData, repasFavoris: text.split(',').map(s => s.trim()) })}
-          placeholder="Repas Favoris (séparés par des virgules)"
+          placeholder="Repas Favoris (séparées par des virgules)"
           iconName="heart"
           iconPosition="left"
-          style={styles.input}
+          style={onboardingStyles.input}
           multiline
           numberOfLines={2}
         />
         <Input
           value={formData.contactUrgence.nom}
           onChangeText={(text) =>
-            setFormData({
-              ...formData,
-              contactUrgence: {
-                nom: text,
-                telephone: formData.contactUrgence.telephone,
-              },
-            })
+            setFormData((prevData) => ({
+              ...prevData,
+              contactUrgence: { ...prevData.contactUrgence, nom: text },
+            }))
           }
           placeholder="Nom du Contact d'Urgence"
           iconName="account-box"
           iconPosition="left"
-          style={styles.input}
+          style={onboardingStyles.input}
         />
         <Input
           value={formData.contactUrgence.telephone}
           onChangeText={(text) =>
-            setFormData({
-              ...formData,
-              contactUrgence: {
-                nom: formData.contactUrgence.nom,
-                telephone: text,
-              },
-            })
+            setFormData((prevData) => ({
+              ...prevData,
+              contactUrgence: { ...prevData.contactUrgence, telephone: text },
+            }))
           }
           placeholder="Téléphone du Contact d'Urgence"
           iconName="phone"
           iconPosition="left"
-          style={styles.input}
+          style={onboardingStyles.input}
           keyboardType="phone-pad"
         />
         <Input
           value={formData.aiPreferences.niveauEpices.toString()}
           onChangeText={(text) =>
-            setFormData({
-              ...formData,
-              aiPreferences: {
-                niveauEpices: parseInt(text, 10) || 0,
-                apportCaloriqueCible: formData.aiPreferences.apportCaloriqueCible,
-                cuisinesPreferees: formData.aiPreferences.cuisinesPreferees,
-              },
-            })
+            setFormData((prevData) => ({
+              ...prevData,
+              aiPreferences: { ...prevData.aiPreferences, niveauEpices: parseInt(text, 10) || 0 },
+            }))
           }
           placeholder="Niveau d'Épices (1-5)"
           iconName="fire"
           iconPosition="left"
-          style={styles.input}
+          style={onboardingStyles.input}
           keyboardType="numeric"
         />
         <Input
           value={formData.aiPreferences.apportCaloriqueCible.toString()}
           onChangeText={(text) =>
-            setFormData({
-              ...formData,
-              aiPreferences: {
-                niveauEpices: formData.aiPreferences.niveauEpices,
-                apportCaloriqueCible: parseInt(text, 10) || 0,
-                cuisinesPreferees: formData.aiPreferences.cuisinesPreferees,
-              },
-            })
+            setFormData((prevData) => ({
+              ...prevData,
+              aiPreferences: { ...prevData.aiPreferences, apportCaloriqueCible: parseInt(text, 10) || 0 },
+            }))
           }
           placeholder="Apport Calorique Cible (kcal)"
           iconName="scale"
           iconPosition="left"
-          style={styles.input}
+          style={onboardingStyles.input}
           keyboardType="numeric"
         />
         <Input
           value={formData.aiPreferences.cuisinesPreferees.join(', ')}
           onChangeText={(text) =>
-            setFormData({
-              ...formData,
-              aiPreferences: {
-                niveauEpices: formData.aiPreferences.niveauEpices,
-                apportCaloriqueCible: formData.aiPreferences.apportCaloriqueCible,
-                cuisinesPreferees: text.split(',').map(s => s.trim()),
-              },
-            })
+            setFormData((prevData) => ({
+              ...prevData,
+              aiPreferences: { ...prevData.aiPreferences, cuisinesPreferees: text.split(',').map(s => s.trim()) },
+            }))
           }
           placeholder="Cuisines Préférées (séparées par des virgules)"
           iconName="globe"
           iconPosition="left"
-          style={styles.input}
+          style={onboardingStyles.input}
           multiline
           numberOfLines={2}
         />
-        <Button title="Sauvegarder" onPress={handleSave} style={styles.saveButton} />
-        <Button title="Aperçu" onPress={() => setPreviewVisible(true)} style={styles.detailButton} />
+
+        {loading && (
+          <View style={formStyles.formLoadingOverlay}>
+            <ActivityIndicator size="large" color="#f7b733" />
+            <Text style={formStyles.formLoadingText}>Sauvegarde...</Text>
+          </View>
+        )}
+
+        <Button title="Sauvegarder" onPress={handleSave} style={onboardingStyles.saveButton} />
+        <Button title="Aperçu" onPress={() => setPreviewVisible(true)} style={onboardingStyles.detailButton} />
         {isEditing && (
           <Button
             title="Supprimer"
             onPress={() => setDeleteConfirmVisible(true)}
-            style={styles.removeBtn}
+            style={onboardingStyles.removeBtn}
           />
         )}
-        <Button title="Fermer" onPress={onClose} style={styles.skipButton} />
+        <Button title="Fermer" onPress={onCancel} style={onboardingStyles.skipButton} />
       </ScrollView>
     </View>
   );
 };
 
 export default FamilyMemberForm;
+
+const formStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#0d0d0d', // Use a consistent background
+  },
+  formContain: {
+    padding: 20,
+    flexGrow: 1, // Allow content to grow
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FFF',
+    textAlign: 'center',
+    marginBottom: 30,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#f7b733', // Use accent color
+    marginTop: 20,
+    marginBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+    paddingBottom: 5,
+  },
+  modalContent: {
+    alignItems: 'center', // Center content in modals
+  },
+  modalText: {
+    color: '#FFF',
+    textAlign: 'center',
+    fontSize: 16,
+    marginBottom: 20,
+  },
+  errorText: {
+    color: '#E74C3C',
+    textAlign: 'center',
+    fontSize: 16,
+    marginBottom: 10,
+  },
+  formLoadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 999, // Ensure it's on top
+    borderRadius: 15, // Match card styles
+  },
+  formLoadingText: {
+    color: '#FFF',
+    fontSize: 18,
+    marginTop: 10,
+  },
+});

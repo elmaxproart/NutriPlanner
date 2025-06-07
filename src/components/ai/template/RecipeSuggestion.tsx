@@ -12,7 +12,7 @@ interface RecipeSuggestionProps {
 }
 
 const RecipeSuggestion = ({ recipes, onSelectRecipe }: RecipeSuggestionProps) => {
-  // Style local pour l'image de la carte si geminiStyles.cardImage n'existe pas
+
   const cardImageStyle = {
     width: '100%',
     height: 160,
