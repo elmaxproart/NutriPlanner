@@ -46,7 +46,7 @@ const RecipeDetailScreen: React.FC<RecipeDetailScreenProps> = ({ navigation, rou
   const { deleteEntity, loading: firestoreLoading, error: firestoreError } = useFirestore(userId || '', familyId);
 
   // useAIConversation hook for AI analysis
-  const { analyzeRecipe } = useAIConversation({ userId: userId || '', familyId });
+  const { analyzeRecipe } = useAIConversation({  familyId });
 
   const [recipe, setRecipe] = useState<Recette | null>(null);
   const [isErrorModalVisible, setIsErrorModalVisible] = useState(false);

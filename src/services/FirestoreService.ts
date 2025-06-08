@@ -61,8 +61,8 @@ export class FirestoreService {
     collectionName: string,
     data: T,
     validator?: (data: Partial<T>) => string[],
-    parentDocId?: string, // Ajout pour les sous-collections
-    subCollectionName?: string // Ajout pour les sous-collections
+    parentDocId?: string,
+    subCollectionName?: string
   ): Promise<string> {
     if (validator) {
       const errors = validator(data);
@@ -93,8 +93,8 @@ export class FirestoreService {
     docId: string,
     data: Partial<T>,
     validator?: (data: Partial<T>) => string[],
-    parentDocId?: string, // Ajout pour les sous-collections
-    subCollectionName?: string // Ajout pour les sous-collections
+    parentDocId?: string,
+    subCollectionName?: string
   ): Promise<void> {
     if (validator) {
       const errors = validator(data);
@@ -125,8 +125,8 @@ export class FirestoreService {
   private async deleteDocument(
     collectionName: string,
     docId: string,
-    parentDocId?: string, // Ajout pour les sous-collections
-    subCollectionName?: string // Ajout pour les sous-collections
+    parentDocId?: string,
+    subCollectionName?: string
   ): Promise<boolean> {
     try {
       let docRef: FirebaseFirestoreTypes.DocumentReference<FirebaseFirestoreTypes.DocumentData>;
@@ -150,8 +150,8 @@ export class FirestoreService {
     onData: (data: T[]) => void,
     onError: (error: Error) => void,
     queryFn?: (ref: FirebaseFirestoreTypes.Query<FirebaseFirestoreTypes.DocumentData>) => FirebaseFirestoreTypes.Query<FirebaseFirestoreTypes.DocumentData>,
-    parentDocId?: string, // Ajout pour les sous-collections
-    subCollectionName?: string // Ajout pour les sous-collections
+    parentDocId?: string,
+    subCollectionName?: string
   ): () => void {
     let queryRef: FirebaseFirestoreTypes.Query<FirebaseFirestoreTypes.DocumentData>;
     if (parentDocId && subCollectionName) {
@@ -178,7 +178,42 @@ export class FirestoreService {
     return unsubscribe;
   }
 
-  // --- MembreFamille ---
+  // --- Création de la famille avec validation et transaction ---
+  async createFamily(familyId: string, familyName?: string): Promise<void> {
+    const familyRef = firestore()
+      .collection('users')
+      .doc(this.userId)
+      .collection('families')
+      .doc(familyId);
+
+    try {
+      const familyDoc = await familyRef.get();
+      if (familyDoc.exists()) {
+        throw new Error('Une famille avec cet ID existe déjà.');
+      }
+
+
+      await firestore().runTransaction(async (transaction) => {
+        const newFamilyData = {
+          id: familyId,
+          creatorId: this.userId,
+          familyName: familyName || `Famille ${generateId('FamilyName')}`,
+          dateCreation: formatDateForFirestore(new Date()),
+          dateMiseAJour: formatDateForFirestore(new Date()),
+          membersCount: 0,
+          status: 'active',
+        };
+        transaction.set(familyRef, newFamilyData);
+      });
+
+      logger.info('Family created successfully', { familyId, creatorId: this.userId, familyName });
+    } catch (error) {
+      logger.error('Error creating family', { error: getErrorMessage(error), familyId });
+      throw new Error(`Failed to create family: ${getErrorMessage(error)}`);
+    }
+  }
+
+  // --- MembreFamille avec mise à jour de membersCount ---
   async getFamilyMembers(): Promise<MembreFamille[]> {
     try {
       const snapshot = await this.getCollectionRef('familyMembers').get();
@@ -194,11 +229,40 @@ export class FirestoreService {
       ...member,
       dateCreation: formatDateForFirestore(new Date()),
       dateMiseAJour: formatDateForFirestore(new Date()),
-      id: generateId('Family'), // Firestore overrideera cet ID si auto-generated
+      id: generateId('Family'),
       familyId: this.familyId,
       createurId: this.userId,
     };
-    return this.addDocument('familyMembers', newMember, validateMembreFamille);
+
+    const familyRef = firestore()
+      .collection('users')
+      .doc(this.userId)
+      .collection('families')
+      .doc(this.familyId);
+
+    try {
+      // Utiliser une transaction pour ajouter le membre et incrémenter membersCount atomiquement
+      const memberId = await firestore().runTransaction(async (transaction) => {
+        const memberDocRef = this.getCollectionRef('familyMembers').doc();
+        transaction.set(memberDocRef, newMember);
+
+        const familyDoc = await transaction.get(familyRef);
+        if (!familyDoc.exists) {
+          throw new Error('La famille n\'existe pas.');
+        }
+        const currentCount = familyDoc.data()?.membersCount || 0;
+        transaction.update(familyRef, { membersCount: currentCount + 1 });
+
+        return memberDocRef.id;
+      });
+
+      await this.getCollectionRef('familyMembers').doc(memberId).get(); // Forcer la mise à jour du cache
+      logger.info('Family member added', { memberId });
+      return memberId;
+    } catch (error) {
+      logger.error('Error adding family member', { error: getErrorMessage(error) });
+      throw new Error(`Failed to add family member: ${getErrorMessage(error)}`);
+    }
   }
 
   async updateFamilyMember(memberId: string, data: Partial<MembreFamille>): Promise<void> {
@@ -206,7 +270,38 @@ export class FirestoreService {
   }
 
   async deleteFamilyMember(memberId: string): Promise<boolean> {
-    return this.deleteDocument('familyMembers', memberId);
+    const familyRef = firestore()
+      .collection('users')
+      .doc(this.userId)
+      .collection('families')
+      .doc(this.familyId);
+
+    try {
+      // Utiliser une transaction pour supprimer le membre et décrémenter membersCount
+      await firestore().runTransaction(async (transaction) => {
+        const memberDocRef = this.getCollectionRef('familyMembers').doc(memberId);
+        const memberDoc = await transaction.get(memberDocRef);
+        if (!memberDoc.exists) {
+          throw new Error('Le membre n\'existe pas.');
+        }
+        transaction.delete(memberDocRef);
+
+        const familyDoc = await transaction.get(familyRef);
+        if (!familyDoc.exists) {
+          throw new Error('La famille n\'existe pas.');
+        }
+        const currentCount = familyDoc.data()?.membersCount || 0;
+        if (currentCount > 0) {
+          transaction.update(familyRef, { membersCount: currentCount - 1 });
+        }
+      });
+
+      logger.info(`Family member ${memberId} deleted`);
+      return true;
+    } catch (error) {
+      logger.error(`Error deleting family member ${memberId}`, { error: getErrorMessage(error) });
+      throw new Error(`Failed to delete family member: ${getErrorMessage(error)}`);
+    }
   }
 
   listenToFamilyMembers(onData: (data: MembreFamille[]) => void, onError: (error: Error) => void): () => void {
@@ -392,9 +487,6 @@ export class FirestoreService {
   async getStores(): Promise<Store[]> {
     try {
       const snapshot = await this.getCollectionRef('stores').get();
-      // Vous devez récupérer les StoreItems pour chaque magasin séparément si ce n'est pas une sous-collection
-      // Pour simplifier ici, je suppose qu'ils sont imbriqués ou récupérés plus tard.
-      // Si Store.articles est une sous-collection, cette récupération ne les inclura pas directement.
       return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), familyId: this.familyId, createurId: this.userId } as unknown as Store));
     } catch (error) {
       logger.error('Error fetching stores', { error: getErrorMessage(error) });
@@ -417,9 +509,6 @@ export class FirestoreService {
   }
 
   async deleteStore(storeId: string): Promise<boolean> {
-    // Note: La suppression d'un magasin ne supprime PAS automatiquement ses StoreItems dans Firestore.
-    // Vous devrez implémenter une logique de suppression en cascade si les StoreItems sont des sous-collections
-    // et que vous voulez les supprimer avec le magasin parent.
     return this.deleteDocument('stores', storeId);
   }
 
@@ -428,7 +517,6 @@ export class FirestoreService {
   }
 
   // --- Articles de Magasin (Store Items) ---
-  // Store Items sont une sous-collection de Store
   async getStoreItems(storeId: string): Promise<StoreItem[]> {
     try {
       const snapshot = await this.getSubCollectionRef('stores', storeId, 'storeItems').get();
@@ -446,17 +534,14 @@ export class FirestoreService {
       id: generateId('StoreItem'),
       storeId: storeId,
     };
-    // Utiliser la surcharge de addDocument pour les sous-collections
     return this.addDocument('stores', newItem, validateStoreItem, storeId, 'storeItems');
   }
 
   async updateStoreItem(storeId: string, itemId: string, data: Partial<StoreItem>): Promise<void> {
-    // Utiliser la surcharge de updateDocument pour les sous-collections
     return this.updateDocument('stores', itemId, data, validateStoreItem, storeId, 'storeItems');
   }
 
   async deleteStoreItem(storeId: string, itemId: string): Promise<boolean> {
-    // Utiliser la surcharge de deleteDocument pour les sous-collections
     return this.deleteDocument('stores', itemId, storeId, 'storeItems');
   }
 
@@ -500,14 +585,10 @@ export class FirestoreService {
     return this.listenToDocuments('historiqueRepas', onData, onError, queryFn);
   }
 
-  // --- Conversations (collection de premier niveau) ---
-  // J'ai modifié pour que AiInteraction soit une SOUS-COLLECTION de Conversation.
-  // C'est la meilleure pratique pour les applications de chat.
+  // --- Conversations ---
   async getConversations(): Promise<Conversation[]> {
     try {
       const snapshot = await this.getCollectionRef('conversations').orderBy('date', 'desc').get();
-      // Important: Les messages ne sont PLUS directement dans l'objet Conversation.
-      // Ils devront être récupérés séparément via getAiInteractionsForConversation.
       return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as Omit<Conversation, 'messages'>, messages: [] }));
     } catch (error) {
       logger.error('Error fetching conversations', { error: getErrorMessage(error) });
@@ -521,7 +602,7 @@ export class FirestoreService {
       dateCreation: formatDateForFirestore(new Date()),
       dateMiseAJour: formatDateForFirestore(new Date()),
       id: generateId('Conv'),
-      messages: [], // Laisser vide car les messages seront dans une sous-collection
+      messages: [],
       familyId: this.familyId,
       userId: this.userId,
     };
@@ -533,9 +614,6 @@ export class FirestoreService {
   }
 
   async deleteConversation(conversationId: string): Promise<boolean> {
-    // Pour une suppression complète, vous devriez d'abord supprimer tous les AiInteractions
-    // dans la sous-collection avant de supprimer la conversation parent.
-    // Cela nécessite une transaction ou une fonction Cloud pour la suppression en cascade.
     logger.warn(`Deleting conversation ${conversationId}. Note: Associated AI Interactions in subcollection will NOT be automatically deleted.`);
     return this.deleteDocument('conversations', conversationId);
   }
@@ -545,7 +623,7 @@ export class FirestoreService {
     return this.listenToDocuments('conversations', onData, onError, queryFn);
   }
 
-  // --- AI Interactions (maintenant une sous-collection de Conversation) ---
+  // --- AI Interactions ---
   async getAiInteractionsForConversation(conversationId: string): Promise<AiInteraction[]> {
     try {
       const snapshot = await this.getSubCollectionRef('conversations', conversationId, 'aiInteractions').orderBy('timestamp').get();
@@ -561,20 +639,17 @@ export class FirestoreService {
       ...interaction,
       dateCreation: formatDateForFirestore(new Date()),
       dateMiseAJour: formatDateForFirestore(new Date()),
-      id: generateId('AIInt'), // Firestore overridera si auto-generated
+      id: generateId('AIInt'),
       conversationId: conversationId,
     };
-    // Utiliser la surcharge de addDocument pour les sous-collections
     return this.addDocument('conversations', newInteraction, undefined, conversationId, 'aiInteractions');
   }
 
   async updateAiInteractionInConversation(conversationId: string, interactionId: string, data: Partial<AiInteraction>): Promise<void> {
-    // Utiliser la surcharge de updateDocument pour les sous-collections
     return this.updateDocument('conversations', interactionId, data, undefined, conversationId, 'aiInteractions');
   }
 
   async deleteAiInteractionFromConversation(conversationId: string, interactionId: string): Promise<boolean> {
-    // Utiliser la surcharge de deleteDocument pour les sous-collections
     return this.deleteDocument('conversations', interactionId, conversationId, 'aiInteractions');
   }
 

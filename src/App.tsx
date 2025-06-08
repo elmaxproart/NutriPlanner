@@ -1,7 +1,8 @@
-import React, { useEffect, useState  } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, ActivityIndicator, BackHandler, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
+import { getAuth } from '@react-native-firebase/auth';
 
 import { useAuth } from './hooks/useAuth';
 import { ModalComponent } from './components/common/Modal';
@@ -31,8 +32,14 @@ import RecipeListScreen from './screens/RecipeListScreen';
 import RecipeDetailScreen from './screens/RecipeDetailScreen';
 import RecipeAnalysisScreen from './screens/RecipeAnalysisScreen';
 import { logger } from './utils/logger';
-import { reload } from '@react-native-firebase/auth';
 import OnboardingScreenIA from './components/ai/onboarding/OnboardingScreen';
+import UserOnboardingScreen from './screens/onboarding_screen/UserOnboardingScreen';
+import UserOnboardingStep1 from './screens/onboarding_screen/UserOnboardingStep1';
+import UserOnboardingStep2 from './screens/onboarding_screen/UserOnboardingStep2';
+import UserOnboardingStep3 from './screens/onboarding_screen/UserOnboardingStep3';
+import UserOnboardingStep4 from './screens/onboarding_screen/UserOnboardingStep4';
+import UserOnboardingStep5 from './screens/onboarding_screen/UserOnboardingStep5';
+import UserOnboardingSummary from './screens/onboarding_screen/UserOnboardingSummary';
 
 // Define the RootStackParamList for type safety in navigation
 export type RootStackParamList = {
@@ -40,14 +47,14 @@ export type RootStackParamList = {
   WelcomeAI: undefined;
   Redirection: undefined;
   Welcome: undefined;
-  Login: undefined;
+  Login: { errorMessage: string };
   Signup: undefined;
-  Home: undefined; // Dashboard
+  Home: undefined;
   Profile: undefined;
-  EditScreen: { data?: any };
-  addMenu: undefined;
-  menu: undefined;
-  GeminiAIScreen: undefined;
+  Edit: { data?: any };
+  AddMenu: undefined;
+  Menu: undefined;
+  GeminiAI: undefined;
   ForgotPassword: undefined;
   NetworkStatus: undefined;
   MealHistory: undefined;
@@ -68,6 +75,13 @@ export type RootStackParamList = {
   EditRecipe: { recipeId: string; familyId: string; createurId: string };
   Settings: undefined;
   FallbackLogin: undefined;
+  UserOnboarding: { userId: string };
+  UserOnboardingStep1: { userId: string; familyId: string };
+  UserOnboardingStep2: { userId: string; familyId: string };
+  UserOnboardingStep3: { userId: string; familyId: string };
+  UserOnboardingStep4: { userId: string; familyId: string };
+  UserOnboardingStep5: { userId: string; familyId: string };
+  UserOnboardingSummary: { userId: string; familyId: string };
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -91,6 +105,17 @@ const App = () => {
     BackHandler.exitApp();
   };
 
+  const handleRetryAuth = async () => {
+    const auth = getAuth();
+    if (auth.currentUser) {
+      try {
+        await auth.currentUser.reload();
+      } catch (error) {
+        logger.error(`Failed to reload auth state: ${error}`);
+      }
+    }
+  };
+
   if (authLoading) {
     return (
       <View style={appStyles.loadingContainer}>
@@ -104,15 +129,15 @@ const App = () => {
     return (
       <View style={appStyles.loadingContainer}>
         <Text style={appStyles.loadingText}>Erreur : {authError}</Text>
-        <TouchableOpacity style={appStyles.retryButton} onPress={() => reload}>
+        <TouchableOpacity style={appStyles.retryButton} onPress={handleRetryAuth}>
           <Text style={appStyles.retryText}>Réessayer</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
-  const initialRouteName: keyof RootStackParamList = userId ? 'Home' : 'Onboarding';
-  logger.info('Initial route:' + {initialRouteName});
+  const initialRouteName: keyof RootStackParamList = userId ? 'Onboarding' : 'Welcome';
+  logger.info(`Initial route: ${initialRouteName}`);
 
   return (
     <>
@@ -126,14 +151,21 @@ const App = () => {
           <Stack.Screen name="Signup" component={SignupScreen} />
           <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
           <Stack.Screen name="Redirection" component={RedirectionScreen} />
+          <Stack.Screen name="UserOnboarding" component={UserOnboardingScreen} />
+          <Stack.Screen name="UserOnboardingStep1" component={UserOnboardingStep1} />
+          <Stack.Screen name="UserOnboardingStep2" component={UserOnboardingStep2} />
+          <Stack.Screen name="UserOnboardingStep3" component={UserOnboardingStep3} />
+          <Stack.Screen name="UserOnboardingStep4" component={UserOnboardingStep4} />
+          <Stack.Screen name="UserOnboardingStep5" component={UserOnboardingStep5} />
+          <Stack.Screen name="UserOnboardingSummary" component={UserOnboardingSummary} />
 
           {/* Authenticated User Screens */}
           <Stack.Screen name="Home" component={Dashboard} />
           <Stack.Screen name="Profile" component={ProfileScreen} />
-          <Stack.Screen name="EditScreen" component={EditScreen} />
-          <Stack.Screen name="addMenu" component={AddMenuPage} />
-          <Stack.Screen name="menu" component={MenuPlanifiesScreen} />
-          <Stack.Screen name="GeminiAIScreen" component={GeminiAIScreen} />
+          <Stack.Screen name="Edit" component={EditScreen} />
+          <Stack.Screen name="AddMenu" component={AddMenuPage} />
+          <Stack.Screen name="Menu" component={MenuPlanifiesScreen} />
+          <Stack.Screen name="GeminiAI" component={GeminiAIScreen} />
           <Stack.Screen name="NetworkStatus" component={NetworkStatusScreen} />
           <Stack.Screen name="MenuSuggestions" component={MenuSuggestionsScreen} />
           <Stack.Screen name="MenuDetail" component={MenuDetailScreen} />

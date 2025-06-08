@@ -6,7 +6,7 @@ import { RootStackParamList } from '../../../App';
 
 
 
-type FinishScreenNavigationProp = StackNavigationProp<RootStackParamList, 'GeminiAIScreen'>;
+type FinishScreenNavigationProp = StackNavigationProp<RootStackParamList, 'GeminiAI'>;
 
 interface FinishScreenContentProps {
   navigation: FinishScreenNavigationProp;
@@ -36,7 +36,7 @@ const FinishScreenContent: React.FC<FinishScreenContentProps> = ({ navigation })
       <TouchableOpacity
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
-        onPress={() => navigation.replace('GeminiAIScreen')}
+        onPress={() => navigation.replace('GeminiAI')}
       >
         <Animated.View style={[styles.button, animatedStyle]}>
           <Text style={styles.buttonText}>Commencer</Text>

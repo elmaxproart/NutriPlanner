@@ -12,10 +12,9 @@ import {
 } from '../constants/entities';
 import { logger } from '../utils/logger';
 import { formatDateForFirestore, getErrorMessage } from '../utils/helpers';
-import { useAuth } from './useAuth'; // <-- Import useAuth hook
+import { useAuth } from './useAuth';
 
 interface UseAIConversationProps {
-  // userId is now fetched internally, so it's removed from props
   familyId: string;
   initialConversationId?: string;
   defaultModel?: string;
@@ -108,59 +107,51 @@ export const useAIConversation = ({
     return null;
   }, [userId, defaultModel]);
 
-  // Effect to manage the 'isReady' state and initial data fetch (conversations)
-  useEffect(() => {
-    // If auth is still loading, the hook is not ready.
-    // If auth is done but userId is null, the hook is not ready and there's an error.
-    if (authLoading) {
-      setIsReady(false);
-      setLoading(true); // Indicate overall loading due to auth
-      setError(null);
-      return;
-    }
+useEffect(() => {
+  if (authLoading) {
+    setIsReady(false);
+    setLoading(true);
+    setError(null);
+    logger.info('En attente de l\'authentification...');
+    return;
+  }
 
-    if (!userId || !familyId) {
-      setIsReady(false);
-      setLoading(false); // No longer loading auth, but not ready
-      setError('Utilisateur non authentifié ou ID famille manquant.');
-      // Clear data as services cannot be initialized
-      setConversations([]);
-      setMessages([]);
-      setCurrentConversation(null);
-      return;
-    }
+  if (!userId || !familyId) {
+    setIsReady(false);
+    setLoading(false);
+    setError('Utilisateur non authentifié ou ID famille manquant.');
+    logger.error('userId ou familyId manquant', { userId, familyId });
+    setConversations([]);
+    setMessages([]);
+    setCurrentConversation(null);
+    return;
+  }
 
-    // If we reach here, userId and familyId are available, and authLoading is false.
-    // Initialize services and listeners.
-    setIsReady(true);
-    setLoading(false); // Services are ready, no internal operations currently.
+  setIsReady(true);
+  setLoading(false);
+  logger.info('Services prêts', { userId, familyId });
 
-    // Listener for all user conversations (only runs when firestoreService is available)
-    if (firestoreService) {
-      const unsubscribeConversations = firestoreService.listenToConversations(
-        (data) => {
-          setConversations(data);
-          // Auto-select initial conversation or most recent if none selected
-          if (initialConversationId && !currentConversation) {
-            const found = data.find((conv) => conv.id === initialConversationId);
-            if (found) {
-              setCurrentConversation(found);
-            }
-          } else if (!currentConversation && data.length > 0) {
-            const mostRecent = data[0]; // Or your preferred default selection
-            setCurrentConversation(mostRecent);
-          }
-        },
-        (err) => {
-          const errorMsg = getErrorMessage(err);
-          logger.error('Erreur lors de l\'écoute des conversations :', errorMsg as String);
-          setError(errorMsg);
+  if (firestoreService) {
+    const unsubscribeConversations = firestoreService.listenToConversations(
+      (data) => {
+        logger.info('Conversations récupérées', { count: data.length });
+        setConversations(data);
+        if (initialConversationId && !currentConversation) {
+          const found = data.find((conv) => conv.id === initialConversationId);
+          if (found) {setCurrentConversation(found);}
+        } else if (!currentConversation && data.length > 0) {
+          setCurrentConversation(data[0]);
         }
-      );
-      return () => unsubscribeConversations(); // Cleanup listener
-    }
-    // No return here if firestoreService is null, as the outer condition handles it.
-  }, [authLoading, userId, familyId, firestoreService, initialConversationId, currentConversation]);
+      },
+      (err) => {
+        const errorMsg = `Erreur lors de l'écoute des conversations : ${getErrorMessage(err)}`;
+        logger.error(errorMsg);
+        setError(errorMsg);
+      }
+    );
+    return () => unsubscribeConversations();
+  }
+}, [authLoading, userId, familyId, firestoreService, initialConversationId, currentConversation]);
 
 
   // Listener for messages of the selected conversation (only runs when firestoreService is available)

@@ -1,102 +1,76 @@
-import { useState, useCallback } from 'react';
 import auth from '@react-native-firebase/auth';
-import { logger } from '../utils/logger';
-import { generateId, isValidEmail } from '../utils/helpers';
-import type { MembreFamille } from '../constants/entities';
+import { isValidEmail } from '../utils/helpers';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-interface AuthResult {
-  userId: string;
-  familyId: string;
-  member?: MembreFamille;
-}
+export const signUp = async (email: string, password: string): Promise<{ id: string }> => {
+  if (!isValidEmail(email)) {
+    throw new Error('Email invalide');
+  }
 
-export const useSignUpFnAuth = () => {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  try {
+    const userCredential = await auth().createUserWithEmailAndPassword(email, password);
+    const userId = userCredential.user.uid;
 
-  const signUp = useCallback(async (email: string, password: string, initialData: Partial<MembreFamille>): Promise<AuthResult | null> => {
-    setLoading(true);
-    setError(null);
+    // Stockage sécurisé des informations
+    await Promise.all([
+      AsyncStorage.setItem('signupEmail', email),
+      AsyncStorage.setItem('signupPassword', password),
+      AsyncStorage.setItem('userId', userId),
+    ]);
 
-    if (!isValidEmail(email)) {
-      setError('Email invalide');
-      logger.error('Invalid email provided', { email });
-      setLoading(false);
-      return null;
+    return { id: userId };
+  } catch (error: any) {
+    let errorMessage = 'Erreur lors de la création du compte';
+
+    switch (error.code) {
+      case 'auth/email-already-in-use':
+        errorMessage = 'Cet email est déjà utilisé';
+        break;
+      case 'auth/invalid-email':
+        errorMessage = 'Format email invalide';
+        break;
+      case 'auth/weak-password':
+        errorMessage = 'Le mot de passe doit faire au moins 6 caractères';
+        break;
+      default:
+        console.error('Erreur inscription:', error);
+        errorMessage = error.message || errorMessage;
     }
 
-    if (password.length < 6) {
-      setError('Le mot de passe doit contenir au moins 6 caractères');
-      logger.error('Password too short', { email });
-      setLoading(false);
-      return null;
+    throw new Error(errorMessage);
+  }
+};
+
+export const login = async (email: string, password: string): Promise<string> => {
+  if (!isValidEmail(email)) {
+    throw new Error('Email invalide');
+  }
+
+  try {
+    const userCredential = await auth().signInWithEmailAndPassword(email, password);
+    const userId = userCredential.user.uid;
+
+    await AsyncStorage.setItem('userToken', userId);
+    return userId;
+  } catch (error: any) {
+    let errorMessage = 'Erreur de connexion';
+
+    switch (error.code) {
+      case 'auth/user-not-found':
+      case 'auth/invalid-credential':
+        errorMessage = 'Email ou mot de passe incorrect';
+        break;
+      case 'auth/wrong-password':
+        errorMessage = 'Mot de passe incorrect';
+        break;
+      case 'auth/too-many-requests':
+        errorMessage = 'Trop de tentatives, réessayez plus tard';
+        break;
+      default:
+        console.error('Erreur connexion:', error);
+        errorMessage = error.message || errorMessage;
     }
 
-    try {
-      const userCredential = await auth().createUserWithEmailAndPassword(email, password);
-      const userId = userCredential.user.uid;
-      const familyId = generateId('family');
-      const member: MembreFamille = {
-        id: userId,
-        userId,
-        familyId,
-        createurId: userId,
-        dateCreation: new Date().toISOString(),
-        nom: initialData?.nom || '',
-        prenom: initialData?.prenom || '',
-        dateNaissance: initialData?.dateNaissance || '',
-        genre: initialData?.genre || 'autre',
-        role: initialData?.role || 'parent',
-        preferencesAlimentaires: initialData?.preferencesAlimentaires || [],
-        allergies: initialData?.allergies || [],
-        restrictionsMedicales: initialData?.restrictionsMedicales || [],
-        historiqueRepas: [],
-        niveauAcces: 'admin',
-        contactUrgence: {
-          nom: initialData?.contactUrgence?.nom || '',
-          telephone: initialData?.contactUrgence?.telephone || '',
-        },
-        aiPreferences: {
-          niveauEpices: initialData?.aiPreferences?.niveauEpices || 0,
-          apportCaloriqueCible: initialData?.aiPreferences?.apportCaloriqueCible || 0,
-          cuisinesPreferees: initialData?.aiPreferences?.cuisinesPreferees || [],
-        },
-      };
-      logger.info('User signed up successfully', { userId, familyId });
-      return { userId, familyId, member };
-    } catch (err: any) {
-      logger.error('Sign up failed', { error: err.message });
-      setError(err.message || 'Erreur lors de la création du compte');
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const login = useCallback(async (email: string, password: string): Promise<string | null> => {
-    setLoading(true);
-    setError(null);
-
-    if (!isValidEmail(email)) {
-      setError('Email invalide');
-      logger.error('Invalid email provided', { email });
-      setLoading(false);
-      return null;
-    }
-
-    try {
-      const userCredential = await auth().signInWithEmailAndPassword(email, password);
-      const userId = userCredential.user.uid;
-      logger.info('User logged in successfully', { userId });
-      return userId;
-    } catch (err: any) {
-      logger.error('Login failed', { error: err.message });
-      setError(err.message || 'Erreur lors de la connexion');
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  return { signUp, login, loading, error };
+    throw new Error(errorMessage);
+  }
 };

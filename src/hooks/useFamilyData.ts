@@ -3,8 +3,9 @@ import { FirestoreService } from '../services/FirestoreService';
 import { MembreFamille } from '../constants/entities';
 import { validateMembreFamille } from '../utils/dataValidators';
 import { logger } from '../utils/logger';
+import { generateId } from '../utils/helpers';
 
-export const useFamilyData = (userId: string, familyId: string) => {
+export const useFamilyData = (userId: string, familyId: string = 'family1') => {
   const [familyMembers, setFamilyMembers] = useState<MembreFamille[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -49,6 +50,21 @@ export const useFamilyData = (userId: string, familyId: string) => {
     }
   };
 
+  const createFamily = async (creatorId: string, familyName?: string) => {
+    if(!familyId){ familyId = generateId(familyName || 'family1'); }
+    try {
+      setLoading(true);
+      const firestoreService = new FirestoreService(creatorId, 'family1');
+      await firestoreService.createFamily('family1', familyName);
+      logger.info('Family created', { familyId, familyName });
+    } catch (err: any) {
+      logger.error('Error creating family', { error: err.message, familyId });
+      setError(err.message || 'Erreur lors de la création de la famille');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const updateFamilyMember = async (memberId: string, updates: Partial<MembreFamille>) => {
     try {
       const firestoreService = new FirestoreService(userId, familyId);
@@ -61,5 +77,5 @@ export const useFamilyData = (userId: string, familyId: string) => {
     }
   };
 
-  return { familyMembers, loading, error, fetchFamilyMembers, addFamilyMember, updateFamilyMember };
+  return { familyMembers, loading, error, fetchFamilyMembers, addFamilyMember, createFamily, updateFamilyMember };
 };

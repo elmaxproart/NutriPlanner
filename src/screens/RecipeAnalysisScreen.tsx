@@ -27,7 +27,7 @@ const RecipeAnalysisScreen: React.FC<RecipeAnalysisScreenProps> = ({ navigation,
   const familyId = 'family1';
 
   const { recipes, loading: recipesLoading, error: recipesError } = useRecipes(userId || '', familyId);
-  const { analyzeRecipe } = useAIConversation({ userId: userId || '', familyId }); // Pass the familyId to AI conversation hook
+  const { analyzeRecipe } = useAIConversation({ familyId }); // Pass the familyId to AI conversation hook
 
   const [recipe, setRecipe] = useState<Recette | null>(null);
   const [analysisResult, setAnalysisResult] = useState<any>(null); // Keep as 'any' or define a more specific AI response interface

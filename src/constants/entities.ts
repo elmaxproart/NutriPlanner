@@ -1,7 +1,7 @@
 // types/entities.ts
 
 // Importation des types énumérés et des catégories depuis d'autres fichiers
-import type { IngredientCategory, RecipeCategory, MealType, UserRole, StoreCategory } from './categories';
+import type { IngredientCategory, RecipeCategory, MealType, UserRole, StoreCategory, Genre } from './categories';
 import type { Unit } from './units';
 import type { Currency } from './config';
 import { ImageSourcePropType } from 'react-native';
@@ -117,8 +117,8 @@ export interface MembreFamille extends BaseEntity {
   nom: string;
   prenom: string;
   dateNaissance: string; // AAAA-MM-DD.
-  genre: 'homme' | 'femme' | 'autre';
-  role: UserRole; // ex: 'parent', 'enfant', 'grand-parent'.
+  genre: Genre;
+  role: UserRole;
   preferencesAlimentaires: string[]; // ex: 'végétarien', 'sans gluten', 'bio'.
   allergies: string[]; // ex: 'arachides', 'lactose'.
   restrictionsMedicales: string[]; // ex: 'diabète', 'hypertension'.

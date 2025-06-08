@@ -41,3 +41,7 @@ export  type MenuStatus =
   | 'terminé'
   | 'annulé';
 
+export type Genre =
+ |'homme'
+ | 'femme'
+ | 'autre';

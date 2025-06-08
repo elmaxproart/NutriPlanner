@@ -16,25 +16,25 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
 import AntDesign from 'react-native-vector-icons/AntDesign';
 import { ModalComponent } from '../../components/common/Modal';
+import { Slider } from '@miblanchard/react-native-slider';
 import { useNavigation } from '@react-navigation/native';
 
-type NavigationProp = StackNavigationProp<RootStackParamList, 'UserOnboardingStep3'>;
+type NavigationProp = StackNavigationProp<RootStackParamList, 'UserOnboardingStep5'>;
 
-const UserOnboardingStep3: React.FC<{ route: { params: { userId: string; familyId: string } } }> = ({ route }) => {
+const UserOnboardingStep5: React.FC<{ route: { params: { userId: string; familyId: string } } }> = ({ route }) => {
   const { userId, familyId } = route.params;
   const navigation = useNavigation<NavigationProp>();
   const [formData, setFormData] = useState({
-    repasFavoris: '',
-    contactUrgenceNom: '',
-    contactUrgenceTelephone: '',
+    niveauEpices: 1,
+    apportCaloriqueCible: '',
+    cuisinesPreferees: '',
   });
   const [isLoading, setIsLoading] = useState(false);
   const [errorModalVisible, setErrorModalVisible] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [isFocused, setIsFocused] = useState({
-    repasFavoris: false,
-    contactUrgenceNom: false,
-    contactUrgenceTelephone: false,
+    apportCaloriqueCible: false,
+    cuisinesPreferees: false,
   });
   const titleOpacity = useRef(new Animated.Value(0)).current;
   const inputAnim = useRef(new Animated.Value(0)).current;
@@ -51,7 +51,7 @@ const UserOnboardingStep3: React.FC<{ route: { params: { userId: string; familyI
 
   const loadData = async () => {
     try {
-      const storedData = await AsyncStorage.getItem('onboardingStep3');
+      const storedData = await AsyncStorage.getItem('onboardingStep5');
       if (storedData) {
         setFormData(JSON.parse(storedData));
       }
@@ -62,13 +62,13 @@ const UserOnboardingStep3: React.FC<{ route: { params: { userId: string; familyI
   };
 
   const validateForm = () => {
-    if (!formData.repasFavoris || !formData.contactUrgenceNom || !formData.contactUrgenceTelephone) {
+    if (!formData.apportCaloriqueCible || !formData.cuisinesPreferees) {
       setErrorMessage('Veuillez remplir tous les champs obligatoires.');
       setErrorModalVisible(true);
       return false;
     }
-    if (!/^\+?\d{10,15}$/.test(formData.contactUrgenceTelephone)) {
-      setErrorMessage('Veuillez entrer un numéro de téléphone valide.');
+    if (isNaN(Number(formData.apportCaloriqueCible)) || Number(formData.apportCaloriqueCible) < 0) {
+      setErrorMessage('L’apport calorique doit être un nombre positif.');
       setErrorModalVisible(true);
       return false;
     }
@@ -79,8 +79,8 @@ const UserOnboardingStep3: React.FC<{ route: { params: { userId: string; familyI
     if (!validateForm()) {return;}
     setIsLoading(true);
     try {
-      await AsyncStorage.setItem('onboardingStep3', JSON.stringify(formData));
-      navigation.navigate('UserOnboardingStep4', { userId, familyId });
+      await AsyncStorage.setItem('onboardingStep5', JSON.stringify(formData));
+      navigation.navigate('UserOnboardingSummary', { userId, familyId });
     } catch (e: any) {
       setErrorMessage('Erreur lors de la sauvegarde des données.');
       setErrorModalVisible(true);
@@ -91,13 +91,13 @@ const UserOnboardingStep3: React.FC<{ route: { params: { userId: string; familyI
 
   const getImageSource = () => {
     try {
-      return require('../../assets/images/contact.jpg');
+      return require('../../assets/images/ai-preferences.jpg');
     } catch {
       return require('../../assets/images/ai.jpg');
     }
   };
 
-  const handleFocus = (field: 'repasFavoris' | 'contactUrgenceNom' | 'contactUrgenceTelephone') => {
+  const handleFocus = (field: 'apportCaloriqueCible' | 'cuisinesPreferees') => {
     setIsFocused(prev => ({ ...prev, [field]: true }));
     Animated.timing(inputAnim, {
       toValue: 1,
@@ -106,7 +106,7 @@ const UserOnboardingStep3: React.FC<{ route: { params: { userId: string; familyI
     }).start();
   };
 
-  const handleBlur = (field: 'repasFavoris' | 'contactUrgenceNom' | 'contactUrgenceTelephone') => {
+  const handleBlur = (field: 'apportCaloriqueCible' | 'cuisinesPreferees') => {
     setIsFocused(prev => ({ ...prev, [field]: false }));
     Animated.timing(inputAnim, {
       toValue: 0,
@@ -126,13 +126,28 @@ const UserOnboardingStep3: React.FC<{ route: { params: { userId: string; familyI
             <Text style={styles.backText}>Retour</Text>
           </TouchableOpacity>
           <Animated.Text style={[styles.title, { opacity: titleOpacity }]}>
-            Étape 3 : Repas favoris et contact d'urgence
+            Étape 5 : Préférences IA
           </Animated.Text>
           <View style={styles.inputContainer}>
+            <View style={styles.sliderContainer}>
+              <Text style={styles.label}>Niveau d'épices (1-5)</Text>
+              <Slider
+                value={formData.niveauEpices}
+                onValueChange={(value) => setFormData({ ...formData, niveauEpices: Math.round(value[0]) })}
+                minimumValue={1}
+                maximumValue={5}
+                step={1}
+                thumbTintColor="#f7b733"
+                minimumTrackTintColor="#fc4a1a"
+                maximumTrackTintColor="#1a1a1a"
+                disabled={isLoading}
+              />
+              <Text style={styles.sliderValue}>{formData.niveauEpices}</Text>
+            </View>
             <Animated.View
               style={[
                 styles.inputWrapper,
-                isFocused.repasFavoris && styles.inputFocused,
+                isFocused.apportCaloriqueCible && styles.inputFocused,
                 {
                   transform: [
                     {
@@ -144,75 +159,48 @@ const UserOnboardingStep3: React.FC<{ route: { params: { userId: string; familyI
                   ],
                 },
               ]}>
-              <AntDesign name="heart" size={20} color={isFocused.repasFavoris ? '#f7b733' : '#aaa'} style={styles.inputIcon} />
+              <AntDesign name="fire" size={20} color={isFocused.apportCaloriqueCible ? '#f7b733' : '#aaa'} style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="Repas favoris (séparés par des virgules)"
+                placeholder="Apport calorique cible (kcal)"
                 placeholderTextColor="#aaa"
-                value={formData.repasFavoris}
-                onChangeText={(text) => setFormData({ ...formData, repasFavoris: text })}
+                value={formData.apportCaloriqueCible}
+                onChangeText={(text) => setFormData({ ...formData, apportCaloriqueCible: text })}
+                keyboardType="numeric"
+                onFocus={() => handleFocus('apportCaloriqueCible')}
+                onBlur={() => handleBlur('apportCaloriqueCible')}
+                editable={!isLoading}
+              />
+            </Animated.View>
+            <Animated.View
+              style={[
+                styles.inputWrapper,
+                isFocused.cuisinesPreferees && styles.inputFocused,
+                {
+                  transform: [
+                    {
+                      scale: inputAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [1, 1.02],
+                      }),
+                    },
+                  ],
+                },
+              ]}>
+              <AntDesign name="rest" size={20} color={isFocused.cuisinesPreferees ? '#f7b733' : '#aaa'} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Cuisines préférées (séparées par des virgules)"
+                placeholderTextColor="#aaa"
+                value={formData.cuisinesPreferees}
+                onChangeText={(text) => setFormData({ ...formData, cuisinesPreferees: text })}
                 multiline
                 numberOfLines={2}
-                onFocus={() => handleFocus('repasFavoris')}
-                onBlur={() => handleBlur('repasFavoris')}
+                onFocus={() => handleFocus('cuisinesPreferees')}
+                onBlur={() => handleBlur('cuisinesPreferees')}
                 editable={!isLoading}
               />
-            </Animated.View>
-            <Animated.View
-              style={[
-                styles.inputWrapper,
-                isFocused.contactUrgenceNom && styles.inputFocused,
-                {
-                  transform: [
-                    {
-                      scale: inputAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [1, 1.02],
-                      }),
-                    },
-                  ],
-                },
-              ]}>
-              <AntDesign name="user" size={20} color={isFocused.contactUrgenceNom ? '#f7b733' : '#aaa'} style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Nom du contact d'urgence"
-                placeholderTextColor="#aaa"
-                value={formData.contactUrgenceNom}
-                onChangeText={(text) => setFormData({ ...formData, contactUrgenceNom: text })}
-                onFocus={() => handleFocus('contactUrgenceNom')}
-                onBlur={() => handleBlur('contactUrgenceNom')}
-                editable={!isLoading}
-              />
-            </Animated.View>
-            <Animated.View
-              style={[
-                styles.inputWrapper,
-                isFocused.contactUrgenceTelephone && styles.inputFocused,
-                {
-                  transform: [
-                    {
-                      scale: inputAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [1, 1.02],
-                      }),
-                    },
-                  ],
-                },
-              ]}>
-              <AntDesign name="phone" size={20} color={isFocused.contactUrgenceTelephone ? '#f7b733' : '#aaa'} style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Téléphone du contact d'urgence"
-                placeholderTextColor="#aaa"
-                value={formData.contactUrgenceTelephone}
-                onChangeText={(text) => setFormData({ ...formData, contactUrgenceTelephone: text })}
-                keyboardType="phone-pad"
-                onFocus={() => handleFocus('contactUrgenceTelephone')}
-                onBlur={() => handleBlur('contactUrgenceTelephone')}
-                editable={!isLoading}
-              />
-            </Animated.View>
+                        </Animated.View>
           </View>
           <Animated.View
             style={[
@@ -253,7 +241,7 @@ const UserOnboardingStep3: React.FC<{ route: { params: { userId: string; familyI
   );
 };
 
-export default UserOnboardingStep3;
+export default UserOnboardingStep5;
 
 const styles = StyleSheet.create({
   container: {
@@ -330,6 +318,21 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 15,
     zIndex: 1,
+  },
+  sliderContainer: {
+    marginBottom: 20,
+    width: '100%',
+  },
+  label: {
+    color: '#fff',
+    fontSize: 16,
+    marginBottom: 10,
+  },
+  sliderValue: {
+    color: '#f7b733',
+    fontSize: 16,
+    textAlign: 'center',
+    marginTop: 10,
   },
   buttonContainer: {
     width: '100%',

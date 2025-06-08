@@ -18,7 +18,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { width } from '../styles/DashbordStyle';
 import { useAuth } from '../hooks/useAuth';
 import { useMenus } from '../hooks/useMenus';
-import { useAIConversation } from '../hooks/useAIConversation';
+//import { useAIConversation } from '../hooks/useAIConversation';
 import { useFamilyData } from '../hooks/useFamilyData';
 import { Menu} from '../constants/entities'; // Import Menu and MealType
 import { MealType } from '../constants/categories';
@@ -132,12 +132,13 @@ const mockMenus: Menu[] = [
 ];
 
 const Dashboard: React.FC<{ navigation: any }> = ({ navigation }) => {
-  const { userId, loading: authLoading } = useAuth();
-  const { familyMembers, loading: familyLoading } = useFamilyData(userId || '', 'defaultFamilyId');
-  const familyId = familyMembers.length > 0 ? familyMembers[0].familyId || 'defaultFamilyId' : 'defaultFamilyId';
-  const { menus: dynamicMenus, loading: menusLoading } = useMenus(userId || '', familyId);
-  const { loading: aiLoading } = useAIConversation({ familyId });
+  const { userId, loading: authLoading , error: AuthError } = useAuth();
+  const { familyMembers, loading: familyLoading , error: FamilyError } = useFamilyData(userId || '', 'family1');
+  const familyId = familyMembers.length > 0 ? familyMembers[0].familyId || 'family1' : 'family1';
+  const { menus: dynamicMenus, loading: menusLoading ,error: menuError } = useMenus(userId || '', familyId);
+ // const { loading: aiLoading, error: aiError, isReady: aiReady } = useAIConversation({ familyId });
   const scrollViewRef = useRef<ScrollView>(null);
+
 
   const [search, setSearch] = useState<string>('');
   const [menus, setMenus] = useState<Menu[]>(mockMenus);
@@ -236,13 +237,14 @@ const Dashboard: React.FC<{ navigation: any }> = ({ navigation }) => {
     </View>
   );
 
-  if (authLoading || familyLoading || menusLoading || aiLoading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <Text style={styles.loadingText}>Loading...</Text>
-      </SafeAreaView>
-    );
-  }
+if (authLoading || familyLoading || menusLoading || {/*aiLoading || !aiReady*/} ) {
+  return (
+    <SafeAreaView style={styles.container}>
+      <Text style={styles.loadingText}>Chargement en cours...</Text>
+    </SafeAreaView>
+  );
+}
+
 
   return (
     <SafeAreaView style={styles.container}>

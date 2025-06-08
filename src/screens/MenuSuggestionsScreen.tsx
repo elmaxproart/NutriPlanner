@@ -14,10 +14,9 @@ import { ModalComponent } from '../components/common/Modal';
 const MenuSuggestionsScreen = () => {
   const navigation = useNavigation();
   const { userId } = useAuth();
-  const { addMenu } = useMenus(userId || '', 'defaultFamilyId');
+  const { addMenu } = useMenus(userId || '', 'family1');
   const { getMenuSuggestions } = useAIConversation({
-    userId: userId || '',
-    familyId: 'defaultFamilyId',
+    familyId: 'family1',
   });
   const { getCollection } = useFirestore(userId || '', 'defaultFamilyId');
   const [suggestions, setSuggestions] = useState<Menu[]>([]);

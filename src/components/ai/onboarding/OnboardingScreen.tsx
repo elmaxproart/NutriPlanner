@@ -74,13 +74,12 @@ const OnboardingScreenIA: React.FC<OnboardingScreenProps> = ({ navigation }) => 
 
   const handleNext = () => {
     if (index < onboardingData.length - 1) {
-      // Trigger fade-out animation before changing index
       opacity.value = withTiming(0, { duration: 300 });
       translateY.value = withTiming(20, { duration: 300 }, () => {
         setIndex(oldIndex => oldIndex + 1); // Update index after animation completes
       });
     } else {
-      navigation.replace('GeminiAIScreen');
+      navigation.replace('GeminiAI');
     }
   };
 
@@ -94,7 +93,7 @@ const OnboardingScreenIA: React.FC<OnboardingScreenProps> = ({ navigation }) => 
     }
   };
 
-  const handleSkip = () => navigation.replace('GeminiAIScreen');
+  const handleSkip = () => navigation.replace('GeminiAI');
 
   const { title, description, image } = onboardingData[index];
 
