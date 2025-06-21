@@ -424,7 +424,11 @@ const GeminiScreen: React.FC = () => {
       key={index}
       title={bubble.text}
       description={t(`suggestions.${bubble.id.toLowerCase()}Desc`)}
-      imageUri={bubble.id === PromptType.RECIPE_PERSONALIZED ? 'jollof.jpg' : 'thieb.jpg'}
+      imageUri={
+        bubble.id === PromptType.RECIPE_PERSONALIZED
+          ? { uri: 'jollof.jpg' }
+          : { uri: 'thieb.jpg' }
+      }
       onPress={bubble.onPress}
       onSendToAI={(message) =>
         navigation.navigate('GeminiChat', {
@@ -446,7 +450,7 @@ const GeminiScreen: React.FC = () => {
 </ScrollView>
 
 
-          <TemplatePreviewSection />
+         {/* <TemplatePreviewSection />*/}
           <View style={styles.suggestionSection}>
             <Text style={styles.sectionTitle}>{t('suggestions.title')}</Text>
             {suggestionItems.map((item, index) => (
@@ -454,7 +458,7 @@ const GeminiScreen: React.FC = () => {
                 key={index}
                 title={item.title}
                 description={item.description}
-                imageUri={item.imageUri}
+                imageUri={{ uri: item.imageUri }}
                 onPress={item.onPress}
                 onSendToAI={item.onSendToAI}
               />

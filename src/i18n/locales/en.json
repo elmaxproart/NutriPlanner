@@ -1,633 +1,789 @@
 {
-
-    "welcome": "Welcome, {{name}}!",
-    "icons": {
-      "bell": "Notifications",
-      "restaurant": "Restaurant",
-      "trending-up": "Trending Up",
-      "account-plus": "Add Member",
-      "camera-plus-outline": "Change Image",
-      "content-save": "Save",
-      "logout": "Logout",
-      "arrow-left": "Back",
-      "menu": "Menu",
-      "magnify": "Search",
-      "account": "Profile",
-      "gemini": "AI Assistant"
-    },
-    "nav": {
-      "home": "Home",
-      "menus": "Menus",
-      "shopping": "Shopping",
-      "profile": "Profile",
-      "chat": "AI Chat"
-    },
-    "dashboard": {
-      "title": "Dashboard",
-      "loading": "Loading dashboard...",
-      "searchPlaceholder": "Search menus...",
-      "userInfo": "User: {{name}}",
-      "familyCount": "Family Members: {{count}}",
-      "budget": "Budget: ${{amount}}",
-      "storesTitle": "Nearby Stores",
-      "nutritionTitle": "Nutrition Overview",
-      "exitApp": {
-        "title": "Exit App",
-        "message": "Are you sure you want to exit?",
-        "confirm": "Yes",
-        "cancel": "Cancel"
-      }
-    },
-    "recording": {
-      "saved": "Audio saved successfully",
-      "active": "Recording audio...",
-      "ready": "Ready to record",
-      "goToChat": "Go to Chat",
-      "errors": {
-        "audioPermission": "Audio permission denied",
-        "recordingStart": "Failed to start recording",
-        "recordingStop": "Failed to stop recording"
-      }
-    },
-    "actions": {
-      "addToMenu": "Add to Menu",
-      "addToMenuHint": "Adds the selected item to a menu",
-      "share": "Share",
-      "shareHint": "Shares the content",
-      "addToList": "Add to Shopping List",
-      "addToListHint": "Adds ingredients to your shopping list",
-      "plan": "Plan Meal",
-      "planHint": "Plans a meal with this recipe",
-      "saveFavorite": "Save as Favorite",
-      "saveFavoriteHint": "Saves the recipe as a favorite",
-      "addedToList": "Added to shopping list",
-      "addToListError": "Failed to add to shopping list",
-      "plannedMeal": "Meal planned successfully",
-      "planMealError": "Failed to plan meal",
-      "savedFavorite": "Saved as favorite",
-      "saveFavoriteError": "Failed to save as favorite",
-      "shareSuccess": "Shared successfully",
-      "shareError": "Failed to share"
-    },
-    "contextMenu": {
-      "container": "Context Menu",
-      "hint": "Options for copying, sharing, or deleting",
-      "opened": "Context menu opened",
-      "copy": "Copy",
-      "copyHint": "Copies the content to clipboard",
-      "copySuccess": "Copied to clipboard",
-      "copyError": "Failed to copy",
-      "share": "Share",
-      "shareSuccess": "Shared successfully",
-      "shareError": "Failed to share",
-      "delete": "Delete",
-      "deleteSuccess": "Deleted successfully",
-      "deleteError": "Failed to delete"
-    },
-    "foodTrends": {
-      "title": "Food Trends",
-      "trends": "Trends ({{count}})",
-      "container": "Food Trends Card",
-      "hint": "View and interact with food trends",
-      "loaded": "Food trends loaded",
-      "trend": "Trend: {{name}}",
-      "star": "Star {{number}}",
-      "popularity": "Popularity: {{popularity}}%",
-      "addToMenu": "Add to Menu",
-      "addToMenuHint": "Add this trend to a menu",
-      "selectMenuTitle": "Select or Create Menu",
-      "selectMenu": "Select Menu: {{menuName}}",
-      "selectExistingMenu": "Select Existing Menu",
-      "menuList": "Menu List",
-      "noMenus": "No menus available",
-      "createNewMenu": "Create New Menu",
-      "menuName": "Menu Name",
-      "menuDate": "Menu Date",
-      "menuType": "Menu Type",
-      "placeholderDate": "YYYY-MM-DD",
-      "createMenu": "Create Menu",
-      "menuModalOpened": "Menu selection modal opened",
-      "menuModalClosed": "Menu selection modal closed",
-      "addedToMenu": "Added to menu: {{menuName}}",
-      "addedToNewMenu": "Added to new menu: {{menuName}}",
-      "addToMenuError": "Failed to add to menu",
-      "missingData": "Missing required data",
-      "trendsList": "List of food trends"
-    },
-    "recipe": {
-      "loaded": "Recipe loaded: {{name}}",
-      "container": "Recipe Card",
-      "hint": "View and interact with recipe details",
-      "ingredients": "Ingredients",
-      "ingredientsList": "Ingredients List",
-      "instructions": "Instructions",
-      "instructionsList": "Instructions List",
-      "nutrition": "Nutrition Analysis",
-      "comments": "Comments ({{count}})",
-      "commentsList": "Comments List",
-      "portions": "Portions: {{count}}",
-      "time": "Prep: {{prep}} min, Cook: {{cook}} min",
-      "difficulty": "Difficulty: {{level}}",
-      "category": "Category: {{category}}",
-      "image": "Recipe Image",
-      "carousel": "Image Carousel",
-      "carouselHint": "Swipe to view recipe images",
-      "compatibility": "Family Compatibility: {{status}}",
-      "calories": "Calories",
-      "spices": "Spice Level",
-      "protein": "Protein",
-      "fat": "Fat",
-      "carbs": "Carbohydrates"
-    },
-    "mealTypes": {
-      "breakfast": "Breakfast",
-      "lunch": "Lunch",
-      "dinner": "Dinner",
-      "snack": "Snack"
-    },
-    "foodNames": {
-      "menuPlaceholder": "Enter menu name"
-    },
-    "imagePreview": {
-      "image": "Preview Image",
-      "close": "Close Preview",
-      "closeHint": "Closes the image preview"
-    },
-    "profile": {
-      "title": "Profile",
-      "username": "{{username}}",
-      "logout": "Logout",
-      "loading": "Loading profile..."
-    },
-    "settings": {
-      "title": "Account Settings",
-      "darkTheme": "Dark Theme",
-      "language": "Language: {{language}}",
-      "switchLanguage": "Switch to {{language}}",
-      "notifications": "Notifications"
-    },
-    "preferences": {
-      "title": "Dietary Preferences",
-      "vegan": "Vegan",
-      "spiceLevel": "Spice Level",
-      "cuisine": "Preferred Cuisine",
-      "cuisinePlaceholder": "Enter cuisine"
-    },
-    "family": {
-      "title": "Family Members",
-      "addMember": "Add Member",
-      "member": "Member: {{name}}"
-    },
-    "history": {
-      "title": "Activity History",
-      "addMember": "Added new member: {{name}}",
-      "editProfile": "Edited user profile"
-    },
-    "image": {
-      "chooseOption": "Choose an option",
-      "chooseOptionMessage": "Would you like to take a photo or choose one from the gallery?",
-      "camera": "Camera",
-      "gallery": "Gallery",
-      "cancel": "Cancel",
-      "uploadProgress": "Upload: {{progress}}%",
-      "errors": {
-        "noImage": "No image selected.",
-        "uploadFailed": "Failed to upload image: {{message}}"
-      }
-    },
-    "alerts": {
-      "logout": {
-        "title": "Logout",
-        "message": "Are you sure you want to log out?",
-        "confirm": "Yes",
-        "cancel": "Cancel"
-      }
-    },
-    "modal": {
-      "aiActionModal": "Choose an AI Action",
-      "selectFamilyMember": "Select Family Member",
-      "selectFamilyMembers": "Select Family Members",
-      "selectDate": "Select Date",
-      "selectMenu": "Select Menu",
-      "selectIngredients": "Select Ingredients",
-      "selectPreferences": "Select Preferences",
-      "selectBudget": "Select Budget",
-      "selectIngredient": "Select Ingredient",
-      "selectDiet": "Select Diet",
-      "selectOccasion": "Select Occasion",
-      "selectGuestCount": "Select Guest Count",
-      "selectImage": "Select Image",
-      "selectLocation": "Select Location",
-      "selectMeal": "Select Meal",
-      "selectMonth": "Select Month",
-      "selectRecipe": "Select Recipe",
-      "inputQuery": "Enter Query",
-      "searchPlaceholder": "Search for menus or recipes...",
-      "searchAccessibilityLabel": "Search for menus or recipes",
-      "opened": "{{title}} modal opened",
-      "closed": "Modal closed",
-      "actionsListAccessibilityLabel": "List of AI actions",
-      "loading": "Saving...",
-      "noActionsFound": "No actions found",
-      "confirm": "Confirm",
-      "close": "Close modal",
-      "accessibilityLabel": "AI Actions Modal",
-      "saveSuccess": "Changes saved successfully!",
-      "saveError": "Failed to save changes.",
-      "logoutLoading": "Logging out...",
-      "logoutError": "Logout failed: {{message}}"
-    },
-    "templates": {
-      "title": "Explore Templates",
-      "filter": "Filter by {{category}}",
-      "all": "All",
-      "recipe_personalized": {
-        "title": "Personalized Recipe",
-        "description": "Get a recipe tailored to your preferences"
-      },
-      "weekly_menu": {
-        "title": "Weekly Menu",
-        "description": "Plan your meals for the week"
-      },
-      "shopping_list": {
-        "title": "Shopping List",
-        "description": "Generate a shopping list for your menu"
-      },
-      "recipe_nutrition_analysis": {
-        "title": "Recipe Nutrition Analysis",
-        "description": "Analyze the nutritional content of a recipe"
-      },
-      "recipe_suggestion": {
-        "title": "Recipe Suggestions",
-        "description": "Discover new recipes based on ingredients"
-      },
-      "quick_recipe": {
-        "title": "Quick Recipe",
-        "description": "Fast and easy meal ideas"
-      },
-      "budget_planning": {
-        "title": "Budget Planning",
-        "description": "Plan your meals within a budget"
-      },
-      "store_suggestion": {
-        "title": "Store Suggestion",
-        "description": "Find stores for your ingredients",
-        "recommendation": "Recommended stores for {{ingredient}}"
-      },
-      "meal_analysis": {
-        "title": "Meal Analysis",
-        "description": "Analyze your meal history"
-      },
-      "kids_recipe": {
-        "title": "Kids Recipe",
-        "description": "Fun recipes for kids"
-      },
-      "special_occasion_menu": {
-        "title": "Special Occasion Menu",
-        "description": "Plan a menu for special events like {{occasion}}"
-      },
-      "inventory_optimization": {
-        "title": "Inventory Optimization",
-        "description": "Use your existing ingredients"
-      },
-      "ingredient_based_recipe": {
-        "title": "Ingredient-Based Recipe",
-        "description": "Recipes based on a key ingredient"
-      },
-      "budget_menu": {
-        "title": "Budget Menu",
-        "description": "Affordable menu planning"
-      },
-      "recipe_compatibility": {
-        "title": "Recipe Compatibility",
-        "description": "Check if a recipe suits your family"
-      },
-      "specific_diet_recipe": {
-        "title": "Specific Diet Recipe",
-        "description": "Recipes for specific diets"
-      },
-      "balanced_daily_menu": {
-        "title": "Balanced Daily Menu",
-        "description": "Healthy daily meal plans"
-      },
-      "recipe_from_image": {
-        "title": "Recipe from Image",
-        "description": "Create a recipe from a photo"
-      },
-      "leftover_recipe": {
-        "title": "Leftover Recipe",
-        "description": "Recipes using leftovers"
-      },
-      "guest_recipe": {
-        "title": "Guest Recipe",
-        "description": "Recipes for guests"
-      },
-      "ingredient_availability": {
-        "title": "Ingredient Availability",
-        "description": "Check where to find ingredients"
-      },
-      "nutritional_info": {
-        "title": "Nutritional Info",
-        "description": "Get nutritional information"
-      },
-      "troubleshoot_problem": {
-        "title": "Troubleshoot Problem",
-        "description": "Solve cooking issues"
-      },
-      "creative_ideas": {
-        "title": "Creative Ideas",
-        "description": "Get creative cooking ideas"
-      },
-      "food_trend_analysis": {
-        "title": "Food Trend Analysis",
-        "description": "Explore current food trends"
-      },
-      "text": { "title": "Text Message" },
-      "error": { "title": "Error Message" },
-      "json": { "title": "JSON Data" },
-      "image": { "title": "Image" },
-      "tool_use": { "title": "Tool Use" },
-      "tool_response": { "title": "Tool Response" },
-      "previewOnly": "This template is preview only",
-      "noTemplates": "No templates available for this category",
-      "selected": "{{title}} selected"
-    },
-    "categories": {
-      "all": "All",
-      "recipes": "Recipes",
-      "menus": "Menus",
-      "shopping": "Shopping",
-      "budget": "Budget",
-      "nutrition": "Nutrition",
-      "troubleshooting": "Troubleshooting",
-      "creative": "Creative Ideas",
-      "stores": "Stores",
-      "other": "Other",
-      "filter": "Filter by {{category}}"
-    },
-    "errors": {
-      "animationFailed": "Animation failed to load",
-      "generic": "An unexpected error occurred",
-      "invalidFoodTrends": "Invalid food trends data",
-      "invalidRecipe": "Invalid recipe data",
-      "templateNavigation": "Failed to navigate to template",
-      "renderError": "An error occurred rendering the template",
-      "retry": "Retry",
-      "loadingTemplates": "Failed to load templates",
-      "unsupportedModalType": "Unsupported modal type: {{modalType}}",
-      "noNextModal": "No next modal for {{modalType}}",
-      "modalSubmission": "Error submitting modal {{modalType}}",
-      "actionExecution": "Error executing action",
-      "noTemplate": "No template selected"
-    },
-    "search": {
-      "placeholder": "Search menus, recipes, ingredients, or family members...",
-      "accessibilityLabel": "Search field",
-      "loading": "Searching...",
-      "noResults": "No results found",
-      "errors": {
-        "searchFailed": "Search failed. Please try again."
-      }
-    },
-    "ai": {
-      "assistant": "AI Assistant",
-      "loading": "Loading AI Assistant...",
-      "error": "AI Assistant error: {{message}}",
-      "noResponse": "No response from AI Assistant",
-      "actionRequired": "Action required: {{action}}",
-      "actionSuccess": "{{action}} completed successfully",
-      "actionError": "{{action}} failed: {{message}}"
-    },
-    "notifications": {
-      "newMessage": "{{sender}} sent a new message",
-      "reminder": "{{title}} reminder",
-      "updateAvailable": "New update available: {{version}}"
-    },
-    "chat": {
-      "title": "AI Chat",
-      "sendMessage": "Send Message",
-      "messagePlaceholder": "Type your message here...",
-      "send": "Send",
-      "loading": "Loading messages...",
-      "noMessages": "No messages yet",
-      "error": "Error loading messages: {{message}}",
-      "messageSent": "Message sent successfully",
-      "messageFailed": "Failed to send message: {{message}}"
-    },
-    "familyMember": {
-      "addSuccess": "{{name}} added successfully",
-      "addError": "Failed to add family member: {{message}}",
-      "removeSuccess": "{{name}} removed successfully",
-      "removeError": "Failed to remove family member: {{message}}"
-    },
-    "shoppingList": {
-      "title": "Shopping List",
-      "addItem": "Add Item",
-      "itemPlaceholder": "Enter item name",
-      "add": "Add",
-      "loading": "Loading shopping list...",
-      "noItems": "No items in your shopping list",
-      "itemAdded": "{{item}} added to shopping list",
-      "itemRemoved": "{{item}} removed from shopping list",
-      "removeItem": "Remove Item",
-      "removeItemHint": "Removes the selected item from the shopping list",
-      "error": {
-        "addFailed": "Failed to add item: {{message}}",
-        "removeFailed": "Failed to remove item: {{message}}"
-      }
-    },
-    "menus": {
-      "title": "Menus",
-      "createMenu": "Create Menu",
-      "menuNamePlaceholder": "Enter menu name",
-      "menuDatePlaceholder": "YYYY-MM-DD",
-      "menuTypePlaceholder": "Select menu type",
-      "create": "Create",
-      "loading": "Loading menus...",
-      "noMenus": "No menus available",
-      "menuCreated": "{{name}} created successfully",
-      "menuError": {
-        "createFailed": "Failed to create menu: {{message}}",
-        "loadFailed": "Failed to load menus: {{message}}"
-      }
-    },
-    "budget": {
-      "title": "Budget",
-      "setBudget": "Set Budget",
-      "budgetPlaceholder": "Enter budget amount",
-      "set": "Set",
-      "loading": "Loading budget...",
-      "noBudget": "No budget set",
-      "budgetSet": "Budget set to ${{amount}}",
-      "budgetError": {
-        "setFailed": "Failed to set budget: {{message}}",
-        "loadFailed": "Failed to load budget: {{message}}"
-      }
-    },
-    "nutrition": {
-      "title": "Nutrition",
-      "analyzeRecipe": "Analyze Recipe",
-      "recipePlaceholder": "Enter recipe name",
-      "analyze": "Analyze",
-      "loading": "Loading nutrition data...",
-      "noData": "No nutrition data available",
-      "analysisSuccess": "{{recipe}} nutrition analyzed successfully",
-      "analysisError": {
-        "analyzeFailed": "Failed to analyze recipe: {{message}}",
-        "loadFailed": "Failed to load nutrition data: {{message}}"
-      }
-    },
-    "troubleshooting": {
-      "title": "Troubleshooting",
-      "issuePlaceholder": "Describe your issue",
-      "submit": "Submit",
-      "loading": "Loading troubleshooting tips...",
-      "noTips": "No troubleshooting tips available",
-      "tipSuccess": "{{issue}} submitted successfully",
-      "tipError": {
-        "submitFailed": "Failed to submit issue: {{message}}",
-        "loadFailed": "Failed to load troubleshooting tips: {{message}}"
-      }
-    },
-    "creativeIdeas": {
-      "title": "Creative Ideas",
-      "ideaPlaceholder": "Enter your idea",
-      "submit": "Submit",
-      "loading": "Loading creative ideas...",
-      "noIdeas": "No creative ideas available",
-      "ideaSuccess": "{{idea}} submitted successfully",
-      "ideaError": {
-        "submitFailed": "Failed to submit idea: {{message}}",
-        "loadFailed": "Failed to load creative ideas: {{message}}"
-      }
-    },
-    "tooltips": {
-      "addToMenu": "Add to menu",
-      "shareRecipe": "Share recipe",
-      "saveToFavorites": "Save to favorites",
-      "viewDetails": "View details",
-      "editProfile": "Edit profile",
-      "viewHistory": "View history"
-    },
-    "accessibility": {
-      "loading": "Loading...",
-      "error": "An error occurred",
-      "noData": "No data available",
-      "searchResults": "Search results for '{{query}}'",
-      "itemSelected": "{{item}} selected",
-      "actionCompleted": "{{action}} completed successfully"
-    },
-    "confirmation": {
-      "yes": "Yes",
-      "no": "No",
-      "ok": "OK",
+  "welcome": "Welcome, {{name}}!",
+  "icons": {
+    "bell": "Notifications",
+    "restaurant": "Restaurant",
+    "trending-up": "Trending Up",
+    "account-plus": "Add Member",
+    "camera-plus-outline": "Change Image",
+    "content-save": "Save",
+    "logout": "Logout",
+    "arrow-left": "Back",
+    "menu": "Menu",
+    "magnify": "Search",
+    "account": "Profile",
+    "gemini": "AI Assistant"
+  },
+  "nav": {
+    "home": "Home",
+    "menus": "Menus",
+    "shopping": "Shopping",
+    "profile": "Profile",
+    "chat": "AI Chat"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "loading": "Loading dashboard...",
+    "searchPlaceholder": "Search menus...",
+    "userInfo": "User: {{name}}",
+    "familyCount": "Family Members: {{count}}",
+    "budget": "Budget: ${{amount}}",
+    "storesTitle": "Nearby Stores",
+    "nutritionTitle": "Nutrition Overview",
+    "exitApp": {
+      "title": "Exit App",
+      "message": "Are you sure you want to exit?",
+      "confirm": "Yes",
       "cancel": "Cancel"
     },
-    "date": {
-      "today": "Today",
-      "tomorrow": "Tomorrow",
-      "yesterday": "Yesterday",
-      "dayAfterTomorrow": "Day after tomorrow",
-      "lastWeek": "Last week",
-      "nextWeek": "Next week"
+    "errors": {
+      "fetchProfile": "Error fetching profile",
+      "fetchFailed": "Error fetching data",
+      "noConnection": "No network connection available",
+      "noData": "Limited connection, no data access"
     },
-    "time": {
-      "morning": "Morning",
-      "afternoon": "Afternoon",
-      "evening": "Evening",
-      "night": "Night"
+    "nutrition": {
+      "calories": "Calories",
+      "protein": "Protein",
+      "carbs": "Carbohydrates",
+      "fat": "Fat"
     },
-    "months": {
-      "january": "January",
-      "february": "February",
-      "march": "March",
-      "april": "April",
-      "may": "May",
-      "june": "June",
-      "july": "July",
-      "august": "August",
-      "september": "September",
-      "october": "October",
-      "november": "November",
-      "december": "December"
-    },
-    "days": {
-      "monday": "Monday",
-      "tuesday": "Tuesday",
-      "wednesday": "Wednesday",
-      "thursday": "Thursday",
-      "friday": "Friday",
-      "saturday": "Saturday",
-      "sunday": "Sunday"
-    },
-    "familyRoles": {
-      "father": "Father",
-      "mother": "Mother",
-      "son": "Son",
-      "daughter": "Daughter",
-      "brother": "Brother",
-      "sister": "Sister",
-      "grandfather": "Grandfather",
-      "grandmother": "Grandmother",
-      "uncle": "Uncle",
-      "aunt": "Aunt"
-    },
-    "familyActions": {
-      "addMember": "Add family member",
-      "editMember": "Edit family member",
-      "removeMember": "Remove family member",
-      "viewProfile": "View family member profile"
-    },
-    "familyNotifications": {
-      "memberAdded": "{{name}} has been added to your family",
-      "memberRemoved": "{{name}} has been removed from your family",
-      "profileUpdated": "{{name}}'s profile has been updated"
-    },
-    "familyErrors": {
-      "memberNotFound": "Family member not found",
-      "memberAlreadyExists": "Family member already exists",
-      "invalidMemberData": "Invalid family member data"
-    },
-    "familySuccess": {
-      "memberAdded": "Family member added successfully",
-      "memberRemoved": "Family member removed successfully",
-      "profileUpdated": "Profile updated successfully"
-    },
-    "familyWarnings": {
-      "unsavedChanges": "Unsaved changes exist for this family member",
-      "deleteConfirmation": "Are you sure you want to delete this family member?"
-    },
-    "familyInfo": {
-      "memberCount": "Family members: {{count}}",
-      "familyBudget": "Family budget: ${{amount}}",
-      "familyPreferences": "Family preferences",
-      "familyHistory": "Family activity history"
-    },
-    "familySettings": {
-      "title": "Family settings",
-      "notifications": "Family notifications",
-      "language": "Family language: {{language}}",
-      "switchLanguage": "Switch to {{language}}",
-      "darkTheme": "Dark theme for family"
-    },
-    "familyProfile": {
-      "title": "Family profile",
-      "familyName": "Family name: {{name}}",
-      "familyMembers": "Family members",
-      "editProfile": "Edit family profile",
-      "viewHistory": "View family history"
-    },
-    "familyPreferences": {
-      "title": "Family preferences",
-      "dietaryRestrictions": "Dietary restrictions",
-      "favoriteCuisines": "Favorite cuisines",
-      "spiceLevel": "Preferred spice level",
-      "mealPreferences": "Meal preferences"
-    },
-    "familyHistory": {
-      "title": "Family history",
-      "activityLog": "Activity log",
-      "recentActivities": "Recent activities",
-      "viewDetails": "View activity details"
+    "reminders": {
+      "shoppingList": "Shopping List",
+      "budget": "Budget",
+      "mealHistory": "Meal History",
+      "stores": "Stores",
+      "addMenu": "Add Menu",
+      "addRecipe": "Add Recipe",
+      "settings": "Settings",
+      "profile": "Profile"
     }
-  }
+  },
+  "nutrition": {
+    "title": "Nutrition Analysis",
+    "calories": "Calories",
+    "protein": "Protein",
+    "carbs": "Carbohydrates",
+    "fat": "Fat",
+    "errors": {
+      "noConnection": "No network connection available",
+      "invalidData": "Invalid nutrition data"
+    },
+    "tooltips": {
+      "calories": "Energy needed for daily activities",
+      "protein": "Essential for muscle growth and repair",
+      "carbs": "Main source of energy for the body",
+      "fat": "Important for hormonal functions and vitamin absorption",
+      "default": "Information not available"
+    },
+    "barLabel": "{nutrient}: {value} {unit} ({percentage}%)",
+    "percentage": "Percentage: {percentage}%",
+    "analyzeRecipe": "Analyze Recipe",
+    "recipePlaceholder": "Enter recipe name",
+    "analyze": "Analyze",
+    "loading": "Loading nutrition data...",
+    "noData": "No nutrition data available",
+    "analysisSuccess": "{{recipe}} nutrition analyzed successfully",
+    "analysisError": {
+      "analyzeFailed": "Failed to analyze recipe: {{message}}",
+      "loadFailed": "Failed to load nutrition data: {{message}}"
+    }
+  },
+  "recording": {
+    "saved": "Audio saved successfully",
+    "active": "Recording audio...",
+    "ready": "Ready to record",
+    "goToChat": "Go to Chat",
+    "errors": {
+      "audioPermission": "Audio permission denied",
+      "recordingStart": "Failed to start recording",
+      "recordingStop": "Failed to stop recording"
+    },
+  "modalTitleRecording": "Recording in progress...",
+  "modalTitleReady": "Ready to record",
+  "startButton": "Start",
+  "stopButton": "Stop",
+  "cancelButton": "Cancel"
+},
+  "actions": {
+    "addToMenu": "Add to Menu",
+    "addToMenuHint": "Adds the selected item to a menu",
+    "share": "Share",
+    "shareHint": "Shares the content",
+    "addToList": "Add to Shopping List",
+    "addToListHint": "Adds ingredients to your shopping list",
+    "plan": "Plan Meal",
+    "planHint": "Plans a meal with this recipe",
+    "saveFavorite": "Save as Favorite",
+    "saveFavoriteHint": "Saves the recipe as a favorite",
+    "addedToList": "Added to shopping list",
+    "addToListError": "Failed to add to shopping list",
+    "plannedMeal": "Meal planned successfully",
+    "planMealError": "Failed to plan meal",
+    "savedFavorite": "Saved as favorite",
+    "saveFavoriteError": "Failed to save as favorite",
+    "shareSuccess": "Shared successfully",
+    "shareError": "Failed to share"
+  },
+  "contextMenu": {
+    "container": "Context Menu",
+    "hint": "Options for copying, sharing, or deleting",
+    "opened": "Context menu opened",
+    "copy": "Copy",
+    "copyHint": "Copies the content to clipboard",
+    "copySuccess": "Copied to clipboard",
+    "copyError": "Failed to copy",
+    "share": "Share",
+    "shareSuccess": "Shared successfully",
+    "shareError": "Failed to share",
+    "delete": "Delete",
+    "deleteSuccess": "Deleted successfully",
+    "deleteError": "Failed to delete"
+  },
+  "foodTrends": {
+    "title": "Food Trends",
+    "trends": "Trends ({{count}})",
+    "container": "Food Trends Card",
+    "hint": "View and interact with food trends",
+    "loaded": "Food trends loaded",
+    "trend": "Trend: {{name}}",
+    "star": "Star {{number}}",
+    "popularity": "Popularity: {{popularity}}%",
+    "addToMenu": "Add to Menu",
+    "addToMenuHint": "Add this trend to a menu",
+    "selectMenuTitle": "Select or Create Menu",
+    "selectMenu": "Select Menu: {{menuName}}",
+    "selectExistingMenu": "Select Existing Menu",
+    "menuList": "Menu List",
+    "noMenus": "No menus available",
+    "createNewMenu": "Create New Menu",
+    "menuName": "Menu Name",
+    "menuDate": "Menu Date",
+    "menuType": "Menu Type",
+    "placeholderDate": "YYYY-MM-DD",
+    "createMenu": "Create Menu",
+    "menuModalOpened": "Menu selection modal opened",
+    "menuModalClosed": "Menu selection modal closed",
+    "addedToMenu": "Added to menu: {{menuName}}",
+    "addedToNewMenu": "Added to new menu: {{menuName}}",
+    "addToMenuError": "Failed to add to menu",
+    "missingData": "Missing required data",
+    "trendsList": "List of food trends"
+  },
+  "recipe": {
+    "loaded": "Recipe loaded: {{name}}",
+    "container": "Recipe Card",
+    "hint": "View and interact with recipe details",
+    "ingredients": "Ingredients",
+    "ingredientsList": "Ingredients List",
+    "instructions": "Instructions",
+    "instructionsList": "Instructions List",
+    "nutrition": "Nutrition Analysis",
+    "comments": "Comments ({{count}})",
+    "commentsList": "Comments List",
+    "portions": "Portions: {{count}}",
+    "time": "Prep: {{prep}} min, Cook: {{cook}} min",
+    "difficulty": "Difficulty: {{level}}",
+    "category": "Category: {{category}}",
+    "image": "Recipe Image",
+    "carousel": "Image Carousel",
+    "carouselHint": "Swipe to view recipe images",
+    "compatibility": "Family Compatibility: {{status}}",
+    "calories": "Calories",
+    "spices": "Spice Level",
+    "protein": "Protein",
+    "fat": "Fat",
+    "carbs": "Carbohydrates"
+  },
+  "mealTypes": {
+    "breakfast": "Breakfast",
+    "lunch": "Lunch",
+    "dinner": "Dinner",
+    "snack": "Snack"
+  },
+  "foodNames": {
+    "menuPlaceholder": "Enter menu name"
+  },
+  "imagePreview": {
+    "image": "Preview Image",
+    "close": "Close Preview",
+    "closeHint": "Closes the image preview"
+  },
+  "profile": {
+    "title": "Profile",
+    "username": "{{username}}",
+    "logout": "Logout",
+    "loading": "Loading profile..."
+  },
+  "settings": {
+    "title": "Account Settings",
+    "darkTheme": "Dark Theme",
+    "language": "Language: {{language}}",
+    "switchLanguage": "Switch to {{language}}",
+    "notifications": "Notifications"
+  },
+  "preferences": {
+    "title": "Dietary Preferences",
+    "vegan": "Vegan",
+    "spiceLevel": "Spice Level",
+    "cuisine": "Preferred Cuisine",
+    "cuisinePlaceholder": "Enter cuisine"
+  },
+  "family": {
+    "title": "Family Members",
+    "addMember": "Add Member",
+    "member": "Member: {{name}}"
+  },
+  "history": {
+    "title": "Activity History",
+    "addMember": "Added new member: {{name}}",
+    "editProfile": "Edited user profile"
+  },
+  
+  "image": {
+    "chooseOption": "Choose an option",
+    "chooseOptionMessage": "Would you like to take a photo or choose one from the gallery?",
+    "camera": "Camera",
+    "gallery": "Gallery",
+    "cancel": "Cancel",
+    "uploadProgress": "Upload: {{progress}}%",
+    "errors": {
+      "noImage": "No image selected.",
+      "uploadFailed": "Failed to upload image: {{message}}"
+    }
+  },
+  "alerts": {
+    "logout": {
+      "title": "Logout",
+      "message": "Are you sure you want to log out?",
+      "confirm": "Yes",
+      "cancel": "Cancel"
+    }
+  },
+  "modal": {
+    "aiActionModal": "Choose an AI Action",
+    "selectFamilyMember": "Select Family Member",
+    "selectFamilyMembers": "Select Family Members",
+    "selectDate": "Select Date",
+    "selectMenu": "Select Menu",
+    "selectIngredients": "Select Ingredients",
+    "selectPreferences": "Select Preferences",
+    "selectBudget": "Select Budget",
+    "selectIngredient": "Select Ingredient",
+    "selectDiet": "Select Diet",
+    "selectOccasion": "Select Occasion",
+    "selectGuestCount": "Select Guest Count",
+    "selectImage": "Select Image",
+    "selectLocation": "Select Location",
+    "selectMeal": "Select Meal",
+    "selectMonth": "Select Month",
+    "selectRecipe": "Select Recipe",
+    "inputQuery": "Enter Query",
+    "searchPlaceholder": "Search for menus or recipes...",
+    "searchAccessibilityLabel": "Search for menus or recipes",
+    "opened": "{{title}} modal opened",
+    "closed": "Modal closed",
+    "actionsListAccessibilityLabel": "List of AI actions",
+    "loading": "Saving...",
+    "noActionsFound": "No actions found",
+    "confirm": "Confirm",
+    "close": "Close modal",
+    "accessibilityLabel": "AI Actions Modal",
+    "saveSuccess": "Changes saved successfully!",
+    "saveError": "Failed to save changes.",
+    "logoutLoading": "Logging out...",
+    "logoutError": "Logout failed: {{message}}"
+  },
+  "templates": {
+    "title": "Explore Templates",
+    "filter": "Filter by {{category}}",
+    "all": "All",
+    "recipe_personalized": {
+      "title": "Personalized Recipe",
+      "description": "Get a recipe tailored to your preferences"
+    },
+    "weekly_menu": {
+      "title": "Weekly Menu",
+      "description": "Plan your meals for the week"
+    },
+    "shopping_list": {
+      "title": "Shopping List",
+      "description": "Generate a shopping list for your menu"
+    },
+    "recipe_nutrition_analysis": {
+      "title": "Recipe Nutrition Analysis",
+      "description": "Analyze the nutritional content of a recipe"
+    },
+    "recipe_suggestion": {
+      "title": "Recipe Suggestions",
+      "description": "Discover new recipes based on ingredients"
+    },
+    "quick_recipe": {
+      "title": "Quick Recipe",
+      "description": "Fast and easy meal ideas"
+    },
+    "budget_planning": {
+      "title": "Budget Planning",
+      "description": "Plan your meals within a budget"
+    },
+    "store_suggestion": {
+      "title": "Store Suggestion",
+      "description": "Find stores for your ingredients",
+      "recommendation": "Recommended stores for {{ingredient}}"
+    },
+    "meal_analysis": {
+      "title": "Meal Analysis",
+      "description": "Analyze your meal history"
+    },
+    "kids_recipe": {
+      "title": "Kids Recipe",
+      "description": "Fun recipes for kids"
+    },
+    "special_occasion_menu": {
+      "title": "Special Occasion Menu",
+      "description": "Plan a menu for special events like {{occasion}}"
+    },
+    "inventory_optimization": {
+      "title": "Inventory Optimization",
+      "description": "Use your existing ingredients"
+    },
+    "ingredient_based_recipe": {
+      "title": "Ingredient-Based Recipe",
+      "description": "Recipes based on a key ingredient"
+    },
+    "budget_menu": {
+      "title": "Budget Menu",
+      "description": "Affordable menu planning"
+    },
+    "recipe_compatibility": {
+      "title": "Recipe Compatibility",
+      "description": "Check if a recipe suits your family"
+    },
+    "specific_diet_recipe": {
+      "title": "Specific Diet Recipe",
+      "description": "Recipes for specific diets"
+    },
+    "balanced_daily_menu": {
+      "title": "Balanced Daily Menu",
+      "description": "Healthy daily meal plans"
+    },
+    "recipe_from_image": {
+      "title": "Recipe from Image",
+      "description": "Create a recipe from a photo"
+    },
+    "leftover_recipe": {
+      "title": "Leftover Recipe",
+      "description": "Recipes using leftovers"
+    },
+    "guest_recipe": {
+      "title": "Guest Recipe",
+      "description": "Recipes for guests"
+    },
+    "ingredient_availability": {
+      "title": "Ingredient Availability",
+      "description": "Check where to find ingredients"
+    },
+    "nutritional_info": {
+      "title": "Nutritional Info",
+      "description": "Get nutritional information"
+    },
+    "troubleshoot_problem": {
+      "title": "Troubleshoot Problem",
+      "description": "Solve cooking issues"
+    },
+    "creative_ideas": {
+      "title": "Creative Ideas",
+      "description": "Get creative cooking ideas"
+    },
+    "food_trend_analysis": {
+      "title": "Food Trend Analysis",
+      "description": "Explore current food trends"
+    },
+    "text": {
+      "title": "Text Message"
+    },
+    "image": {
+      "title": "Image"
+    },
+    "recipe": {
+      "title": "Recipe"
+    },
+    "recipe_analysis": {
+      "title": "Recipe Analysis"
+    },
+    "menu_suggestion": {
+      "title": "Menu Suggestion"
+    },
+      "menu": {
+    "title": "Menu",
+    "accueil": "Home",
+    "recettes": "Recipes",
+    "planificateur_de_menus": "Meal Planner",
+    "liste_de_courses": "Shopping List",
+    "profil": "Profile",
+    "paramètres": "Settings",
+    "déconnexion": "Logout",
+    "recent_queries": "Recent Queries",
+    "navigation": "Navigation",
+    "close": "Close Menu",
+    "user": "Guest",
+    "switch_language": "Switch Language",
+    "logout_success": "Logged out successfully",
+    "language_switched": "Language switched to {{lang}}"
+  },
+  "errors": {
+    "profileLoad": "Failed to load profile",
+    "navigation": "Navigation error",
+    "menuNavigation": "Menu navigation error",
+    "queryNavigation": "Query navigation error"
+  },
+  "recent_query": {
+    "repeat": "Repeat query: {{query}}"
+  },
+    "shopping_list_suggestion": {
+      "title": "Shopping List Suggestion"
+    },
+    "shopping": {
+      "title": "Shopping List"
+    },
+    "budget": {
+      "title": "Budget Plan"
+    },
+    "stores": {
+      "title": "Stores"
+    },
+    "food_trends": {
+      "title": "Food Trends"
+    },
+    "json": {
+      "title": "JSON Data"
+    },
+    "tool_use": {
+      "title": "Tool Use"
+    },
+    "tool_response": {
+      "title": "Tool Response"
+    },
+    "error": {
+      "title": "Error Message"
+    },
+    "previewOnly": "This template is preview only",
+    "noTemplates": "No templates available for this category",
+    "selected": "{{title}} selected"
+  },
+  "categories": {
+    "all": "All",
+    "recipes": "Recipes",
+    "menus": "Menus",
+    "shopping": "Shopping",
+    "budget": "Budget",
+    "nutrition": "Nutrition",
+    "troubleshooting": "Troubleshooting",
+    "creative": "Creative Ideas",
+    "stores": "Stores",
+    "other": "Other",
+    "filter": "Filter by {{category}}"
+  },
+  "errors": {
+    "animationFailed": "Animation failed to load",
+    "generic": "An unexpected error occurred",
+    "invalidFoodTrends": "Invalid food trends data",
+    "invalidRecipe": "Invalid recipe data",
+    "templateNavigation": "Failed to navigate to template",
+    "renderError": "An error occurred rendering the template",
+    "retry": "Retry",
+    "loadingTemplates": "Failed to load templates",
+    "unsupportedModalType": "Unsupported modal type: {{modalType}}",
+    "noNextModal": "No next modal for {{modalType}}",
+    "modalSubmission": "Error submitting modal {{modalType}}",
+    "actionExecution": "Error executing action",
+    "noTemplate": "No template selected",
+    "emptyMessage": "Please enter a message before sending.",
+    "noInternet": "No internet connection. Please check your network.",
+    "notLoggedIn": "You must be logged in to use this feature.",
+    "sendMessage": "Failed to send message. Please try again.",
+    "sendImage": "Failed to send image. Please try again.",
+    "unsupportedAction": "Unsupported action: {{action}}.",
+    "retryFailed": "Failed to retry message. Please try again.",
+    "textToSpeech": "Error playing text-to-speech.",
+    "createConversation": "Failed to create conversation. Please try again.",
+    "titleMissing": "Title Missing",
+    "enterTitle": "Please enter a title for the conversation.",
+    "aiError": "AI error: {{error}}.",
+    "networkError": "Network Error"
+  },
+  "search": {
+    "placeholder": "Search menus, recipes, ingredients, or family members...",
+    "accessibilityLabel": "Search field",
+    "loading": "Searching...",
+    "noResults": "No results found",
+    "errors": {
+      "searchFailed": "Search failed. Please try again."
+    }
+  },
+  "ai": {
+    "assistant": "AI Assistant",
+    "loading": "Loading AI Assistant...",
+    "error": "AI Assistant error: {{message}}",
+    "noResponse": "No response from AI Assistant",
+    "actionRequired": "Action required: {{action}}",
+    "actionSuccess": "{{action}} completed successfully",
+    "actionError": "{{action}} failed: {{message}}"
+  },
+  "notifications": {
+    "newMessage": "{{sender}} sent a new message",
+    "reminder": "{{title}} reminder",
+    "updateAvailable": "New update available: {{version}}"
+  },
+  "chat": {
+    "title": "AI Chat",
+    "sendMessage": "Send Message",
+    "messagePlaceholder": "Type your message here...",
+    "send": "Send",
+    "loading": "Loading messages...",
+    "noMessages": "No messages yet",
+    "error": "Error loading messages: {{message}}",
+    "messageSent": "Message sent successfully",
+    "messageFailed": "Failed to send message: {{message}}",
+    "placeholder": "Ask a question or request a suggestion...",
+    "noResponse": "No response available",
+    "actions": {
+      "askAI": "Ask AI",
+      "suggestRecipe": "Suggest Recipe",
+      "planMeal": "Plan Meal",
+      "findStore": "Find Store"
+    }
+  },
+  "familyMember": {
+    "addSuccess": "{{name}} added successfully",
+    "addError": "Failed to add family member: {{message}}",
+    "removeSuccess": "{{name}} removed successfully",
+    "removeError": "Failed to remove family member: {{message}}"
+  },
+  "shoppingList": {
+    "title": "Shopping List",
+    "addItem": "Add Item",
+    "itemPlaceholder": "Enter item name",
+    "add": "Add",
+    "loading": "Loading shopping list...",
+    "noItems": "No items in your shopping list",
+    "itemAdded": "{{item}} added to shopping list",
+    "itemRemoved": "{{item}} removed from shopping list",
+    "removeItem": "Remove Item",
+    "removeItemHint": "Removes the selected item from the shopping list",
+    "error": {
+      "addFailed": "Failed to add item: {{message}}",
+      "removeFailed": "Failed to remove item: {{message}}"
+    }
+  },
+  "menus": {
+    "title": "Menus",
+    "createMenu": "Create Menu",
+    "menuNamePlaceholder": "Enter menu name",
+    "menuDatePlaceholder": "YYYY-MM-DD",
+    "menuTypePlaceholder": "Select menu type",
+    "create": "Create",
+    "loading": "Loading menus...",
+    "noMenus": "No menus available",
+    "menuCreated": "{{name}} created successfully",
+    "menuError": {
+      "createFailed": "Failed to create menu: {{message}}",
+      "loadFailed": "Failed to load menus: {{message}}"
+    }
+  },
+  "budget": {
+    "title": "Budget",
+    "setBudget": "Set Budget",
+    "budgetPlaceholder": "Enter budget amount",
+    "set": "Set",
+    "loading": "Loading budget...",
+    "noBudget": "No budget set",
+    "budgetSet": "Budget set to ${{amount}}",
+    "budgetError": {
+      "setFailed": "Failed to set budget: {{message}}",
+      "loadFailed": "Failed to load budget: {{message}}"
+    }
+  },
+  "troubleshooting": {
+    "title": "Troubleshooting",
+    "issuePlaceholder": "Describe your issue",
+    "submit": "Submit",
+    "loading": "Loading troubleshooting tips...",
+    "noTips": "No troubleshooting tips available",
+    "tipSuccess": "{{issue}} submitted successfully",
+    "tipError": {
+      "submitFailed": "Failed to submit issue: {{message}}",
+      "loadFailed": "Failed to load troubleshooting tips: {{message}}"
+    }
+  },
+  "creativeIdeas": {
+    "title": "Creative Ideas",
+    "ideaPlaceholder": "Enter your idea",
+    "submit": "Submit",
+    "loading": "Loading creative ideas...",
+    "noIdeas": "No creative ideas available",
+    "ideaSuccess": "{{idea}} submitted successfully",
+    "ideaError": {
+      "submitFailed": "Failed to submit idea: {{message}}",
+      "loadFailed": "Failed to load creative ideas: {{message}}"
+    }
+  },
+  "tooltips": {
+    "addToMenu": "Add to menu",
+    "shareRecipe": "Share recipe",
+    "saveToFavorites": "Save to favorites",
+    "viewDetails": "View details",
+    "editProfile": "Edit profile",
+    "viewHistory": "View history"
+  },
+  "accessibility": {
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "noData": "No data available",
+    "searchResults": "Search results for '{{query}}'",
+    "itemSelected": "{{item}} selected",
+    "actionCompleted": "{{action}} completed successfully"
+  },
+  "confirmation": {
+    "yes": "Yes",
+    "no": "No",
+    "ok": "OK",
+    "cancel": "Cancel"
+  },
+  "date": {
+    "today": "Today",
+    "tomorrow": "Tomorrow",
+    "yesterday": "Yesterday",
+    "dayAfterTomorrow": "Day after tomorrow",
+    "lastWeek": "Last week",
+    "nextWeek": "Next week"
+  },
+  "time": {
+    "morning": "Morning",
+    "afternoon": "Afternoon",
+    "evening": "Evening",
+    "night": "Night"
+  },
+  "months": {
+    "january": "January",
+    "february": "February",
+    "march": "March",
+    "april": "April",
+    "may": "May",
+    "june": "June",
+    "july": "July",
+    "august": "August",
+    "september": "September",
+    "october": "October",
+    "november": "November",
+    "december": "December"
+  },
+  "days": {
+    "monday": "Monday",
+    "tuesday": "Tuesday",
+    "wednesday": "Wednesday",
+    "thursday": "Thursday",
+    "friday": "Friday",
+    "saturday": "Saturday",
+    "sunday": "Sunday"
+  },
+  "familyRoles": {
+    "father": "Father",
+    "mother": "Mother",
+    "son": "Son",
+    "daughter": "Daughter",
+    "brother": "Brother",
+    "sister": "Sister",
+    "grandfather": "Grandfather",
+    "grandmother": "Grandmother",
+    "uncle": "Uncle",
+    "aunt": "Aunt"
+  },
+  "familyActions": {
+    "addMember": "Add family member",
+    "editMember": "Edit family member",
+    "removeMember": "Remove family member",
+    "viewProfile": "View family member profile"
+  },
+  "familyNotifications": {
+    "memberAdded": "{{name}} has been added to your family",
+    "memberRemoved": "{{name}} has been removed from your family",
+    "profileUpdated": "{{name}}'s profile has been updated"
+  },
+  "familyErrors": {
+    "memberNotFound": "Family member not found",
+    "memberAlreadyExists": "Family member already exists",
+    "invalidMemberData": "Invalid family member data"
+  },
+  "familySuccess": {
+    "memberAdded": "Family member added successfully",
+    "memberRemoved": "Family member removed successfully",
+    "profileUpdated": "Profile updated successfully"
+  },
+  "familyWarnings": {
+    "unsavedChanges": "Unsaved changes exist for this family member",
+    "deleteConfirmation": "Are you sure you want to delete this family member?"
+  },
+  "familyInfo": {
+    "memberCount": "Family members: {{count}}",
+    "familyBudget": "Family budget: ${{amount}}",
+    "familyPreferences": "Family preferences",
+    "familyHistory": "Family activity history"
+  },
+  "familySettings": {
+    "title": "Family settings",
+    "notifications": "Family notifications",
+    "language": "Family language: {{language}}",
+    "switchLanguage": "Switch to {{language}}",
+    "darkTheme": "Dark theme for family"
+  },
+  "familyProfile": {
+    "title": "Family profile",
+    "familyName": "Family name: {{name}}",
+    "familyMembers": "Family members",
+    "editProfile": "Edit family profile",
+    "viewHistory": "View family history"
+  },
+  "familyPreferences": {
+    "title": "Family preferences",
+    "dietaryRestrictions": "Dietary restrictions",
+    "favoriteCuisines": "Favorite cuisines",
+    "spiceLevel": "Preferred spice level",
+    "mealPreferences": "Meal preferences"
+  },
+  "familyHistory": {
+    "title": "Family history",
+    "activityLog": "Activity log",
+    "recentActivities": "Recent activities",
+    "viewDetails": "View activity details"
+  },
+  "message": {
+    "deleteSuccess": "Message deleted successfully.",
+    "delete": "Delete message",
+    "retry": "Retry message"
+  },
+  "welcomeMessage": "Hello! I'm here to help you with recipes, meal planning, and more. What can I do for you today?",
+  "loading": "Loading...",
+  "pleaseLogin": "Please log in to continue.",
+  "conversation": {
+    "empty": "No messages yet. Start a conversation!",
+    "startNew": "Start New Conversation",
+    "manage": "Manage Conversations",
+    "new": "New Conversation",
+    "titlePlaceholder": "Enter conversation title",
+    "titleInput": "Conversation title input",
+    "create": "Create Conversation",
+    "selected": "Conversation selected.",
+    "created": "Conversation created successfully.",
+    "delete": "Delete conversation",
+    "select": "Select conversation"
+  },
+  "navigation": {
+    "back": "Go back",
+    "chat": "Navigated to chat with {{promptType}}"
+  },
+  "aiTyping": "AI is typing...",
+  "stopSpeaking": "Stop speaking",
+  "speakMessage": "Speak message",
+  "scrollToBottom": "Scroll to bottom"
+}

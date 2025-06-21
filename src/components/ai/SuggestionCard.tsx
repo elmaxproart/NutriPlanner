@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import { View, Text, Image, TouchableOpacity, StyleSheet, ImageSourcePropType } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle } from 'react-native-reanimated';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Clipboard from '@react-native-clipboard/clipboard';
 
 interface SuggestionCardProps {
   title: string;
   description: string;
-  imageUri?: string;
+  imageUri?: ImageSourcePropType;
   onPress?: () => void;
   onSendToAI?: (message: string) => void;
   onShare?: (content: string) => void;
@@ -28,13 +28,7 @@ export const SuggestionCard = ({
     transform: [{ scale: scale.value }],
   }));
 
-  const handlePressIn = () => {
-    scale.value = withSpring(0.95);
-  };
 
-  const handlePressOut = () => {
-    scale.value = withSpring(1);
-  };
 
   const handleCopy = () => {
     Clipboard.setString(`${title}: ${description}`);
@@ -48,14 +42,13 @@ export const SuggestionCard = ({
 
   return (
     <TouchableOpacity
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
       onPress={onPress}
+      activeOpacity={1}
       style={styles.cardContainer}
     >
       <Animated.View style={[styles.card, animatedStyle]}>
         {imageUri ? (
-          <Image source={{ uri: `assets/images/${imageUri}` }} style={styles.cardImage} resizeMode="cover" />
+          <Image source={imageUri} style={styles.cardImage} resizeMode="cover" />
         ) : (
           <View style={styles.placeholderImage}>
             <Icon name="image-off" size={40} color="#b0b0b0" />
@@ -94,8 +87,8 @@ export const SuggestionCard = ({
 
 const styles = StyleSheet.create({
   cardContainer: {
-    marginVertical: 4,
-    marginHorizontal: 8,
+    marginVertical: 2,
+    marginHorizontal: 2,
   },
   card: {
     backgroundColor: '#2A2A2A',

@@ -99,7 +99,7 @@ const TemplateCard: React.FC<TemplateCardProps> = ({ item, onPress, isActive }) 
       accessibilityHint={t(`templates.${item.id}.description`)}
       accessibilityRole="button"
       accessibilityState={{ selected: isActive }}
-      activeOpacity={0.9}
+      activeOpacity={1}
     >
       <Animated.View style={[styles.cardContainer, animatedStyle]}>
         <LinearGradient
@@ -109,7 +109,7 @@ const TemplateCard: React.FC<TemplateCardProps> = ({ item, onPress, isActive }) 
           <MaterialCommunityIcons
             name={item.iconName}
             size={40}
-            color={theme.colors.textPrimary}
+            color={theme.colors.white}
             style={styles.icon}
           />
           <Text style={styles.cardTitle}>{t(`templates.${item.id}.title`)}</Text>
@@ -907,14 +907,15 @@ const AITemplateCarousel: React.FC<AITemplateCarouselProps> = ({ templates: prop
   );
 };
 
-// Styles locaux
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingVertical: theme.spacing.lg,
+    paddingVertical: theme.spacing.xxl,
   },
   flatListContent: {
     paddingHorizontal: CARD_MARGIN,
+    paddingVertical: CARD_MARGIN,
   },
   card: {
     width: CARD_WIDTH,
@@ -947,13 +948,13 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: theme.fonts.sizes.large,
     fontWeight: 'bold',
-    color: theme.colors.textPrimary,
+    color: theme.colors.white,
     textAlign: 'center',
     marginBottom: theme.spacing.sm,
   },
   cardDescription: {
     fontSize: theme.fonts.sizes.small,
-    color: theme.colors.textSecondary,
+    color: theme.colors.white,
     textAlign: 'center',
   },
 });

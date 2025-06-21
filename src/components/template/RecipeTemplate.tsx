@@ -8,6 +8,7 @@ import {
   AccessibilityInfo,
   Vibration,
   Animated,
+  ImageSourcePropType,
 } from 'react-native';
 import { StyleSheet, ViewStyle } from 'react-native';
 import { useSharedValue, withTiming, useAnimatedStyle } from 'react-native-reanimated';
@@ -268,7 +269,7 @@ const RecipeTemplate: React.FC<RecipeTemplateProps> = ({
     );
   }
 
-  // Carousel images
+
   const images = [
     recette.imageUrl,
     ...(recette.tutorielVideo ? [recette.tutorielVideo] : []),
@@ -342,7 +343,7 @@ const RecipeTemplate: React.FC<RecipeTemplateProps> = ({
               accessibilityLabel={t('recipe.image')}
             >
               <Image
-                source={{ uri: item }}
+                source={item as ImageSourcePropType}
                 style={styles.carouselImage}
                 resizeMode="cover"
                 accessibilityLabel={t('recipe.image')}

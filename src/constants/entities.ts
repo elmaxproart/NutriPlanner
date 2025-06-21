@@ -34,6 +34,7 @@ import {
   AudioContent,
 } from '../types/messageTypes';
 import { Unit } from './units';
+import { VideoProps } from 'expo-av';
 
 /**
  * Base interface for all entities in the system.
@@ -100,7 +101,7 @@ export interface StoreItem {
   prixUnitaire: number; // Unit price
   unite: Unit; // Unit of measurement (e.g., 'kg', 'unit')
   stockDisponible: number; // Available stock quantity
-  imageUrl?: string; // Optional image URL
+  imageUrl?: ImageSourcePropType; // Optional image URL
   description?: string; // Optional description
   marque?: string; // Optional brand
   dateMiseAJour: string; // Last update date (YYYY-MM-DD)
@@ -197,7 +198,7 @@ export interface Recette extends BaseEntity {
   portions: number; // Number of servings
   categorie: RecipeCategory; // Category (e.g., 'main dish')
   difficulte: 'facile' | 'moyen' | 'difficile'; // Difficulty level
-  imageUrl?: string; // Optional: Recipe image URL
+  imageUrl?: ImageSourcePropType; // Optional: Recipe image URL
   etapesPreparation: { texte: string; ordre: number }[]; // Preparation steps
   tags?: string[]; // Optional: Tags (e.g., 'quick', 'healthy')
   coutEstime?: number; // Optional: Estimated cost
@@ -205,7 +206,7 @@ export interface Recette extends BaseEntity {
     nom: string; // Variant name
     modifications: string; // Description of modifications
   }[];
-  tutorielVideo?: string; // Optional: Video tutorial URL
+  tutorielVideo?: VideoProps;
   commentaires?: {
     userId: string; // Commenter’s user ID
     texte: string; // Comment text

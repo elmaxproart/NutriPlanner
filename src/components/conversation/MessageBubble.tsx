@@ -90,7 +90,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         conversationStyles.messageContainer,
         message.isUser ? conversationStyles.userMessage : conversationStyles.aiMessage,
         animatedStyle,
-        swipeAnimatedStyle as ViewStyle, // Cast to ViewStyle to resolve type mismatch
+        swipeAnimatedStyle as ViewStyle,
         tw`mb-${isLastMessage ? 'xxl' : 'sm'}`,
       ]}
       accessibilityLabel={t('message.bubble', { type: message.isUser ? 'user' : 'ai' })}

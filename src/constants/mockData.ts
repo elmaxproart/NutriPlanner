@@ -349,7 +349,7 @@ export const mockRecipes: Recette[] = [
     ],
     createurId: 'user1',
     dateCreation: '2025-01-01T00:00:00Z',
-    imageUrl: 'assets/images/egusi.jpg',
+    imageUrl:require('../assets/images/okok.jpg'),
     coutEstime: 15,
     aiAnalysis: {
       caloriesTotales: 800,
@@ -377,7 +377,7 @@ export const mockRecipes: Recette[] = [
     ],
     createurId: 'user1',
     dateCreation: '2025-01-01T00:00:00Z',
-    imageUrl: 'assets/images/jollof.jpg',
+    imageUrl: require('../assets/images/koki.jpg'),
     coutEstime: 10,
     aiAnalysis: {
       caloriesTotales: 600,
@@ -405,7 +405,7 @@ export const mockRecipes: Recette[] = [
     ],
     createurId: 'user1',
     dateCreation: '2025-01-01T00:00:00Z',
-    imageUrl: 'assets/images/plantain.jpg',
+    imageUrl: require('../assets/images/hamburgeur.jpg'),
     coutEstime: 8,
     aiAnalysis: {
       caloriesTotales: 400,
@@ -433,7 +433,7 @@ export const mockRecipes: Recette[] = [
     ],
     createurId: 'user1',
     dateCreation: '2025-01-01T00:00:00Z',
-    imageUrl: 'assets/images/yassa.jpg',
+    imageUrl: require('../assets/images/puree.jpg'),
     coutEstime: 20,
     aiAnalysis: {
       caloriesTotales: 900,
@@ -453,6 +453,7 @@ export const mockMenus: Menu[] = [
     id: 'menu1',
     date: '2025-06-16',
     typeRepas: 'dîner',
+    image: require('../assets/images/eru.jpg'),
     recettes: [mockRecipes[0], mockRecipes[1], mockRecipes[2]],
     statut: 'planifié',
     coutTotalEstime: 33,
@@ -467,6 +468,52 @@ export const mockMenus: Menu[] = [
     id: 'menu2',
     date: '2025-12-24',
     typeRepas: 'dîner',
+    image: require('../assets/images/pizza.jpg'),
+    recettes: [mockRecipes[3], mockRecipes[1]],
+    statut: 'planifié',
+    coutTotalEstime: 30,
+    createurId: 'user1',
+    dateCreation: '2025-01-01T00:00:00Z',
+    aiSuggestions: {
+      recettesAlternatives: ['rec1'],
+      ingredientsManquants: [],
+    },
+  },
+  {
+    id: 'menu3',
+    date: '2025-12-24',
+    typeRepas: 'dîner',
+    image: require('../assets/images/pile-haricot.jpg'),
+    recettes: [mockRecipes[3], mockRecipes[1]],
+    statut: 'planifié',
+    coutTotalEstime: 30,
+    createurId: 'user1',
+    dateCreation: '2025-01-01T00:00:00Z',
+    aiSuggestions: {
+      recettesAlternatives: ['rec1'],
+      ingredientsManquants: [],
+    },
+  },
+  {
+    id: 'menu4',
+    date: '2025-12-24',
+    typeRepas: 'dîner',
+    image: require('../assets/images/noodle.jpg'),
+    recettes: [mockRecipes[3], mockRecipes[1]],
+    statut: 'planifié',
+    coutTotalEstime: 30,
+    createurId: 'user1',
+    dateCreation: '2025-01-01T00:00:00Z',
+    aiSuggestions: {
+      recettesAlternatives: ['rec1'],
+      ingredientsManquants: [],
+    },
+  },
+  {
+    id: 'menu5',
+    date: '2025-12-24',
+    typeRepas: 'dîner',
+    image: require('../assets/images/mbongo.jpg'),
     recettes: [mockRecipes[3], mockRecipes[1]],
     statut: 'planifié',
     coutTotalEstime: 30,
@@ -536,7 +583,7 @@ export const mockStores: Store[] = [
         prixUnitaire: 3.0,
         unite: 'g',
         stockDisponible: 100,
-        imageUrl: 'assets/images/egusi.jpg',
+        imageUrl: require('../assets/images/okok.jpg'),
         description: 'Feuilles d’egusi séchées pour soupes africaines.',
         marque: 'AfroMart',
         dateMiseAJour: '2025-06-01',
@@ -549,7 +596,7 @@ export const mockStores: Store[] = [
         prixUnitaire: 8.0,
         unite: 'kg',
         stockDisponible: 50,
-        imageUrl: 'assets/images/poulet.jpg',
+        imageUrl: require('../assets/images/puree.jpg'),
         description: 'Poulet fermier bio, idéal pour yassa ou egusi.',
         marque: 'FermeLocale',
         dateMiseAJour: '2025-06-01',
@@ -562,7 +609,7 @@ export const mockStores: Store[] = [
         prixUnitaire: 2.5,
         unite: 'kg',
         stockDisponible: 200,
-        imageUrl: 'assets/images/riz.jpg',
+        imageUrl: require('../assets/images/R.jpg'),
         description: 'Riz long grain pour jollof rice.',
         marque: 'AfroGrain',
         dateMiseAJour: '2025-06-01',
@@ -575,7 +622,7 @@ export const mockStores: Store[] = [
         prixUnitaire: 4.0,
         unite: 'l',
         stockDisponible: 150,
-        imageUrl: 'assets/images/huile.jpg',
+        imageUrl: require('../assets/images/mbongo.jpg'),
         description: 'Huile de palme pure pour cuisine africaine.',
         marque: 'PalmPure',
         dateMiseAJour: '2025-06-01',
@@ -600,6 +647,7 @@ export const mockStores: Store[] = [
     dateCreation: '2025-06-01T00:00:00Z',
     dateMiseAJour: '2025-06-05T00:00:00Z',
   },
+  // store2 (fixed imageUrl with require)
   {
     id: 'store2',
     nom: 'Poissonnerie de la Mer',
@@ -634,7 +682,7 @@ export const mockStores: Store[] = [
         prixUnitaire: 10.0,
         unite: 'kg',
         stockDisponible: 30,
-        imageUrl: 'assets/images/tilapia.jpg',
+        imageUrl: require('../assets/images/hamburgeur.jpg'), // Fixed
         description: 'Tilapia frais pour soupes ou grillades africaines.',
         dateMiseAJour: '2025-06-01',
       },
@@ -646,7 +694,7 @@ export const mockStores: Store[] = [
         prixUnitaire: 12.0,
         unite: 'kg',
         stockDisponible: 40,
-        imageUrl: 'assets/images/poisson_fume.jpg',
+        imageUrl: require('../assets/images/pizza.jpg'), // Fixed
         description: 'Poisson fumé pour sauces africaines.',
         dateMiseAJour: '2025-06-01',
       },
@@ -655,6 +703,7 @@ export const mockStores: Store[] = [
     dateCreation: '2025-06-01T00:00:00Z',
     dateMiseAJour: '2025-06-05T00:00:00Z',
   },
+  // store3 (fixed imageUrl with require)
   {
     id: 'store3',
     nom: 'Épicerie Afro Local',
@@ -689,7 +738,7 @@ export const mockStores: Store[] = [
         prixUnitaire: 2.0,
         unite: 'kg',
         stockDisponible: 80,
-        imageUrl: 'assets/images/plantain.jpg',
+        imageUrl: require('../assets/images/menu.jpg'), // Fixed
         description: 'Plantains mûrs pour friture ou bouillie.',
         marque: 'AfroVerger',
         dateMiseAJour: '2025-06-01',
@@ -702,7 +751,7 @@ export const mockStores: Store[] = [
         prixUnitaire: 5.0,
         unite: 'g',
         stockDisponible: 100,
-        imageUrl: 'assets/images/piment.jpg',
+        imageUrl: require('../assets/images/wrap.jpg'), // Fixed
         description: 'Piment scotch bonnet pour sauces épicées.',
         marque: 'SpiceAfro',
         dateMiseAJour: '2025-06-01',
@@ -715,7 +764,7 @@ export const mockStores: Store[] = [
         prixUnitaire: 3.0,
         unite: 'kg',
         stockDisponible: 120,
-        imageUrl: 'assets/images/manioc.jpg',
+        imageUrl: require('../assets/images/shopping.jpg'), // Fixed
         description: 'Farine de manioc pour fufu.',
         marque: 'AfroMoulin',
         dateMiseAJour: '2025-06-01',
@@ -733,6 +782,7 @@ export const mockStores: Store[] = [
     dateCreation: '2025-06-01T00:00:00Z',
     dateMiseAJour: '2025-06-05T00:00:00Z',
   },
+  // store4 (fixed imageUrl with require)
   {
     id: 'store4',
     nom: 'Marché Local de Dakar',
@@ -766,7 +816,7 @@ export const mockStores: Store[] = [
         prixUnitaire: 1.5,
         unite: 'kg',
         stockDisponible: 60,
-        imageUrl: 'assets/images/oignons.jpg',
+        imageUrl: require('../assets/images/puree.jpg'), // Fixed
         description: 'Oignons frais pour yassa ou thiéboudienne.',
         dateMiseAJour: '2025-06-01',
       },
@@ -778,7 +828,7 @@ export const mockStores: Store[] = [
         prixUnitaire: 6.0,
         unite: 'kg',
         stockDisponible: 25,
-        imageUrl: 'assets/images/poisson_seche.jpg',
+        imageUrl: require('../assets/images/taro-sauce-jaune.jpg'), // Fixed
         description: 'Poisson séché pour sauces traditionnelles.',
         dateMiseAJour: '2025-06-01',
       },
@@ -787,6 +837,7 @@ export const mockStores: Store[] = [
     dateCreation: '2025-06-01T00:00:00Z',
     dateMiseAJour: '2025-06-05T00:00:00Z',
   },
+  // store5 (unchanged, already correct)
   {
     id: 'store5',
     nom: 'Boucherie Afro',
@@ -821,7 +872,7 @@ export const mockStores: Store[] = [
         prixUnitaire: 12.0,
         unite: 'kg',
         stockDisponible: 40,
-        imageUrl: 'assets/images/chevre.jpg',
+        imageUrl: require('../assets/images/noodle.jpg'),
         description: 'Viande de chèvre pour plats africains.',
         dateMiseAJour: '2025-06-01',
       },
@@ -833,7 +884,7 @@ export const mockStores: Store[] = [
         prixUnitaire: 10.0,
         unite: 'kg',
         stockDisponible: 35,
-        imageUrl: 'assets/images/boeuf.jpg',
+        imageUrl: require('../assets/images/eru.jpg'),
         description: 'Boeuf frais pour soupes ou ragoûts.',
         dateMiseAJour: '2025-06-01',
       },
@@ -850,6 +901,7 @@ export const mockStores: Store[] = [
     dateCreation: '2025-06-01T00:00:00Z',
     dateMiseAJour: '2025-06-05T00:00:00Z',
   },
+
   {
     id: 'store6',
     nom: 'AfroShopOnline',
@@ -876,7 +928,7 @@ export const mockStores: Store[] = [
         prixUnitaire: 4.0,
         unite: 'kg',
         stockDisponible: 500,
-        imageUrl: 'assets/images/fufu.jpg',
+        imageUrl: require('../assets/images/pile-haricot.jpg'), // Fixed
         description: 'Poudre de fufu pour accompagnement.',
         marque: 'AfroMoulin',
         dateMiseAJour: '2025-06-01',
@@ -889,7 +941,7 @@ export const mockStores: Store[] = [
         prixUnitaire: 3.5,
         unite: 'g',
         stockDisponible: 300,
-        imageUrl: 'assets/images/epices.jpg',
+        imageUrl: require('../assets/images/mbongo.jpg'),
         description: 'Mélange d’épices pour soupes africaines.',
         marque: 'SpiceAfro',
         dateMiseAJour: '2025-06-01',
@@ -900,6 +952,7 @@ export const mockStores: Store[] = [
     dateMiseAJour: '2025-06-05T00:00:00Z',
   },
 ];
+
 
 export type IconFamily = 'MaterialCommunityIcons' | 'FontAwesome' | 'AntDesign' | 'Ionicons';
 

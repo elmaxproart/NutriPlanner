@@ -54,8 +54,9 @@ import UserOnboardingSummary from './screens/onboarding_screen/UserOnboardingSum
 import GeminiChatScreen from './components/ai/GeminiChatScreen';
 import { AiInteraction } from './constants/entities';
 import { PromptType } from './services/prompts';
-import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import withNetworkCheck from './screens/withNetworkCheck';
+import LottieView from 'lottie-react-native';
+import { theme } from './styles/theme';
 
 export type RootStackParamList = {
 
@@ -141,7 +142,12 @@ const App = () => {
         <Image source={require('./assets/images/koki.jpg')} style={styles.loadingBackground} />
         <View style={styles.loadingContent}>
           <Animated.View style={styles.loadingIcon}>
-            <MaterialCommunityIcons name="food" size={60} color="#FF4F00" />
+            <LottieView
+            source={require('./assets/animations/gemini.json')}
+            loop={true}
+            autoPlay={true}
+            style={styles.recordingAnimation}
+          />
           </Animated.View>
           <Text style={styles.loadingText}>Chargement...</Text>
         </View>
@@ -161,7 +167,7 @@ const App = () => {
   }
 
   const initialRouteName: keyof RootStackParamList =
-    typeof userId === 'string' && userId.trim() !== '' ? 'Home' : 'Onboarding';
+  typeof userId === 'string' && userId.trim() !== '' ? 'Home' : 'Home';
   logger.info(`Initial route: ${initialRouteName}`);
 
   return (
@@ -186,7 +192,7 @@ const App = () => {
             <Stack.Screen name="UserOnboardingSummary" component={UserOnboardingSummary} />
 
             {/* Écrans authentifiés (réseau requis pour certains) */}
-            <Stack.Screen name="Home" component={withNetworkCheck(Dashboard)} />
+            <Stack.Screen name="Home" component={Dashboard} />
             <Stack.Screen name="Profile" component={ProfileScreen} />
             <Stack.Screen name="Edit" component={EditScreen} />
             <Stack.Screen name="AddMenu" component={withNetworkCheck(AddMenuPage)} />
@@ -231,6 +237,11 @@ const App = () => {
 };
 
 const styles = StyleSheet.create({
+    recordingAnimation: {
+    width: 90,
+    height: 90,
+    marginBottom: theme.spacing.md,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',

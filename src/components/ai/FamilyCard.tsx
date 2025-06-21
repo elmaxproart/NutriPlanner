@@ -21,9 +21,9 @@ interface FamilyCardProps {
 
 const roleIcons: Record<string, { name: string; color: string }> = {
   parent: { name: 'account-tie', color: theme.colors.primary },
-  enfant: { name: 'baby-face-outline', color: theme.colors.surface },
-  'grand-parent': { name: 'account-heart', color: theme.colors.secondary },
-  autre: { name: 'account', color: theme.colors.textSecondary },
+  enfant: { name: 'baby-face-outline', color: theme.colors.white },
+  'grand-parent': { name: 'account-heart', color: theme.colors.white },
+  autre: { name: 'account', color: theme.colors.white },
 };
 
 function getRoleIcon(role: string) {
@@ -220,7 +220,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     right: 0,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.white,
     borderRadius: 12,
     padding: 4,
     borderWidth: 1,

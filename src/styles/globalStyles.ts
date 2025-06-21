@@ -12,7 +12,7 @@ export const globalStyles = StyleSheet.create({
   card: {
     backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.large,
-    padding: theme.spacing.lg,
+    padding: theme.spacing.sm,
     marginVertical: theme.spacing.sm,
     elevation: theme.elevation.medium,
     shadowColor: theme.shadow.color,

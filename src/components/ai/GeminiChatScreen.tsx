@@ -1,34 +1,32 @@
-
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+/* eslint-disable @typescript-eslint/no-unused-vars */
+// src/screens/GeminiChatScreen.tsx
+import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
   ScrollView,
-  Image,
-  TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
-  TextInput,
-  Animated,
   Platform,
   Dimensions,
+  TextInput,
+  TouchableOpacity,
+  FlatList,
+  Image,
+  Vibration,
 } from 'react-native';
-import AntDesign from 'react-native-vector-icons/AntDesign';
-import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import Tts from 'react-native-tts';
-import Clipboard from '@react-native-clipboard/clipboard';
-import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import { StackScreenProps } from '@react-navigation/stack';
+import AntDesign from 'react-native-vector-icons/AntDesign';
+import { useTranslation } from 'react-i18next';
+import { tw } from '../../styles/tailwind';
+import { theme } from '../../styles/theme';
+import { globalStyles } from '../../styles/globalStyles';
+import { conversationStyles } from '../../styles/conversationStyles';
+import MessageInput from '../conversation/MessageInput';
+import MessageBubble from '../conversation/MessageBubble';
+import AITemplateCarousel from './AITemplateCarousel';
 
-// Components and Hooks
-import { Avatar } from '../common/Avatar';
-import { IconButton } from '../common/IconButton';
-import { Input } from '../common/Input';
-import { ModalComponent } from '../common/Modal';
-
-import MenuSuggestion from './template/MenuSuggestion';
-import RecipeSuggestion from './template/RecipeSuggestion';
-import ShoppingListSuggestion from './template/ShoppingListSuggestion';
+import ToastNotification from '../common/ToastNotification';
 import { useAIConversation } from '../../hooks/useAIConversation';
 import { useAuth } from '../../hooks/useAuth';
 import { useBudget } from '../../hooks/useBudget';
@@ -38,116 +36,52 @@ import { useMenus } from '../../hooks/useMenus';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { useRecipes } from '../../hooks/useRecipes';
 import { useStores } from '../../hooks/useStores';
+import { RootStackParamList } from '../../App';
+import { generateUniqueId, getErrorMessage } from '../../utils/helpers';
+import { logger } from '../../utils/logger';
+import Tts from 'react-native-tts';
+import { useColorScheme } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+} from 'react-native-reanimated';
+import { AccessibilityInfo } from 'react-native';
+import analytics from '../../utils/helpers';
+import { AiInteraction, AiInteractionType, MembreFamille, Menu, Ingredient, Recette, HistoriqueRepas } from '../../constants/entities';
+import { PromptType } from '../../services/prompts';
+import { ModalComponent } from '../common/Modal';
+import SingleTemplatePreview from './SingleTemplatePreview';
 
-// Types
-import type {
-  Menu,
-  Recette,
-  MembreFamille,
-  Budget,
-  Store,
-  ListeCourses,
-} from '../../constants/entities';
-import type { RootStackParamList } from '../../App';
-import FamilyCard from './FamilyCard';
-import SuggestionCard from './SuggestionCard';
-
+// Constants for layout and animation
 const { width } = Dimensions.get('window');
+// const HEADER_HEIGHT = Platform.OS === 'ios' ? 90 : 70;
+const MESSAGE_CARD_WIDTH = width * 0.85;
+const MESSAGE_CARD_MARGIN = theme.spacing.sm;
+const ANIMATION_DURATION = theme.animation.duration;
 
-type MessageType =
-  | 'text'
-  | 'menu_suggestion'
-  | 'recipe_suggestion'
-  | 'shopping_list_suggestion'
-  | 'error'
-  | 'image'
-  | 'loading'
-  | 'tool_use'
-  | 'tool_response'
-  | 'json';
-
-type MessageContent =
-  | string
-  | Menu[]
-  | Recette[]
-  | ListeCourses[]
-  | MembreFamille[]
-  | Budget[]
-  | Store[]
-  | object;
-
-interface ChatMessage {
-  id: string;
-  content: MessageContent;
-  isUser: boolean;
-  timestamp: string;
-  type: MessageType;
-  imageUrl?: string;
+// Interface for GeminiChatScreen props
+interface GeminiChatScreenProps extends StackScreenProps<RootStackParamList, 'GeminiChat'> {
+  initialInteraction?: AiInteraction;
+  promptType?: PromptType;
+  messageId?: string;
 }
 
-const LoadingMessage = () => (
-  <View style={styles.loadingContainer}>
-    <ActivityIndicator size="small" color="#FF6B00" />
-    <Text style={styles.loadingText}>NutriBuddy AI réfléchit...</Text>
-  </View>
-);
+// Interface for template preview
+interface TemplatePreview {
+  id: string;
+  interaction: AiInteraction;
+  promptType?: PromptType;
+  interactionType: AiInteractionType;
+}
 
-const TypingText = ({ text }: { text: string }) => {
-  const [displayedText, setDisplayedText] = useState('');
-  const index = useRef(0);
-  const hasTyped = useRef(false);
-
-  useEffect(() => {
-    if (!hasTyped.current && index.current < text.length) {
-      const timer = setInterval(() => {
-        if (index.current < text.length) {
-          setDisplayedText(text.substring(0, index.current + 1));
-          index.current += 1;
-        } else {
-          clearInterval(timer);
-          hasTyped.current = true;
-        }
-      }, 30);
-      return () => clearInterval(timer);
-    }
-  }, [text]);
-
-  return <Text style={styles.messageText}>{displayedText || text}</Text>;
-};
-
-const TemplateTypingAnimation = ({ children }: { children: React.ReactNode }) => {
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(20)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 500,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 500,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [fadeAnim, slideAnim]);
-
-  return (
-    <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-      {children}
-    </Animated.View>
-  );
-};
-
-const GeminiChatScreen: React.FC<StackScreenProps<RootStackParamList, 'GeminiChat'>> = ({
-  navigation,
-  route,
-}) => {
-  const { initialMessage } = route.params || {};
+// Main GeminiChatScreen component
+const GeminiChatScreen: React.FC<GeminiChatScreenProps> = ({ navigation, route }) => {
+  const { initialInteraction, promptType } = route.params || {};
+  const { t } = useTranslation();
   const { userId } = useAuth();
-
+  const isDarkMode = useColorScheme() === 'dark';
   const {
     messages: aiInteractions,
     sendMessage,
@@ -156,17 +90,36 @@ const GeminiChatScreen: React.FC<StackScreenProps<RootStackParamList, 'GeminiCha
     createNewConversation,
     selectConversation,
     deleteConversation,
-    getMenuSuggestions,
+    generatePersonalizedRecipe,
+    generateWeeklyMenu,
     generateShoppingList,
     analyzeRecipe,
     generateRecipeSuggestions,
+    generateQuickRecipe,
+    generateBudgetPlan,
+    suggestStore,
+    analyzeMeal,
+    generateKidsRecipe,
+    generateSpecialOccasionMenu,
+    optimizeInventory,
+    generateIngredientBasedRecipe,
+    generateBudgetMenu,
+    checkRecipeCompatibility,
+    generateSpecificDietRecipe,
+    generateBalancedDailyMenu,
+    generateRecipeFromImage,
+    generateLeftoverRecipe,
+    generateGuestRecipe,
     checkIngredientAvailability,
     getNutritionalInfo,
     troubleshootProblem,
     getCreativeIdeas,
-  } = useAIConversation({ defaultModel: 'gemini-1.5-flash' });
-
-  const { familyMembers, fetchFamilyMembers, loading: familyLoading } = useFamilyData();
+    analyzeFoodTrends,
+    isReady,
+    loading: aiLoading,
+    error: aiError,
+  } = useAIConversation();
+  const { fetchFamilyMembers, loading: familyLoading } = useFamilyData();
   const { budgets, loading: budgetLoading } = useBudget();
   const { menus, loading: menusLoading } = useMenus();
   const { recipes, loading: recipesLoading } = useRecipes();
@@ -174,373 +127,752 @@ const GeminiChatScreen: React.FC<StackScreenProps<RootStackParamList, 'GeminiCha
   const { loading: mealHistoryLoading } = useMealHistory();
   const { isConnected } = useNetworkStatus();
 
-  const [inputText, setInputText] = useState(initialMessage || '');
-  const [isImageModalVisible, setIsImageModalVisible] = useState(false);
-  const [isImagePickerModalVisible, setIsImagePickerModalVisible] = useState(false);
-  const [selectedImage, setSelectedImage] = useState('');
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const [isSuggestionModalVisible, setIsSuggestionModalVisible] = useState(false);
+  // State management
   const [isConversationModalVisible, setIsConversationModalVisible] = useState(false);
   const [isNewConversationModalVisible, setIsNewConversationModalVisible] = useState(false);
   const [newConversationTitle, setNewConversationTitle] = useState('');
-  const [_, setSelectedMenu] = useState<Menu | null>(null);
-  const [__, setSelectedRecipe] = useState<Recette | null>(null);
-  const [___, setShoppingItems] = useState<
-    { nom: string; quantite: number; unite: string; checked?: boolean }[]
-  >([]);
   const [isNetworkErrorModalVisible, setIsNetworkErrorModalVisible] = useState(false);
   const [networkErrorMessage, setNetworkErrorMessage] = useState('');
-  const [isCopiedModalVisible, setIsCopiedModalVisible] = useState(false);
-  const [copiedMessage, setCopiedMessage] = useState('');
-  const [isMenuSelectedModalVisible, setIsMenuSelectedModalVisible] = useState(false);
-  const [menuSelectedMessage, setMenuSelectedMessage] = useState('');
-  const [isRecipeSelectedModalVisible, setIsRecipeSelectedModalVisible] = useState(false);
-  const [recipeSelectedMessage, setRecipeSelectedMessage] = useState('');
-  const [isImageErrorModalVisible, setIsImageErrorModalVisible] = useState(false);
-  const [imageErrorMessage, setImageErrorMessage] = useState('');
   const [isTitleMissingModalVisible, setIsTitleMissingModalVisible] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [toast, setToast] = useState<{
+    visible: boolean;
+    message: string;
+    type: 'success' | 'error' | 'info' | 'warning';
+  }>({ visible: false, message: '', type: 'info' });
+  const [isTyping, setIsTyping] = useState(false);
+  const [templatePreviews, setTemplatePreviews] = useState<TemplatePreview[]>([]);
+  const [isLoadingTemplates, setIsLoadingTemplates] = useState(true);
 
+  // Refs for UI components
   const scrollViewRef = useRef<ScrollView>(null);
-  const messageScrollViewRef = useRef<ScrollView>(null);
-  const opacity = useRef(new Animated.Value(0)).current;
+  const messageListRef = useRef<FlatList>(null);
+  const lastMessageRef = useRef<View>(null);
 
-  const messages: ChatMessage[] = useMemo(
-    () =>
-      aiInteractions.map((interaction) => ({
-        id: interaction.id || `msg-${Date.now()}`,
-        content: interaction.content,
-        isUser: interaction.isUser,
-        timestamp: interaction.timestamp,
-        type: interaction.type as MessageType,
-        imageUrl:
-          typeof interaction.content === 'object' && 'uri' in interaction.content
-            ? interaction.content.uri
-            : undefined,
-      })),
-    [aiInteractions]
+  // Animation values
+  const headerOpacity = useSharedValue(0);
+  const contentOpacity = useSharedValue(0);
+  const contentStyle = useAnimatedStyle(() => ({
+    opacity: contentOpacity.value,
+    transform: [{ translateY: withTiming(contentOpacity.value * 50 - 50, { duration: ANIMATION_DURATION }) }],
+  }));
+
+  // Initialize animations
+  useEffect(() => {
+    headerOpacity.value = withTiming(1, { duration: ANIMATION_DURATION });
+    contentOpacity.value = withTiming(1, { duration: ANIMATION_DURATION + 200 });
+  }, [headerOpacity, contentOpacity]);
+
+  // Convert AI interactions to template previews
+  const convertToTemplatePreview = useCallback(
+    (interaction: AiInteraction): TemplatePreview => ({
+      id: interaction.id,
+      interaction,
+      promptType: promptType || undefined,
+      interactionType: interaction.type as AiInteractionType,
+    }),
+    [promptType],
   );
 
-  const addLoadingMessage = useCallback(() => {
-    sendMessage('', undefined, undefined);
-  }, [sendMessage]);
-
-  const handleSendMessage = useCallback(async () => {
-    if (!inputText.trim() && !selectedImage) {return;}
-    if (!isConnected) {
-      setNetworkErrorMessage('Pas de connexion internet.');
-      setIsNetworkErrorModalVisible(true);
-      return;
+  // Update template previews when AI interactions change
+  useEffect(() => {
+    setIsLoadingTemplates(true);
+    const newTemplatePreviews = aiInteractions.map(convertToTemplatePreview);
+    setTemplatePreviews(newTemplatePreviews);
+    setTimeout(() => setIsLoadingTemplates(false), 500);
+    if (newTemplatePreviews.length > 0) {
+      messageListRef.current?.scrollToEnd({ animated: true });
     }
-    if (!userId) {
-      setNetworkErrorMessage('Veuillez vous connecter pour envoyer un message.');
-      setIsNetworkErrorModalVisible(true);
-      return;
-    }
+  }, [aiInteractions, convertToTemplatePreview]);
 
-    try {
-      addLoadingMessage();
-      await sendMessage(
-        inputText,
-        undefined,
-        selectedImage ? { uri: selectedImage, mimeType: 'image/jpeg', base64: '' } : undefined
-      );
-      setInputText('');
-      setSelectedImage('');
-      messageScrollViewRef.current?.scrollToEnd({ animated: true });
-    } catch (error) {
-      setNetworkErrorMessage('Erreur lors de l’envoi du message.');
-      setIsNetworkErrorModalVisible(true);
-    }
-  }, [inputText, selectedImage, isConnected, userId, addLoadingMessage, sendMessage]);
 
-  const speakText = useCallback((text: string) => {
-    try {
-      setIsSpeaking(true);
-      Tts.speak(text, {
-        iosVoiceId: 'com.apple.ttsbundle.Marie-compact',
-        rate: 0.5,
-        androidParams: { KEY_PARAM_STREAM: 'STREAM_MUSIC', KEY_PARAM_VOLUME: 0, KEY_PARAM_PAN: 0 },
-      });
-      Tts.addEventListener('tts-finish', () => setIsSpeaking(false));
-    } catch (error) {
-      setIsSpeaking(false);
-    }
-  }, []);
-
-  const handleGenerateList = useCallback(() => {
-    const menu = menus[0];
-    if (menu && userId) {
-      generateShoppingList(menu, []).then((list) => {
-        setShoppingItems(list.map((item) => ({ nom: item.name, quantite: item.quantity, unite: item.unit })));
-      });
-    }
-  }, [menus, userId, generateShoppingList]);
-
-  const handleImagePick = useCallback(async (source: 'camera' | 'gallery') => {
-    setIsImagePickerModalVisible(false);
-    const options = {
-      mediaType: 'photo' as const,
-      includeBase64: false,
-      maxHeight: 200,
-      maxWidth: 200,
-    };
-
-    try {
-      const result = source === 'camera' ? await launchCamera(options) : await launchImageLibrary(options);
-      if (result.didCancel) {return;}
-      if (result.errorCode) {
-        setImageErrorMessage('Impossible de charger l’image: ' + (result.errorMessage || 'Inconnue'));
-        setIsImageErrorModalVisible(true);
+  const handleSendText = useCallback(
+    async (text: string) => {
+      if (!text.trim()) {
+        setToast({ visible: true, message: t('errors.emptyMessage'), type: 'warning' });
+        Vibration.vibrate(100);
         return;
       }
-      if (result.assets?.[0]?.uri) {
-        setSelectedImage(result.assets[0].uri);
-        setInputText('J’ai ajouté une image, que pensez-vous de ça ?');
+      if (!isConnected) {
+        setNetworkErrorMessage(t('errors.noInternet'));
+        setIsNetworkErrorModalVisible(true);
+        return;
       }
-    } catch (error) {
-      setImageErrorMessage('Erreur lors de la sélection de l’image.');
-      setIsImageErrorModalVisible(true);
-    }
-  }, []);
-
-  const handlePredefinedQuestion = useCallback(
-    async (question: string, options?: { [key: string]: any }) => {
       if (!userId) {
-        setNetworkErrorMessage('Veuillez vous connecter pour utiliser cette fonctionnalité.');
+        setNetworkErrorMessage(t('errors.notLoggedIn'));
         setIsNetworkErrorModalVisible(true);
         return;
       }
 
       try {
-        addLoadingMessage();
-        let systemInstruction = `Réponds en français. ${question}`;
-        if (options) {systemInstruction += `. Options: ${JSON.stringify(options)}`;}
-
-        if (question.includes('Suggérer un menu')) {
-          const menuSuggestions = await getMenuSuggestions([], familyMembers, options?.numDays, options?.numMealsPerDay);
-          await sendMessage(JSON.stringify(menuSuggestions), systemInstruction, undefined);
-        } else if (question.includes('Proposer une recette')) {
-          const recipeSuggestions = await generateRecipeSuggestions([], {
-            niveauEpices: options?.niveauEpices || 2,
-            cuisinesPreferees: options?.cuisinesPreferees || ['Italienne'],
-            mealType: options?.mealType,
-          });
-          await sendMessage(JSON.stringify(recipeSuggestions), systemInstruction, undefined);
-        } else if (question.includes('Générer une liste de courses')) {
-          const menu = menus[0];
-          if (menu) {
-            const shoppingList = await generateShoppingList(menu, []);
-            setShoppingItems(shoppingList.map((item) => ({ nom: item.name, quantite: item.quantity, unite: item.unit })));
-            await sendMessage(JSON.stringify(shoppingList), systemInstruction, undefined);
-          }
-        } else if (question.includes('idées créatives')) {
-          const ideas = await getCreativeIdeas('dîner de famille');
-          await sendMessage(ideas.join(', '), systemInstruction);
-        } else if (question.includes('Analyse une recette')) {
-          const recipe = recipes[0];
-          if (recipe) {
-            const analysis = await analyzeRecipe(recipe, familyMembers);
-            await sendMessage(JSON.stringify(analysis), systemInstruction);
-          }
-        } else if (question.includes('Vérifier la disponibilité')) {
-          const result = await checkIngredientAvailability('tomate', { latitude: 0, longitude: 0 });
-          await sendMessage(JSON.stringify(result), systemInstruction);
-        } else if (question.includes('Informations nutritionnelles')) {
-          const info = await getNutritionalInfo('pomme');
-          await sendMessage(JSON.stringify(info), systemInstruction);
-        } else if (question.includes('Résoudre un problème')) {
-          const solution = await troubleshootProblem('recette trop épicée');
-          await sendMessage(solution, systemInstruction);
-        } else if (question.includes('Informations sur la famille')) {
-          await sendMessage(familyMembers.map((m) => `${m.prenom} ${m.nom}`).join(', '), systemInstruction);
-        } else if (question.includes('Budget')) {
-          const currentBudget = budgets[0];
-          await sendMessage(currentBudget ? `Plafond: ${currentBudget.plafond}€` : 'Aucun budget', systemInstruction);
-        } else if (question.includes('Magasins')) {
-          await sendMessage(stores.map((s) => s.nom).join(', '), systemInstruction);
-        }
-        setIsSuggestionModalVisible(false);
-        messageScrollViewRef.current?.scrollToEnd({ animated: true });
-      } catch (err: any) {
-        await sendMessage(`Erreur: ${err.message || 'Inconnue'}`, undefined, undefined);
+        setIsTyping(true);
+        const interaction: AiInteraction = {
+          id: generateUniqueId(),
+          content: { type: 'text',message : text },
+          isUser: true,
+          timestamp: new Date().toISOString(),
+          type: 'text',
+          dateCreation: new Date().toISOString(),
+          dateMiseAJour: new Date().toISOString(),
+          conversationId: currentConversation?.id || generateUniqueId(),
+        };
+        await sendMessage(text, undefined, undefined);
+        setIsTyping(false);
+        messageListRef.current?.scrollToEnd({ animated: true });
+        analytics.track('Message_Sent', { type: 'text', conversationId: interaction.conversationId });
+      } catch (error) {
+        setIsTyping(false);
+        setNetworkErrorMessage(t('errors.sendMessage'));
+        setIsNetworkErrorModalVisible(true);
+        logger.error('Error sending text message', { error: getErrorMessage(error) });
       }
     },
-    [
-      userId,
-      addLoadingMessage,
-      sendMessage,
-      getMenuSuggestions,
-      generateRecipeSuggestions,
-      generateShoppingList,
-      getCreativeIdeas,
-      analyzeRecipe,
-      checkIngredientAvailability,
-      getNutritionalInfo,
-      troubleshootProblem,
-      familyMembers,
-      menus,
-      recipes,
-      budgets,
-      stores,
-    ]
+    [isConnected, userId, sendMessage, currentConversation, t],
   );
 
-  const handleSelectMenu = useCallback((menu: Menu) => {
-    setSelectedMenu(menu);
-    setMenuSelectedMessage(`Vous avez choisi: ${menu.typeRepas}`);
-    setIsMenuSelectedModalVisible(true);
-  }, []);
+  // Handle sending image messages
+  const handleSendImage = useCallback(
+    async (uri: string, mimeType: string) => {
+      if (!isConnected) {
+        setNetworkErrorMessage(t('errors.noInternet'));
+        setIsNetworkErrorModalVisible(true);
+        return;
+      }
+      if (!userId) {
+        setNetworkErrorMessage(t('errors.notLoggedIn'));
+        setIsNetworkErrorModalVisible(true);
+        return;
+      }
 
-  const handleSelectRecipe = useCallback((recipe: Recette) => {
-    setSelectedRecipe(recipe);
-    setRecipeSelectedMessage(`Vous avez choisi: ${recipe.nom}`);
-    setIsRecipeSelectedModalVisible(true);
-  }, []);
+      try {
+        setIsTyping(true);
+        const interaction: AiInteraction = {
+          id: generateUniqueId(),
+          content: { type: 'image', uri, mimeType },
+          isUser: true,
+          timestamp: new Date().toISOString(),
+          type: 'image',
+          dateCreation: new Date().toISOString(),
+          dateMiseAJour: new Date().toISOString(),
+          conversationId: currentConversation?.id || generateUniqueId(),
+        };
+        await sendMessage('Image uploaded', undefined, { uri, mimeType, base64: '' });
+        setIsTyping(false);
+        messageListRef.current?.scrollToEnd({ animated: true });
+        analytics.track('Message_Sent', { type: 'image', conversationId: interaction.conversationId });
+      } catch (error) {
+        setIsTyping(false);
+        setNetworkErrorMessage(t('errors.sendImage'));
+        setIsNetworkErrorModalVisible(true);
+        logger.error('Error sending image', { error: getErrorMessage(error) });
+      }
+    },
+    [isConnected, userId, sendMessage, currentConversation, t],
+  );
 
-  const handleToggleItem = useCallback((id: string) => {
-    setShoppingItems((prev) =>
-      prev.map((item) => (item.nom === id ? { ...item, checked: !item.checked } : item))
-    );
-  }, []);
 
-  const renderMessageItem = useCallback(
-    ({ item }: { item: ChatMessage }) => {
-      const isUser = item.isUser;
-      const avatarSource = isUser
-        ? require('../../assets/images/ia.jpg')
-        : require('../../assets/images/ai.jpg');
-      const senderName = isUser ? 'Vous' : 'NutriBuddy AI';
 
-      let messageContent;
+  const navigateToChat = useCallback(
+    (interaction: AiInteraction, prompt: PromptType) => {
+      navigation.navigate('GeminiChat', { initialInteraction: interaction, promptType: prompt });
+      AccessibilityInfo.announceForAccessibility(t('navigation.chat', { promptType: prompt }));
+      analytics.track('Navigate_To_Chat', { prompt, interactionId: interaction.id });
+    },
+    [navigation, t],
+  );
 
-      if (item.type === 'loading') {
-        messageContent = <LoadingMessage />;
-      } else if (!isUser && item.type === 'text') {
-        messageContent = <TypingText text={String(item.content)} />;
-      } else if (item.type === 'image' && item.imageUrl) {
-        messageContent = (
-          <View>
-            <Text style={styles.messageText}>{String(item.content)}</Text>
-            <Image source={{ uri: item.imageUrl }} style={styles.sentImage} resizeMode="contain" />
-          </View>
+  // Handle AI action prompts
+  const handleAction = useCallback(
+    async (action: string, data: any) => {
+      if (!userId) {
+        setNetworkErrorMessage(t('errors.notLoggedIn'));
+        setIsNetworkErrorModalVisible(true);
+        return;
+      }
+      if (!isConnected) {
+        setNetworkErrorMessage(t('errors.noInternet'));
+        setIsNetworkErrorModalVisible(true);
+        return;
+      }
+
+      try {
+        setIsTyping(true);
+        let interaction: AiInteraction | null = null;
+        const conversationId = currentConversation?.id || generateUniqueId();
+
+        switch (action as PromptType) {
+          case PromptType.RECIPE_PERSONALIZED: {
+            const recette = await generatePersonalizedRecipe(data.member as MembreFamille);
+            interaction = {
+              id: generateUniqueId(),
+              content: { type: 'recipe', recette },
+              isUser: false,
+              timestamp: new Date().toISOString(),
+              type: 'recipe',
+              dateCreation: new Date().toISOString(),
+              dateMiseAJour: new Date().toISOString(),
+              conversationId,
+            };
+            break;
+          }
+          case PromptType.WEEKLY_MENU: {
+            const menu = await generateWeeklyMenu(data.members as MembreFamille[], data.dateStart as string);
+            interaction = {
+              id: generateUniqueId(),
+              content: {
+                type: 'menu_suggestion',
+                menu,
+                description: t('templates.weekly_menu.description'),
+                recipes: menu.recettes || [],
+              },
+              isUser: false,
+              timestamp: new Date().toISOString(),
+              type: 'menu_suggestion',
+              dateCreation: new Date().toISOString(),
+              dateMiseAJour: new Date().toISOString(),
+              conversationId,
+            };
+            break;
+          }
+          case PromptType.SHOPPING_LIST: {
+            const items = await generateShoppingList(data.menu as Menu, data.currentIngredients as Ingredient[]);
+            interaction = {
+              id: generateUniqueId(),
+              content: { type: 'shopping_list_suggestion', listId: generateUniqueId(), items },
+              isUser: false,
+              timestamp: new Date().toISOString(),
+              type: 'shopping_list_suggestion',
+              dateCreation: new Date().toISOString(),
+              dateMiseAJour: new Date().toISOString(),
+              conversationId,
+            };
+            break;
+          }
+          case PromptType.RECIPE_NUTRITION_ANALYSIS: {
+            const analysis = await analyzeRecipe(data.recipe as Recette, data.familyData as MembreFamille[]);
+            interaction = {
+              id: generateUniqueId(),
+              content: { type: 'recipe_analysis', recipeId: data.recipe.id, analysis },
+              isUser: false,
+              timestamp: new Date().toISOString(),
+              type: 'recipe_analysis',
+              dateCreation: new Date().toISOString(),
+              dateMiseAJour: new Date().toISOString(),
+              conversationId,
+            };
+            break;
+          }
+          case PromptType.RECIPE_SUGGESTION: {
+            const recette = await generateRecipeSuggestions(data.ingredients as Ingredient[], {
+              niveauEpices: data.preferences?.niveauEpices || 2,
+              cuisinesPreferees: data.preferences?.cuisinesPreferees || ['Italienne'],
+              mealType: data.preferences?.mealType,
+            });
+            interaction = {
+              id: generateUniqueId(),
+              content: {
+                type: 'recipe_suggestion',
+                recipeId: recette.id,
+                name: recette.nom,
+                description: t('templates.recipe_suggestion.description'),
+                ingredients: recette.ingredients,
+              },
+              isUser: false,
+              timestamp: new Date().toISOString(),
+              type: 'recipe_suggestion',
+              dateCreation: new Date().toISOString(),
+              dateMiseAJour: new Date().toISOString(),
+              conversationId,
+            };
+            break;
+          }
+          case PromptType.QUICK_RECIPE: {
+            const recette = await generateQuickRecipe(data.member as MembreFamille);
+            interaction = {
+              id: generateUniqueId(),
+              content: { type: 'recipe', recette },
+              isUser: false,
+              timestamp: new Date().toISOString(),
+              type: 'recipe',
+              dateCreation: new Date().toISOString(),
+              dateMiseAJour: new Date().toISOString(),
+              conversationId,
+            };
+            break;
+          }
+          case PromptType.BUDGET_PLANNING: {
+            const budget = await generateBudgetPlan(data.budgetLimit as number, data.month as string);
+            interaction = {
+              id: generateUniqueId(),
+              content: { type: 'budget', budget },
+              isUser: false,
+              timestamp: new Date().toISOString(),
+              type: 'budget',
+              dateCreation: new Date().toISOString(),
+              dateMiseAJour: new Date().toISOString(),
+              conversationId,
+            };
+            break;
+          }
+          case PromptType.STORE_SUGGESTION: {
+            const Stores = await suggestStore(data.ingredient as Ingredient);
+            interaction = {
+              id: generateUniqueId(),
+              content: {
+                type: 'stores',
+                stores: Stores,
+                recommendation: t('templates.store_suggestion.recommendation', { ingredient: data.ingredient.nom }),
+              },
+              isUser: false,
+              timestamp: new Date().toISOString(),
+              type: 'stores',
+              dateCreation: new Date().toISOString(),
+              dateMiseAJour: new Date().toISOString(),
+              conversationId,
+            };
+            break;
+          }
+          case PromptType.MEAL_ANALYSIS: {
+            const analysis = await analyzeMeal(data.historiqueRepas as HistoriqueRepas, data.member as MembreFamille);
+            interaction = {
+              id: generateUniqueId(),
+              content: { type: 'recipe_analysis', recipeId: data.historiqueRepas.id, analysis },
+              isUser: false,
+              timestamp: new Date().toISOString(),
+              type: 'recipe_analysis',
+              dateCreation: new Date().toISOString(),
+              dateMiseAJour: new Date().toISOString(),
+              conversationId,
+            };
+            break;
+          }
+          case PromptType.KIDS_RECIPE: {
+            const recette = await generateKidsRecipe(data.member as MembreFamille);
+            interaction = {
+              id: generateUniqueId(),
+              content: { type: 'recipe', recette },
+              isUser: false,
+              timestamp: new Date().toISOString(),
+              type: 'recipe',
+              dateCreation: new Date().toISOString(),
+              dateMiseAJour: new Date().toISOString(),
+              conversationId,
+            };
+            break;
+          }
+          case PromptType.SPECIAL_OCCASION_MENU: {
+            const menu = await generateSpecialOccasionMenu(data.members as MembreFamille[], data.occasion as string, data.date as string);
+            interaction = {
+              id: generateUniqueId(),
+              content: {
+                type: 'menu_suggestion',
+                menu,
+                description: t('templates.special_occasion_menu.description', { occasion: data.occasion }),
+                recipes: menu.recettes || [],
+              },
+              isUser: false,
+              timestamp: new Date().toISOString(),
+              type: 'menu_suggestion',
+              dateCreation: new Date().toISOString(),
+              dateMiseAJour: new Date().toISOString(),
+              conversationId,
+            };
+            break;
+          }
+          case PromptType.INVENTORY_OPTIMIZATION: {
+            const recette = await optimizeInventory(data.ingredients as Ingredient[]);
+            interaction = {
+              id: generateUniqueId(),
+              content: { type: 'recipe', recette },
+              isUser: false,
+              timestamp: new Date().toISOString(),
+              type: 'recipe',
+              dateCreation: new Date().toISOString(),
+              dateMiseAJour: new Date().toISOString(),
+              conversationId,
+            };
+            break;
+          }
+          case PromptType.INGREDIENT_BASED_RECIPE: {
+            const recette = await generateIngredientBasedRecipe(data.ingredient as Ingredient, data.member as MembreFamille);
+            interaction = {
+              id: generateUniqueId(),
+              content: { type: 'recipe', recette },
+              isUser: false,
+              timestamp: new Date().toISOString(),
+              type: 'recipe',
+              dateCreation: new Date().toISOString(),
+              dateMiseAJour: new Date().toISOString(),
+              conversationId,
+            };
+            break;
+          }
+          case PromptType.BUDGET_MENU: {
+            const menu = await generateBudgetMenu(data.members as MembreFamille[], data.budget as number);
+            interaction = {
+              id: generateUniqueId(),
+              content: {
+                type: 'menu_suggestion',
+                menu,
+                description: t('templates.budget_menu.description'),
+                recipes: menu.recettes || [],
+              },
+              isUser: false,
+              timestamp: new Date().toISOString(),
+              type: 'menu_suggestion',
+              dateCreation: new Date().toISOString(),
+              dateMiseAJour: new Date().toISOString(),
+              conversationId,
+            };
+            break;
+          }
+          case PromptType.RECIPE_COMPATIBILITY: {
+            const compatibility = await checkRecipeCompatibility(data.recipe as Recette, data.members as MembreFamille[]);
+            interaction = {
+              id: generateUniqueId(),
+              content: { type: 'recipe_compatibility', recette: data.recipe, compatibility },
+              isUser: false,
+              timestamp: new Date().toISOString(),
+              type: 'recipe_compatibility',
+              dateCreation: new Date().toISOString(),
+              dateMiseAJour: new Date().toISOString(),
+              conversationId,
+            };
+            break;
+          }
+          case PromptType.SPECIFIC_DIET_RECIPE: {
+            const recette = await generateSpecificDietRecipe(data.member as MembreFamille, data.diet as string);
+            interaction = {
+              id: generateUniqueId(),
+              content: { type: 'recipe', recette },
+              isUser: false,
+              timestamp: new Date().toISOString(),
+              type: 'recipe',
+              dateCreation: new Date().toISOString(),
+              dateMiseAJour: new Date().toISOString(),
+              conversationId,
+            };
+            break;
+          }
+          case PromptType.BALANCED_DAILY_MENU: {
+            const menu = await generateBalancedDailyMenu(data.member as MembreFamille, data.date as string);
+            interaction = {
+              id: generateUniqueId(),
+              content: {
+                type: 'menu_suggestion',
+                menu,
+                description: t('templates.balanced_daily_menu.description'),
+                recipes: menu.recettes || [],
+              },
+              isUser: false,
+              timestamp: new Date().toISOString(),
+              type: 'menu_suggestion',
+              dateCreation: new Date().toISOString(),
+              dateMiseAJour: new Date().toISOString(),
+              conversationId,
+            };
+            break;
+          }
+          case PromptType.RECIPE_FROM_IMAGE: {
+            const recette = await generateRecipeFromImage(data.imageUrl as string, data.member as MembreFamille);
+            interaction = {
+              id: generateUniqueId(),
+              content: { type: 'recipe', recette },
+              isUser: false,
+              timestamp: new Date().toISOString(),
+              type: 'recipe',
+              dateCreation: new Date().toISOString(),
+              dateMiseAJour: new Date().toISOString(),
+              conversationId,
+            };
+            break;
+          }
+          case PromptType.LEFTOVER_RECIPE: {
+            const recette = await generateLeftoverRecipe(data.ingredients as Ingredient[]);
+            interaction = {
+              id: generateUniqueId(),
+              content: { type: 'recipe', recette },
+              isUser: false,
+              timestamp: new Date().toISOString(),
+              type: 'recipe',
+              dateCreation: new Date().toISOString(),
+              dateMiseAJour: new Date().toISOString(),
+              conversationId,
+            };
+            break;
+          }
+          case PromptType.GUEST_RECIPE: {
+            const recette = await generateGuestRecipe(data.members as MembreFamille[], data.guestCount as number);
+            interaction = {
+              id: generateUniqueId(),
+              content: { type: 'recipe', recette },
+              isUser: false,
+              timestamp: new Date().toISOString(),
+              type: 'recipe',
+              dateCreation: new Date().toISOString(),
+              dateMiseAJour: new Date().toISOString(),
+              conversationId,
+            };
+            break;
+          }
+          case PromptType.INGREDIENT_AVAILABILITY: {
+            const availability = await checkIngredientAvailability(data.ingredientName as string, data.location as { latitude: number; longitude: number });
+            interaction = {
+              id: generateUniqueId(),
+              content: { type: 'ingredient_availability', stores: availability.stores, ingredients: availability.ingredients },
+              isUser: false,
+              timestamp: new Date().toISOString(),
+              type: 'ingredient_availability',
+              dateCreation: new Date().toISOString(),
+              dateMiseAJour: new Date().toISOString(),
+              conversationId,
+            };
+            break;
+          }
+          case PromptType.NUTRITIONAL_INFO: {
+            const analysis = await getNutritionalInfo(data.query as string);
+            interaction = {
+              id: generateUniqueId(),
+              content: { type: 'nutritional_info', analysis },
+              isUser: false,
+              timestamp: new Date().toISOString(),
+              type: 'nutritional_info',
+              dateCreation: new Date().toISOString(),
+              dateMiseAJour: new Date().toISOString(),
+              conversationId,
+            };
+            break;
+          }
+          case PromptType.TROUBLESHOOT_PROBLEM: {
+            const solution = await troubleshootProblem(data.query as string);
+            interaction = {
+              id: generateUniqueId(),
+              content: { type: 'troubleshoot_problem', question: data.query, solution },
+              isUser: false,
+              timestamp: new Date().toISOString(),
+              type: 'troubleshoot_problem',
+              dateCreation: new Date().toISOString(),
+              dateMiseAJour: new Date().toISOString(),
+              conversationId,
+            };
+            break;
+          }
+          case PromptType.CREATIVE_IDEAS: {
+            const ideas = await getCreativeIdeas(data.query as string);
+            interaction = {
+              id: generateUniqueId(),
+              content: { type: 'creative_ideas', ideas },
+              isUser: false,
+              timestamp: new Date().toISOString(),
+              type: 'creative_ideas',
+              dateCreation: new Date().toISOString(),
+              dateMiseAJour: new Date().toISOString(),
+              conversationId,
+            };
+            break;
+          }
+          case PromptType.FOOD_TREND_ANALYSIS: {
+            const trends = await analyzeFoodTrends(data.members as MembreFamille[]);
+            interaction = {
+              id: generateUniqueId(),
+              content: {
+                type: 'food_trends',
+                trends: trends.map((trend: any) => ({
+                  id: generateUniqueId(),
+                  name: trend.name,
+                  description: trend.description,
+                  popularity: trend.popularity || 80,
+                })),
+              },
+              isUser: false,
+              timestamp: new Date().toISOString(),
+              type: 'food_trends',
+              dateCreation: new Date().toISOString(),
+              dateMiseAJour: new Date().toISOString(),
+              conversationId,
+            };
+            break;
+          }
+          default:
+            setIsTyping(false);
+            setToast({
+              visible: true,
+              message: t('errors.unsupportedAction', { action }),
+              type: 'error',
+            });
+            return;
+        }
+
+        if (interaction) {
+          await sendMessage(
+            typeof interaction.content === 'string' ? interaction.content : JSON.stringify(interaction.content),
+            undefined,
+            undefined,
+          );
+          const templatePreview = convertToTemplatePreview(interaction);
+          setTemplatePreviews((prev) => [...prev, templatePreview]);
+          navigateToChat(interaction, action as PromptType);
+        }
+        setIsTyping(false);
+        messageListRef.current?.scrollToEnd({ animated: true });
+        analytics.track('Action_Executed', { action, conversationId });
+      } catch (error) {
+        setIsTyping(false);
+        setToast({
+          visible: true,
+          message: t('errors.actionExecution', { error: getErrorMessage(error) }),
+          type: 'error',
+        });
+        logger.error('Error handling action', { action, error: getErrorMessage(error) });
+      }
+    },
+    [userId, isConnected, t, currentConversation?.id, generatePersonalizedRecipe, generateWeeklyMenu, generateShoppingList, analyzeRecipe, generateRecipeSuggestions, generateQuickRecipe, generateBudgetPlan, suggestStore, analyzeMeal, generateKidsRecipe, generateSpecialOccasionMenu, optimizeInventory, generateIngredientBasedRecipe, generateBudgetMenu, checkRecipeCompatibility, generateSpecificDietRecipe, generateBalancedDailyMenu, generateRecipeFromImage, generateLeftoverRecipe, generateGuestRecipe, checkIngredientAvailability, getNutritionalInfo, troubleshootProblem, getCreativeIdeas, analyzeFoodTrends, sendMessage, convertToTemplatePreview, navigateToChat],
+  );
+
+
+  // Handle message deletion
+  const handleDeleteMessage = useCallback(
+    (messageId: string) => {
+      setToast({
+        visible: true,
+        message: t('message.deleteSuccess'),
+        type: 'success',
+      });
+      setTemplatePreviews((prev) => prev.filter((template) => template.id !== messageId));
+      analytics.track('Message_Deleted', { messageId });
+    },
+    [t],
+  );
+
+  // Handle message retry
+  const handleRetryMessage = useCallback(
+    async (message: AiInteraction) => {
+      try {
+        setIsTyping(true);
+        await sendMessage(
+          typeof message.content === 'string' ? message.content : JSON.stringify(message.content),
+          undefined,
+          message.type === 'image' && 'uri' in message.content ? { uri: message.content.uri, mimeType: message.content.mimeType || 'image/jpeg', base64: '' } : undefined,
         );
-      } else if (Array.isArray(item.content)) {
-        if (item.type === 'menu_suggestion') {
-          messageContent = (
-            <TemplateTypingAnimation>
-              <MenuSuggestion menus={item.content as Menu[]} onSelectMenu={handleSelectMenu} />
-            </TemplateTypingAnimation>
-          );
-        } else if (item.type === 'recipe_suggestion') {
-          messageContent = (
-            <TemplateTypingAnimation>
-              <RecipeSuggestion recipes={item.content as Recette[]} onSelectRecipe={handleSelectRecipe} />
-            </TemplateTypingAnimation>
-          );
-        } else if (item.type === 'shopping_list_suggestion') {
-          messageContent = (
-            <TemplateTypingAnimation>
-              <ShoppingListSuggestion
-                items={(item.content as ListeCourses[])
-                  .flatMap((list) =>
-                    'items' in list && Array.isArray(list.items)
-                      ? list.items.map((i) => ({
-                          id: i.ingredientId,
-                          ingredientId: i.ingredientId,
-                          nom: i.ingredientId,
-                          quantite: i.quantite,
-                          unite: i.unite,
-                        }))
-                      : []
-                  )
-                  .filter((i) => i.nom)}
-                onToggleItem={handleToggleItem}
-                onGenerateList={handleGenerateList}
-              />
-            </TemplateTypingAnimation>
-          );
-        } else {
-          messageContent = <Text style={styles.messageText}>{JSON.stringify(item.content, null, 2)}</Text>;
-        }
-      } else if (typeof item.content === 'object' && item.content !== null) {
-        messageContent = <Text style={styles.messageText}>{JSON.stringify(item.content, null, 2)}</Text>;
-      } else {
-        messageContent = <TypingText text={String(item.content)} />;
+        setIsTyping(false);
+        messageListRef.current?.scrollToEnd({ animated: true });
+        analytics.track('Message_Retried', { messageId: message.id });
+      } catch (error) {
+        setIsTyping(false);
+        setToast({
+          visible: true,
+          message: t('errors.retryFailed'),
+          type: 'error',
+        });
+        logger.error('Error retrying message', { error: getErrorMessage(error) });
       }
-
-      return (
-        <Animated.View
-          style={[styles.messageContainer, isUser ? styles.userMessageContainer : styles.aiMessageContainer, { opacity }]}
-        >
-          <Avatar size={30} source={avatarSource} />
-          <View style={[styles.messageBubble, isUser ? styles.userMessageBubble : styles.aiMessageBubble]}>
-            <Text style={styles.senderName}>{senderName}</Text>
-            {messageContent}
-            <Text style={styles.timestamp}>{item.timestamp}</Text>
-            <TouchableOpacity
-              onPress={() => {
-                const textToCopy =
-                  typeof item.content === 'string' ||
-                  typeof item.content === 'number' ||
-                  typeof item.content === 'boolean'
-                    ? String(item.content)
-                    : JSON.stringify(item.content, null, 2);
-                Clipboard.setString(textToCopy);
-                setCopiedMessage('Copié !');
-                setIsCopiedModalVisible(true);
-              }}
-              style={styles.copyIcon}
-            >
-              <AntDesign name="copy1" size={16} color="#b0b0b0" />
-            </TouchableOpacity>
-          </View>
-        </Animated.View>
-      );
     },
-    [opacity, handleSelectMenu, handleSelectRecipe, handleToggleItem, handleGenerateList]
+    [sendMessage, t],
   );
 
-  const handleNewConversationInitiation = useCallback(() => {
-    setIsNewConversationModalVisible(true);
-  }, []);
-
-  const confirmNewConversation = useCallback(async () => {
+  // Handle new conversation creation
+  const handleNewConversation = useCallback(async () => {
     if (!newConversationTitle.trim()) {
       setIsTitleMissingModalVisible(true);
+      Vibration.vibrate(100);
       return;
     }
 
     try {
-      await createNewConversation(newConversationTitle.trim());
+      const conversationId = await createNewConversation(newConversationTitle.trim());
       setNewConversationTitle('');
       setIsNewConversationModalVisible(false);
-      await sendMessage('Bonjour ! Je suis NutriBuddy AI. Comment puis-je vous aider aujourd’hui ?');
+      setToast({
+        visible: true,
+        message: t('conversation.created'),
+        type: 'success',
+      });
+      selectConversation(conversationId);
       scrollViewRef.current?.scrollTo({ x: conversations.length * width, animated: true });
+      analytics.track('Conversation_Created', { conversationId });
     } catch (error) {
-      setNetworkErrorMessage('Erreur lors de la création de la conversation.');
+      setNetworkErrorMessage(t('errors.createConversation'));
       setIsNetworkErrorModalVisible(true);
+      logger.error('Error creating conversation', { error: getErrorMessage(error) });
     }
-  }, [newConversationTitle, createNewConversation, sendMessage, conversations.length]);
+  }, [newConversationTitle, createNewConversation, conversations.length, selectConversation, t]);
 
-  const handleSelectExistingConversation = useCallback(
+  // Handle conversation selection
+  const handleSelectConversation = useCallback(
     (conversationId: string) => {
       selectConversation(conversationId);
       setIsConversationModalVisible(false);
+      setToast({
+        visible: true,
+        message: t('conversation.selected'),
+        type: 'success',
+      });
+      messageListRef.current?.scrollToEnd({ animated: true });
+      analytics.track('Conversation_Selected', { conversationId });
     },
-    [selectConversation]
+    [selectConversation, t],
   );
 
+  // Handle text-to-speech
+  const speakText = useCallback(
+    (text: string) => {
+      try {
+        setIsSpeaking(true);
+        Tts.speak(text, {
+          iosVoiceId: 'com.apple.ttsbundle.Marie-compact',
+          rate: 0.5,
+          androidParams: { KEY_PARAM_STREAM: 'STREAM_MUSIC', KEY_PARAM_VOLUME: 0.8, KEY_PARAM_PAN: 0 },
+        });
+        Tts.addEventListener('tts-finish', () => setIsSpeaking(false));
+        analytics.track('Text_To_Speech_Started', { textLength: text.length });
+      } catch (error) {
+        setIsSpeaking(false);
+        setToast({
+          visible: true,
+          message: t('errors.textToSpeech'),
+          type: 'error',
+        });
+        logger.error('Error speaking text', { error: getErrorMessage(error) });
+      }
+    },
+    [t],
+  );
+
+  // Initialize component
   useEffect(() => {
     const initialize = async () => {
       Tts.setDefaultLanguage('fr-FR');
       Tts.setDefaultRate(0.5);
       Tts.setDefaultPitch(1.0);
-      if (userId) {await fetchFamilyMembers();}
-      if (!currentConversation && messages.length === 0) {
-        await sendMessage(
-          initialMessage || 'Bonjour ! Je suis NutriBuddy AI. Comment puis-je vous aider aujourd’hui ?'
-        );
+      if (userId) {
+        await fetchFamilyMembers();
       }
+      if (!currentConversation && aiInteractions.length === 0 && !initialInteraction) {
+        const welcomeMessage: AiInteraction = {
+          id: generateUniqueId(),
+          content: { type: 'text', message: t('welcomeMessage') },
+          isUser: false,
+          timestamp: new Date().toISOString(),
+          type: 'text',
+          dateCreation: new Date().toISOString(),
+          dateMiseAJour: new Date().toISOString(),
+          conversationId: generateUniqueId(),
+        };
+        await sendMessage(t('welcomeMessage'), undefined, undefined);
+        setTemplatePreviews([convertToTemplatePreview(welcomeMessage)]);
+      }
+      if (initialInteraction && promptType) {
+        await sendMessage(
+          typeof initialInteraction.content === 'string' ? initialInteraction.content : JSON.stringify(initialInteraction.content),
+          undefined,
+          initialInteraction.type === 'image' && 'uri' in initialInteraction.content ? { uri: initialInteraction.content.uri, mimeType: initialInteraction.content.mimeType || 'image/jpeg', base64: '' } : undefined,
+        );
+        const templatePreview = convertToTemplatePreview(initialInteraction);
+        setTemplatePreviews((prev) => [...prev, templatePreview]);
+        navigateToChat(initialInteraction, promptType);
+      }
+      messageListRef.current?.scrollToEnd({ animated: true });
+      analytics.track('Chat_Screen_Initialized', { hasInitialInteraction: !!initialInteraction });
     };
     initialize();
 
@@ -548,340 +880,357 @@ const GeminiChatScreen: React.FC<StackScreenProps<RootStackParamList, 'GeminiCha
       Tts.stop();
       Tts.removeAllListeners('tts-finish');
     };
-  }, [userId, fetchFamilyMembers, sendMessage, messages.length, currentConversation, initialMessage]);
+  }, [
+    userId,
+    fetchFamilyMembers,
+    sendMessage,
+    aiInteractions.length,
+    currentConversation,
+    initialInteraction,
+    promptType,
+    convertToTemplatePreview,
+    navigateToChat,
+    t,
+  ]);
 
+  // Monitor dimensions change
   useEffect(() => {
-    if (messages.length > 0) {
-      messageScrollViewRef.current?.scrollToEnd({ animated: true });
-      Animated.timing(opacity, { toValue: 1, duration: 300, useNativeDriver: true }).start();
-    }
-  }, [messages, opacity]);
+    const subscription = Dimensions.addEventListener('change', ({ window }) => {
+      logger.info('Screen dimensions changed', { width: window.width, height: window.height });
+    });
+    return () => subscription?.remove();
+  }, []);
 
-  const isLoading =
-    familyLoading || budgetLoading || menusLoading || recipesLoading || storesLoading || mealHistoryLoading;
+  // Check loading state
+  const isLoading = familyLoading || budgetLoading || menusLoading || recipesLoading || storesLoading || mealHistoryLoading || aiLoading;
 
-  if (!userId || isLoading) {
+  // Render message as template or bubble
+  const renderMessage = useCallback(
+    ({ item: message, index }: { item: AiInteraction; index: number }) => {
+      const templatePreview = templatePreviews.find((tp) => tp.id === message.id);
+      if (!templatePreview) {
+        return null;
+      }
+
+      if (message.isUser && message.type === 'text' && 'text' in message.content) {
+        return (
+          <View style={[styles.messageContainer, styles.userMessageContainer]} ref={index === aiInteractions.length - 1 ? lastMessageRef : null}>
+            <MessageBubble
+              key={message.id}
+              message={message}
+              onDelete={() => handleDeleteMessage(message.id)}
+              onRetry={() => handleRetryMessage(message)}
+              isUser={true}
+            />
+            <View style={styles.actionButtons}>
+              <TouchableOpacity
+                onPress={() => handleDeleteMessage(message.id)}
+                style={styles.messageActionButton}
+                accessibilityLabel={t('message.delete')}
+              >
+                <AntDesign name="delete" size={16} color={theme.colors.error} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => handleRetryMessage(message)}
+                style={styles.messageActionButton}
+                accessibilityLabel={t('message.retry')}
+              >
+                <AntDesign name="reload1" size={16} color={theme.colors.primary} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        );
+      } else if (message.isUser && message.type === 'image' && 'uri' in message.content) {
+        return (
+          <View style={[styles.messageContainer, styles.userMessageContainer]} ref={index === aiInteractions.length - 1 ? lastMessageRef : null}>
+            <Image source={{ uri: message.content.uri }} style={styles.userImage} />
+            <View style={styles.actionButtons}>
+              <TouchableOpacity
+                onPress={() => handleDeleteMessage(message.id)}
+                style={styles.messageActionButton}
+                accessibilityLabel={t('message.delete')}
+              >
+                <AntDesign name="delete" size={16} color={theme.colors.error} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => handleRetryMessage(message)}
+                style={styles.messageActionButton}
+                accessibilityLabel={t('message.retry')}
+              >
+                <AntDesign name="reload1" size={16} color={theme.colors.primary} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        );
+      } else {
+        return (
+          <SingleTemplatePreview
+            key={message.id}
+            interaction={message}
+            promptType={templatePreview.promptType}
+            interactionType={templatePreview.interactionType}
+            onPress={() => {
+              setToast({
+                visible: true,
+                message: t('templates.previewOnly'),
+                type: 'info',
+              });
+              analytics.track('Template_Preview_Pressed', { templateId: templatePreview.id });
+            }}
+            isDarkMode={isDarkMode}
+            index={index}
+          />
+        );
+      }
+    },
+    [templatePreviews, handleDeleteMessage, handleRetryMessage, isDarkMode, t, aiInteractions.length],
+  );
+
+  // Render skeleton loader
+  const renderSkeletonMessage = useCallback(() => (
+    <View style={[styles.messageContainer, { width: MESSAGE_CARD_WIDTH, marginHorizontal: MESSAGE_CARD_MARGIN }]}>
+      <Animated.View style={styles.skeletonContainer}>
+        <LinearGradient
+          colors={['#E0E0E0', '#D1D1D1']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.skeletonGradient}
+        >
+          <View style={styles.skeletonIcon} />
+          <View style={styles.skeletonTitle} />
+          <View style={styles.skeletonContent} />
+        </LinearGradient>
+      </Animated.View>
+    </View>
+  ), []);
+
+  // Render empty conversation
+  const renderEmptyConversation = useCallback(() => (
+    <View style={styles.emptyContainer}>
+      <Text style={styles.emptyText}>{t('conversation.empty')}</Text>
+      <TouchableOpacity
+        style={[globalStyles.button, tw`mt-md`]}
+        onPress={() => setIsNewConversationModalVisible(true)}
+        accessibilityLabel={t('conversation.new')}
+      >
+        <Text style={globalStyles.buttonText}>{t('conversation.startNew')}</Text>
+      </TouchableOpacity>
+    </View>
+  ), [t]);
+
+  // Handle loading or error states
+  if (!userId || !isReady || isLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#FF6B00" />
-        <Text style={styles.loadingText}>
-          {userId ? 'Chargement des données...' : 'Veuillez vous connecter.'}
-        </Text>
+      <View style={[globalStyles.container, tw`flex-1 justify-center items-center`]}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <Text style={[globalStyles.text, tw`mt-md`]}>{userId ? t('loading') : t('pleaseLogin')}</Text>
+      </View>
+    );
+  }
+
+  if (aiError) {
+    return (
+      <View style={[globalStyles.container, tw`flex-1 justify-center items-center`]}>
+        <Text style={[globalStyles.text, tw`text-error`]}>{t('errors.aiError', { error: aiError })}</Text>
+        <TouchableOpacity
+          style={[globalStyles.button, tw`mt-md`]}
+          onPress={() => navigation.goBack()}
+          accessibilityLabel={t('navigation.back')}
+        >
+          <Text style={globalStyles.buttonText}>{t('ok')}</Text>
+        </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.componentHeader}>
+    <View style={[globalStyles.container, tw`flex-1`]}>
+      {/* Header */}
+      <Animated.View style={[styles.header, { opacity: headerOpacity }]}>
         <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.closeChatComponentButton}
+          onPress={() => {
+            navigation.goBack();
+            analytics.track('Navigation_Back', { screen: 'GeminiChat' });
+          }}
+          style={styles.backButton}
+          accessibilityLabel={t('navigation.back')}
+          accessibilityRole="button"
         >
-          <AntDesign name="arrowleft" size={24} color="#e0e0e0" />
+          <AntDesign name="arrowleft" size={24} color={theme.colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.componentTitle}>NutriBuddy AI</Text>
-        <View style={styles.headerRightSpacer} />
-      </View>
+        <Text style={[globalStyles.title, tw`text-center flex-1`]}>{t('chat.title')}</Text>
+        <TouchableOpacity
+          onPress={() => {
+            setIsConversationModalVisible(true);
+            analytics.track('Conversation_Modal_Opened', {});
+          }}
+          style={styles.conversationButton}
+          accessibilityLabel={t('conversation.manage')}
+          accessibilityRole="button"
+        >
+          <AntDesign name="message1" size={24} color={theme.colors.textPrimary} />
+        </TouchableOpacity>
+      </Animated.View>
 
-      <ScrollView
-        ref={scrollViewRef}
-        horizontal
-        pagingEnabled
-        snapToInterval={width}
-        decelerationRate="fast"
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.conversationScrollContainer}
-      >
-        {conversations.map((conversation) => (
-          <View key={conversation.id || conversation.title} style={styles.conversationPage}>
-            <View style={styles.conversationHeader}>
-              <Text style={styles.conversationTitle}>{conversation.title}</Text>
-              <TouchableOpacity
-                onPress={() => deleteConversation(conversation.id || '')}
-                style={styles.deleteButton}
-              >
-                <AntDesign name="delete" size={20} color="#FF6B6B" />
-              </TouchableOpacity>
+      {/* Template Carousel */}
+      <AITemplateCarousel onAction={handleAction} />
+
+      {/* Conversation Scroll */}
+      <Animated.View style={[styles.contentContainer, contentStyle]}>
+        <ScrollView
+          ref={scrollViewRef}
+          horizontal
+          pagingEnabled
+          snapToInterval={width}
+          decelerationRate="fast"
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.conversationScrollContainer}
+        >
+          {conversations.map((conversation) => (
+            <View key={conversation.id || conversation.title} style={styles.conversationPage}>
+              <View style={styles.conversationHeader}>
+                <Text style={[globalStyles.title, tw`flex-1`]}>{conversation.title}</Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    deleteConversation(conversation.id || '');
+                    analytics.track('Conversation_Deleted', { conversationId: conversation.id });
+                  }}
+                  style={styles.deleteButton}
+                  accessibilityLabel={t('conversation.delete')}
+                  accessibilityRole="button"
+                >
+                  <AntDesign name="delete" size={20} color={theme.colors.error} />
+                </TouchableOpacity>
+              </View>
+              {currentConversation?.id === conversation.id && (
+                <>
+                  {isLoadingTemplates ? (
+                    <FlatList
+                      data={Array(3).fill({})}
+                      renderItem={renderSkeletonMessage}
+                      keyExtractor={(_, index) => `skeleton-${index}`}
+                      contentContainerStyle={styles.messageListContainer}
+                      showsVerticalScrollIndicator={false}
+                    />
+                  ) : (
+                    <FlatList
+                      ref={messageListRef}
+                      data={aiInteractions.filter((msg) => msg.conversationId === conversation.id)}
+                      renderItem={renderMessage}
+                      keyExtractor={(item) => item.id}
+                      contentContainerStyle={styles.messageListContainer}
+                      showsVerticalScrollIndicator={false}
+                      onContentSizeChange={() => messageListRef.current?.scrollToEnd({ animated: true })}
+                      ListEmptyComponent={renderEmptyConversation}
+                      initialNumToRender={10}
+                      maxToRenderPerBatch={10}
+                      windowSize={5}
+                    />
+                  )}
+                  {isTyping && (
+                    <View style={styles.typingContainer}>
+                      <ActivityIndicator size="small" color={theme.colors.primary} />
+                      <Text style={[globalStyles.text, tw`ml-sm`]}>{t('aiTyping')}</Text>
+                    </View>
+                  )}
+                </>
+              )}
             </View>
-            <ScrollView
-              ref={messageScrollViewRef}
-              contentContainerStyle={styles.chatContentContainer}
-              keyboardDismissMode="on-drag"
-              keyboardShouldPersistTaps="handled"
-            >
-              {currentConversation?.id === conversation.id ? (
-                messages.length > 0 ? (
-                  messages.map((item) => <View key={item.id}>{renderMessageItem({ item })}</View>)
-                ) : (
-                  <Text style={styles.welcomeText}>
-                    Bienvenue ! Posez une question ou utilisez les suggestions pour commencer.
-                  </Text>
-                )
-              ) : null}
-            </ScrollView>
-          </View>
-        ))}
-      </ScrollView>
+          ))}
+        </ScrollView>
+      </Animated.View>
 
-      <View style={styles.inputContainer}>
-        <Input
-          value={inputText}
-          onChangeText={setInputText}
-          placeholder="Posez une question à NutriBuddy AI..."
-          style={styles.input}
-          multiline
-        />
-        <View style={styles.buttonGroup}>
-          <IconButton
-            iconName="image-outline"
-            onPress={() => setIsImagePickerModalVisible(true)}
-            color="#FFF"
-            style={styles.iconButton}
-          />
-          <IconButton
-            iconName="send"
-            onPress={handleSendMessage}
-            color="#FFF"
-            style={[styles.iconButton, styles.sendButton]}
-            disabled={!inputText.trim() && !selectedImage}
-          />
-          <IconButton
-            iconName="lightbulb-on-outline"
-            onPress={() => setIsSuggestionModalVisible(true)}
-            color="#FFF"
-            style={styles.iconButton}
-          />
-          <IconButton
-            iconName="message-text-outline"
-            onPress={() => setIsConversationModalVisible(true)}
-            color="#FFF"
-            style={styles.iconButton}
-          />
-        </View>
-      </View>
+      {/* Message Input */}
+      <MessageInput onSendText={handleSendText} onSendImage={handleSendImage} />
 
+      {/* Utility Buttons */}
       <View style={styles.utilityButtons}>
-        <IconButton
-          iconName={isSpeaking ? 'volume-high' : 'volume-off'}
-          onPress={() => speakText(messages[messages.length - 1]?.content?.toString() || '')}
-          color={isSpeaking ? '#FF6B00' : '#FFF'}
+        <TouchableOpacity
+          onPress={() => {
+            const lastMessage = aiInteractions[aiInteractions.length - 1];
+            const textContent =
+              typeof lastMessage.content === 'string'
+                ? lastMessage.content
+                : lastMessage?.content?.type || JSON.stringify(lastMessage?.content) || '';
+            speakText(textContent);
+          }}
           style={styles.utilityButton}
-          disabled={messages.length === 0}
-        />
+          disabled={aiInteractions.length === 0}
+          accessibilityLabel={isSpeaking ? t('stopSpeaking') : t('speakMessage')}
+          accessibilityRole="button"
+        >
+          <AntDesign
+            name={isSpeaking ? 'sound' : 'mute'}
+            size={24}
+            color={isSpeaking ? theme.colors.primary : theme.colors.textSecondary}
+          />
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => messageListRef.current?.scrollToEnd({ animated: true })}
+          style={styles.utilityButton}
+          accessibilityLabel={t('scrollToBottom')}
+          accessibilityRole="button"
+        >
+          <AntDesign name="down" size={24} color={theme.colors.textSecondary} />
+        </TouchableOpacity>
       </View>
 
+      {/* Modals */}
       <ModalComponent
         visible={isNetworkErrorModalVisible}
         onClose={() => setIsNetworkErrorModalVisible(false)}
-        title="Erreur de connexion"
+        title={t('errors.networkError')}
       >
-        <Text style={styles.modalMessageText}>{networkErrorMessage}</Text>
-      </ModalComponent>
-
-      <ModalComponent
-        visible={isCopiedModalVisible}
-        onClose={() => setIsCopiedModalVisible(false)}
-        title="Information"
-      >
-        <Text style={styles.modalMessageText}>{copiedMessage}</Text>
-      </ModalComponent>
-
-      <ModalComponent
-        visible={isMenuSelectedModalVisible}
-        onClose={() => setIsMenuSelectedModalVisible(false)}
-        title="Menu Sélectionné"
-      >
-        <Text style={styles.modalMessageText}>{menuSelectedMessage}</Text>
-      </ModalComponent>
-
-      <ModalComponent
-        visible={isRecipeSelectedModalVisible}
-        onClose={() => setIsRecipeSelectedModalVisible(false)}
-        title="Recette Sélectionnée"
-      >
-        <Text style={styles.modalMessageText}>{recipeSelectedMessage}</Text>
-      </ModalComponent>
-
-      <ModalComponent
-        visible={isImageErrorModalVisible}
-        onClose={() => setIsImageErrorModalVisible(false)}
-        title="Erreur d'image"
-      >
-        <Text style={styles.modalMessageText}>{imageErrorMessage}</Text>
-      </ModalComponent>
-
-      <ModalComponent
-        visible={isTitleMissingModalVisible}
-        onClose={() => setIsTitleMissingModalVisible(false)}
-        title="Titre Manquant"
-      >
-        <Text style={styles.modalMessageText}>Veuillez entrer un titre pour la nouvelle conversation.</Text>
-      </ModalComponent>
-
-      <ModalComponent
-        visible={isImageModalVisible}
-        onClose={() => setIsImageModalVisible(false)}
-        title="Ajouter une image prédéfinie"
-      >
-        <View style={styles.imageGrid}>
-          {['food1.jpg', 'food2.jpeg', 'recipe1.jpg'].map((img) => (
-            <TouchableOpacity
-              key={img}
-              onPress={() => {
-                setSelectedImage(`assets:/images/${img}`);
-                setIsImageModalVisible(false);
-                setInputText('J’ai ajouté une image prédéfinie.');
-              }}
-              style={styles.imageOption}
-            >
-              <Image source={{ uri: `assets/images/${img}` }} style={styles.tooltipImage} />
-            </TouchableOpacity>
-          ))}
-        </View>
-      </ModalComponent>
-
-      <ModalComponent
-        visible={isImagePickerModalVisible}
-        onClose={() => setIsImagePickerModalVisible(false)}
-        title="Sélectionner une image"
-      >
-        <View style={styles.pickerOptionsContainer}>
-          <TouchableOpacity style={styles.pickerOptionButton} onPress={() => handleImagePick('camera')}>
-            <MaterialIcons name="photo-camera" size={24} color="#FF6B00" />
-            <Text style={styles.pickerOptionText}>Prendre une photo</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.pickerOptionButton} onPress={() => handleImagePick('gallery')}>
-            <MaterialIcons name="photo-library" size={24} color="#FF6B00" />
-            <Text style={styles.pickerOptionText}>Choisir depuis la galerie</Text>
-          </TouchableOpacity>
-        </View>
-      </ModalComponent>
-
-      <ModalComponent
-        visible={isSuggestionModalVisible}
-        onClose={() => setIsSuggestionModalVisible(false)}
-        title="Suggestions"
-      >
-        <ScrollView contentContainerStyle={styles.suggestionList}>
-          {[
-            {
-              title: 'Menu pour la semaine',
-              description: 'Planifiez vos repas pour 7 jours avec 3 repas par jour.',
-              options: { numDays: 7, numMealsPerDay: 3 },
-              imageUri: 'eru.jpg',
-            },
-            {
-              title: 'Recette rapide',
-              description: 'Découvrez une recette italienne avec un niveau d’épices modéré.',
-              options: { niveauEpices: 2, cuisinesPreferees: ['Italienne'] },
-              imageUri: 'recipe.jpg',
-            },
-            {
-              title: 'Liste de courses',
-              description: 'Générez une liste basée sur votre menu actuel.',
-              options: { menuId: menus[0]?.id },
-              imageUri: 'koki.jpg',
-            },
-            {
-              title: 'Idées créatives',
-              description: 'Trouvez des idées pour un dîner de famille mémorable.',
-              options: {},
-              imageUri: 'menu.jpg',
-            },
-            {
-              title: 'Analyse de recette',
-              description: 'Obtenez des informations sur une recette existante.',
-              options: {},
-              imageUri: 'okok.jpg',
-            },
-            {
-              title: 'Disponibilité d’ingrédient',
-              description: 'Vérifiez si un ingrédient est disponible près de chez vous.',
-              options: {},
-              imageUri: 'ingredient.jpg',
-            },
-            {
-              title: 'Informations nutritionnelles',
-              description: 'Découvrez les bienfaits d’un aliment comme la pomme.',
-              options: {},
-              imageUri: 'pizza.jpg',
-            },
-            {
-              title: 'Résoudre un problème',
-              description: 'Trouvez des solutions pour des plats trop épicés.',
-              options: {},
-              imageUri: 'resete.jpg',
-            },
-            {
-              title: 'Budget actuel',
-              description: 'Consultez votre budget alimentaire actuel.',
-              options: {},
-              imageUri: 'shopping.jpg',
-            },
-            {
-              title: 'Magasins proches',
-              description: 'Découvrez les magasins à proximité pour vos courses.',
-              options: {},
-              imageUri: 'ia.jpg',
-            },
-          ].map((item) => (
-            <SuggestionCard
-              key={item.title}
-              title={item.title}
-              description={item.description}
-              imageUri={item.imageUri}
-              onPress={() => handlePredefinedQuestion(item.title, item.options)}
-              onSendToAI={(message: string) => handlePredefinedQuestion(message)}
-            />
-          ))}
-          {familyMembers.length > 0 && (
-            <>
-              <Text style={styles.suggestionSectionTitle}>Membres de la famille</Text>
-              {familyMembers.map((member) => (
-                <FamilyCard
-                  key={member.id}
-                  member={member}
-                  onPress={() => handlePredefinedQuestion(`Informations sur ${member.prenom} ${member.nom}`)}
-                  onSendToAI={(message: string) => handlePredefinedQuestion(message)}
-                />
-              ))}
-            </>
-          )}
-        </ScrollView>
+        <Text style={globalStyles.text}>{networkErrorMessage}</Text>
+        <TouchableOpacity
+          onPress={() => setIsNetworkErrorModalVisible(false)}
+          style={[globalStyles.button, tw`mt-md`]}
+        >
+          <Text style={globalStyles.buttonText}>{t('ok')}</Text>
+        </TouchableOpacity>
       </ModalComponent>
 
       <ModalComponent
         visible={isConversationModalVisible}
         onClose={() => setIsConversationModalVisible(false)}
-        title="Gérer les conversations"
+        title={t('conversation.manage')}
       >
-        <ScrollView contentContainerStyle={styles.suggestionList}>
+        <ScrollView contentContainerStyle={styles.modalContent}>
           {conversations.map((item) => (
             <View key={item.id || item.title} style={styles.conversationItem}>
-              <Text style={styles.conversationText}>{item.title}</Text>
-              <View style={styles.conversationActions}>
-                <IconButton
-                  iconName="delete"
+              <Text style={globalStyles.text}>{item.title}</Text>
+              <View style={tw`flex-row gap-sm`}>
+                <TouchableOpacity
                   onPress={() => deleteConversation(item.id || '')}
-                  color="#FF6B6B"
-                  style={styles.smallIconButton}
-                />
-                <IconButton
-                  iconName="arrow-right"
-                  onPress={() => handleSelectExistingConversation(item.id || '')}
-                  color="#27AE60"
-                  style={styles.smallIconButton}
+                  style={styles.smallButton}
+                  accessibilityLabel={t('conversation.delete')}
+                  accessibilityRole="button"
+                >
+                  <AntDesign name="delete" size={20} color={theme.colors.error} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => handleSelectConversation(item.id || '')}
+                  style={styles.smallButton}
                   disabled={currentConversation?.id === item.id}
-                />
+                  accessibilityLabel={t('conversation.select')}
+                  accessibilityRole="button"
+                >
+                  <AntDesign
+                    name="arrowright"
+                    size={20}
+                    color={currentConversation?.id === item.id ? theme.colors.textSecondary : theme.colors.success}
+                  />
+                </TouchableOpacity>
               </View>
             </View>
           ))}
           <TouchableOpacity
-            onPress={handleNewConversationInitiation}
-            style={styles.newConversationButton}
+            onPress={() => setIsNewConversationModalVisible(true)}
+            style={[globalStyles.button, tw`mt-md`]}
+            accessibilityLabel={t('conversation.new')}
+            accessibilityRole="button"
           >
-            <Text style={styles.newConversationText}>Nouvelle conversation</Text>
+            <Text style={globalStyles.buttonText}>{t('conversation.new')}</Text>
           </TouchableOpacity>
         </ScrollView>
       </ModalComponent>
@@ -889,49 +1238,84 @@ const GeminiChatScreen: React.FC<StackScreenProps<RootStackParamList, 'GeminiCha
       <ModalComponent
         visible={isNewConversationModalVisible}
         onClose={() => setIsNewConversationModalVisible(false)}
-        title="Nouvelle conversation"
+        title={t('conversation.new')}
       >
         <TextInput
-          style={styles.newConversationInput}
-          placeholder="Nom de la conversation"
-          placeholderTextColor="#999"
+          style={[conversationStyles.aiMessage, tw`mb-md`]}
+          placeholder={t('conversation.titlePlaceholder')}
+          placeholderTextColor={theme.colors.textSecondary}
           value={newConversationTitle}
           onChangeText={setNewConversationTitle}
+          accessibilityLabel={t('conversation.titleInput')}
+          accessibilityRole="text"
         />
-        <TouchableOpacity onPress={confirmNewConversation} style={styles.confirmButton}>
-          <Text style={styles.confirmButtonText}>Créer</Text>
+        <TouchableOpacity
+          onPress={handleNewConversation}
+          style={globalStyles.button}
+          accessibilityLabel={t('conversation.create')}
+          accessibilityRole="button"
+        >
+          <Text style={globalStyles.buttonText}>{t('conversation.create')}</Text>
         </TouchableOpacity>
       </ModalComponent>
+
+      <ModalComponent
+        visible={isTitleMissingModalVisible}
+        onClose={() => setIsTitleMissingModalVisible(false)}
+        title={t('errors.titleMissing')}
+      >
+        <Text style={globalStyles.text}>{t('errors.enterTitle')}</Text>
+        <TouchableOpacity
+          onPress={() => setIsTitleMissingModalVisible(false)}
+          style={[globalStyles.button, tw`mt-md`]}
+        >
+          <Text style={globalStyles.buttonText}>{t('ok')}</Text>
+        </TouchableOpacity>
+      </ModalComponent>
+
+      {/* Toast Notifications */}
+      {toast.visible && (
+        <ToastNotification
+          message={toast.message}
+          type={toast.type}
+          onDismiss={() => setToast({ ...toast, visible: false })}
+          duration={3000}
+        />
+      )}
     </View>
   );
 };
 
+// Comprehensive styles for all UI components
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#121212',
-  },
-  componentHeader: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 15,
-    paddingVertical: Platform.OS === 'ios' ? 15 : 10,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: Platform.OS === 'ios' ? theme.spacing.lg : theme.spacing.md,
     paddingTop: Platform.OS === 'ios' ? 50 : 30,
-    backgroundColor: '#1E1E1E',
+    backgroundColor: theme.colors.background,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
+    borderBottomColor: theme.colors.disabled,
+    elevation: 4,
+    shadowColor: theme.colors.textPrimary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
-  closeChatComponentButton: {
-    padding: 5,
+  backButton: {
+    padding: theme.spacing.sm,
+    borderRadius: theme.borderRadius.medium,
+    backgroundColor: theme.colors.surface,
   },
-  componentTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#e0e0e0',
+  conversationButton: {
+    padding: theme.spacing.sm,
+    borderRadius: theme.borderRadius.medium,
+    backgroundColor: theme.colors.surface,
   },
-  headerRightSpacer: {
-    width: 24,
+  contentContainer: {
+    flex: 1,
   },
   conversationScrollContainer: {
     flexGrow: 1,
@@ -939,257 +1323,145 @@ const styles = StyleSheet.create({
   conversationPage: {
     width,
     flex: 1,
+    backgroundColor: theme.colors.background,
   },
   conversationHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#1E1E1E',
+    padding: theme.spacing.md,
+    backgroundColor: theme.colors.background,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
-  },
-  conversationTitle: {
-    color: '#FFF',
-    fontSize: 18,
-    fontWeight: '600',
+    borderBottomColor: theme.colors.disabled,
+    elevation: 2,
   },
   deleteButton: {
-    padding: 8,
+    padding: theme.spacing.sm,
+    borderRadius: theme.borderRadius.medium,
+    backgroundColor: theme.colors.surface,
   },
-  chatContentContainer: {
-    padding: 16,
-    paddingBottom: 100,
+  messageListContainer: {
+    padding: theme.spacing.md,
+    flexGrow: 1,
   },
-  welcomeText: {
-    color: '#b0b0b0',
-    fontSize: 16,
-    textAlign: 'center',
-    marginTop: 20,
-  },
-
   messageContainer: {
-    flexDirection: 'row',
-    marginBottom: 12,
-    paddingHorizontal: 8,
-  },
-  userMessageContainer: {
-    justifyContent: 'flex-end',
-  },
-  aiMessageContainer: {
-    justifyContent: 'flex-start',
-  },
-  messageBubble: {
-    maxWidth: '80%',
-    padding: 12,
-    borderRadius: 12,
-    marginLeft: 8,
-    position: 'relative',
-  },
-  userMessageBubble: {
-    backgroundColor: '#FF6B00',
-  },
-  aiMessageBubble: {
-    backgroundColor: '#2A2A2A',
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  messageText: {
-    color: '#FFF',
-    fontSize: 16,
-    lineHeight: 22,
-  },
-  senderName: {
-    color: '#b0b0b0',
-    fontSize: 12,
-    marginBottom: 4,
-  },
-  timestamp: {
-    color: '#b0b0b0',
-    fontSize: 10,
-    marginTop: 4,
+    marginVertical: theme.spacing.sm,
+    maxWidth: MESSAGE_CARD_WIDTH,
     alignSelf: 'flex-end',
   },
-  copyIcon: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-  },
-  sentImage: {
-    width: 150,
-    height: 150,
-    borderRadius: 8,
-    marginTop: 8,
-  },
-  inputContainer: {
-    padding: 16,
-    backgroundColor: '#1E1E1E',
-    borderTopWidth: 1,
-    borderTopColor: '#333',
-  },
-  input: {
-    backgroundColor: '#2A2A2A',
-    color: '#FFF',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    fontSize: 16,
-    maxHeight: 100,
-  },
-  buttonGroup: {
+  userMessageContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 12,
+    alignItems: 'flex-end',
+    alignSelf: 'flex-end',
   },
-  iconButton: {
-    backgroundColor: '#FF6B00',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
+  userImage: {
+    width: 100,
+    height: 100,
+    borderRadius: theme.borderRadius.medium,
+    marginLeft: theme.spacing.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.disabled,
+  },
+  actionButtons: {
+    flexDirection: 'column',
+    marginLeft: theme.spacing.xs,
+  },
+  messageActionButton: {
+    padding: theme.spacing.xs,
+    marginVertical: theme.spacing.xs,
+    borderRadius: theme.borderRadius.small,
+    backgroundColor: theme.colors.surface,
+  },
+  typingContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
-  },
-  sendButton: {
-    backgroundColor: '#27AE60',
+    padding: theme.spacing.md,
+    backgroundColor: theme.colors.background,
+    borderRadius: theme.borderRadius.medium,
+    marginHorizontal: theme.spacing.md,
+    marginBottom: theme.spacing.md,
   },
   utilityButtons: {
     position: 'absolute',
     top: Platform.OS === 'ios' ? 48 : 32,
-    right: 16,
+    right: theme.spacing.md,
     flexDirection: 'row',
+    gap: theme.spacing.sm,
   },
   utilityButton: {
-    marginLeft: 8,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
+    padding: theme.spacing.sm,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.medium,
+    shadowColor: theme.colors.textPrimary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  suggestionList: {
-    padding: 12,
-  },
-  suggestionSectionTitle: {
-    color: '#FFF',
-    fontSize: 18,
-    fontWeight: '600',
-    marginVertical: 12,
+  modalContent: {
+    padding: theme.spacing.md,
+    backgroundColor: theme.colors.background,
   },
   conversationItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 12,
-    backgroundColor: '#2A2A2A',
-    borderRadius: 8,
-    marginBottom: 8,
+    padding: theme.spacing.md,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.medium,
+    marginBottom: theme.spacing.sm,
+    elevation: 1,
   },
-  conversationText: {
-    color: '#FFF',
-    fontSize: 16,
+  smallButton: {
+    padding: theme.spacing.xs,
+    borderRadius: theme.borderRadius.small,
+    backgroundColor: theme.colors.surface,
+  },
+  skeletonContainer: {
     flex: 1,
+    borderRadius: theme.borderRadius.large,
+    overflow: 'hidden',
+    minHeight: 200,
   },
-  conversationActions: {
-    flexDirection: 'row',
-    gap: 8,
+  skeletonGradient: {
+    flex: 1,
+    padding: theme.spacing.md,
+    justifyContent: 'flex-start',
   },
-  newConversationButton: {
-    padding: 12,
-    backgroundColor: '#FF6B00',
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 8,
+  skeletonIcon: {
+    width: 28,
+    height: 28,
+    backgroundColor: '#C0C0C0',
+    borderRadius: 14,
+    marginBottom: theme.spacing.xs,
+    alignSelf: 'center',
   },
-  newConversationText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  smallIconButton: {
-    width: 32,
-    height: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  imageGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-  },
-  imageOption: {
-    margin: 8,
-  },
-  tooltipImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#FF6B00',
-  },
-  pickerOptionsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: 20,
-    width: '100%',
-  },
-  pickerOptionButton: {
-    alignItems: 'center',
-    padding: 10,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 8,
-  },
-  pickerOptionText: {
-    marginTop: 5,
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  newConversationInput: {
-    borderWidth: 1,
-    borderColor: '#FF6B00',
-    padding: 12,
-    marginBottom: 20,
-    fontSize: 16,
+  skeletonTitle: {
     width: '80%',
-    alignSelf: 'center',
-    color: '#FFF',
-    borderRadius: 8,
-    backgroundColor: '#1E1E1E',
-  },
-  confirmButton: {
-    backgroundColor: '#FF6B00',
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    width: '60%',
+    height: 20,
+    backgroundColor: '#C0C0C0',
+    borderRadius: 4,
+    marginBottom: theme.spacing.sm,
     alignSelf: 'center',
   },
-  confirmButtonText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '600',
+  skeletonContent: {
+    flex: 1,
+    backgroundColor: '#D1D1D1',
+    borderRadius: 8,
+    minHeight: 150,
   },
-  modalMessageText: {
-    color: '#FFF',
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 10,
-  },
-  loadingContainer: {
+  emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#121212',
-    flexDirection: 'row',
-    padding: 8,
+    padding: theme.spacing.lg,
   },
-  loadingText: {
-    color: '#FFF',
-    marginTop: 10,
-    fontSize: 16,
+  emptyText: {
+    fontFamily: theme.fonts.regular,
+    fontSize: theme.fonts.sizes.medium,
+    color: theme.colors.textSecondary,
     textAlign: 'center',
   },
 });
 
-export default React.memo(GeminiChatScreen);
+export default memo(GeminiChatScreen);

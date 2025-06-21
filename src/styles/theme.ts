@@ -5,6 +5,7 @@ export const theme = {
     primary: '#26A69A',
     secondary: '#4CAF50',
     background: '#000',
+    dark: 'rgba(36, 36, 36, 0.74)',
     surface: '#1E1E1E',
     textPrimary: '#1E1E1E',
     textSecondary: '#B0B0B0',
@@ -16,6 +17,7 @@ export const theme = {
     gradientEnd: '#4CAF50',
     disabled: '#666',
     accent: '#FF7F3F',
+    white: '#fff',
   },
   fonts: {
     regular: 'Roboto-Regular',

@@ -18,7 +18,6 @@ import LinearGradient from 'react-native-linear-gradient';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useColorScheme } from 'react-native';
 import { useAuth } from '../../hooks/useAuth';
-import { commonStyles } from '../../styles/commonStyles';
 import { generateUniqueId } from '../../utils/helpers';
 import { theme } from '../../styles/theme';
 import { PromptType } from '../../services/prompts';
@@ -34,6 +33,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import ToastNotification from '../common/ToastNotification';
 import { getFirestore, collection, doc, getDoc } from '@react-native-firebase/firestore';
+import { ScrollView } from 'react-native-gesture-handler';
 
 interface MenuItem {
   id: string;
@@ -106,6 +106,7 @@ const menuItems: MenuItem[] = [
   { id: '4', title: 'Liste de Courses', icon: 'cart', route: 'ShoppingList' },
   { id: '5', title: 'Profil', icon: 'account', route: 'Profile' },
   { id: '6', title: 'Paramètres', icon: 'cog', route: 'Settings' },
+  { id: '7', title: 'Déconnexion', icon: 'logout', action: () => {} },
 ];
 
 const MenuItemComponent: React.FC<{
@@ -115,45 +116,45 @@ const MenuItemComponent: React.FC<{
 }> = ({ item, onPress, isDarkMode }) => {
   const { t } = useTranslation();
   const scale = useSharedValue(1);
+  const opacity = useSharedValue(1);
 
   const animatedItemStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
+    opacity: opacity.value,
   }));
 
   const handlePressIn = () => {
     scale.value = withSpring(0.95, { damping: 20, stiffness: 200 });
+    opacity.value = withTiming(0.8, { duration: 200 });
   };
 
   const handlePressOut = () => {
     scale.value = withSpring(1, { damping: 20, stiffness: 200 });
+    opacity.value = withTiming(1, { duration: 200 });
   };
+
+  // Correction ici : si item.title est null/undefined, fallback à une chaîne vide
+  const labelKey = `menu.${(item.title || '').toLowerCase().replace(/ /g, '_')}`;
 
   return (
     <TouchableOpacity
-      style={[commonStyles.sideMenuItem, styles.menuItem]}
+      style={[styles.menuItem, isDarkMode && styles.menuItemDark]}
       onPress={onPress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
-      accessibilityLabel={t(`menu.${item.title.toLowerCase().replace(' ', '_')}`)}
+      accessibilityLabel={t(labelKey)}
       accessibilityRole="button"
     >
-      <Animated.View style={animatedItemStyle}>
-        <LinearGradient
-          colors={isDarkMode ? ['#3A3A3C', '#2C2C2E'] : ['#F9FAFB', '#E5E7EB']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.itemGradient}
-        >
-          <Icon
-            name={item.icon}
-            size={24}
-            color={theme.colors.textPrimary}
-            style={styles.itemIcon}
-          />
-          <Text style={[commonStyles.sideMenuText, styles.itemText]}>
-            {t(`menu.${item.title.toLowerCase().replace(' ', '_')}`)}
-          </Text>
-        </LinearGradient>
+      <Animated.View style={[styles.itemContainer, animatedItemStyle]}>
+        <Icon
+          name={item.icon}
+          size={22}
+          color={isDarkMode ? theme.colors.textSecondary : theme.colors.textPrimary}
+          style={styles.itemIcon}
+        />
+        <Text style={[styles.itemText, isDarkMode && styles.itemTextDark]}>
+          {t(labelKey)}
+        </Text>
       </Animated.View>
     </TouchableOpacity>
   );
@@ -166,53 +167,50 @@ const RecentQueryComponent: React.FC<{
 }> = ({ item, onPress, isDarkMode }) => {
   const { t } = useTranslation();
   const scale = useSharedValue(1);
+  const opacity = useSharedValue(1);
 
   const animatedItemStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
+    opacity: opacity.value,
   }));
 
   const handlePressIn = () => {
     scale.value = withSpring(0.95, { damping: 20, stiffness: 200 });
+    opacity.value = withTiming(0.8, { duration: 200 });
   };
 
   const handlePressOut = () => {
     scale.value = withSpring(1, { damping: 20, stiffness: 200 });
+    opacity.value = withTiming(1, { duration: 200 });
   };
 
   return (
     <TouchableOpacity
-      style={[commonStyles.sideMenuItem, styles.queryItem]}
+      style={[styles.queryItem, isDarkMode && styles.queryItemDark]}
       onPress={onPress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       accessibilityLabel={t('recent_query.repeat', { query: item.query })}
       accessibilityRole="button"
     >
-      <Animated.View style={animatedItemStyle}>
-        <LinearGradient
-          colors={isDarkMode ? ['#2C2C2E', '#1F1F21'] : ['#F3F4F6', '#E5E7EB']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.queryGradient}
-        >
-          <Icon
-            name="history"
-            size={20}
-            color={theme.colors.textSecondary}
-            style={styles.queryIcon}
-          />
-          <Text style={[commonStyles.cardDescription, styles.queryText]}>
-            {item.query}
-          </Text>
-        </LinearGradient>
+      <Animated.View style={[styles.queryContainer, animatedItemStyle]}>
+        <Icon
+          name="history"
+          size={20}
+          color={isDarkMode ? theme.colors.textSecondary : theme.colors.textPrimary}
+          style={styles.queryIcon}
+        />
+        <Text style={[styles.queryText, isDarkMode && styles.queryTextDark]}>
+          {item.query}
+        </Text>
       </Animated.View>
     </TouchableOpacity>
   );
 };
 
 const SideMenu: React.FC<SideMenuProps> = ({ isVisible, onClose }) => {
-  const { t } = useTranslation();
-  const { userId } = useAuth();
+  const { t, i18n } = useTranslation();
+  const { use, signOut } = useAuth();
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
@@ -227,16 +225,19 @@ const SideMenu: React.FC<SideMenuProps> = ({ isVisible, onClose }) => {
   const isDarkMode = useColorScheme() === 'dark';
   const navigation = useNavigation<NavigationProp>();
 
-  // Load user profile from Firestore using modular API
   useEffect(() => {
-    if (userId) {
+    if (use) {
       setLoadingProfile(true);
-      const usernameFromEmail = userId.split('@')[0];
-      setUserName(usernameFromEmail.replace(/[^a-zA-Z0-9]/g, ''));
-      setUserEmail(userId);
+
+      setUserName(
+        typeof use.displayName === 'string'
+          ? use.displayName.replace(/[^a-zA-Z0-9]/g, '')
+          : null
+      );
+      setUserEmail(use.email);
 
       const db = getFirestore();
-      const userDocRef = doc(collection(db, 'users'), userId);
+      const userDocRef = doc(collection(db, 'users'), use.uid);
 
       getDoc(userDocRef)
         .then((docSnap) => {
@@ -262,9 +263,8 @@ const SideMenu: React.FC<SideMenuProps> = ({ isVisible, onClose }) => {
     } else {
       setLoadingProfile(false);
     }
-  }, [userId, t]);
+  }, [use, t]);
 
-  // Animation for menu
   useEffect(() => {
     if (isVisible) {
       translateX.value = withTiming(0, { duration: 300 });
@@ -310,22 +310,17 @@ const SideMenu: React.FC<SideMenuProps> = ({ isVisible, onClose }) => {
           } else if (item.params) {
             navigation.navigate(item.route as any, item.params);
           } else {
-            switch (item.route) {
-              case 'Home':
-              case 'RecipeList':
-              case 'MealHistory':
-              case 'ShoppingList':
-              case 'Profile':
-              case 'Settings':
-                navigation.navigate(item.route);
-                break;
-              default:
-                logger.warn(`Route ${item.route} not handled explicitly`);
-                navigation.navigate(item.route as any);
-            }
+            navigation.navigate(item.route as any, item.params);
           }
         } else if (item.action) {
           item.action();
+        } else if (item.title === 'Déconnexion') {
+          signOut();
+          setToast({
+            visible: true,
+            message: t('menu.logout_success'),
+            type: 'success',
+          });
         }
         onClose();
       } catch (err) {
@@ -338,7 +333,7 @@ const SideMenu: React.FC<SideMenuProps> = ({ isVisible, onClose }) => {
         });
       }
     },
-    [navigation, navigateToChat, onClose, t],
+    [navigation, navigateToChat, onClose, signOut, t],
   );
 
   const handleQueryPress = useCallback(
@@ -360,6 +355,16 @@ const SideMenu: React.FC<SideMenuProps> = ({ isVisible, onClose }) => {
     [navigateToChat, onClose, t],
   );
 
+  const handleLanguageSwitch = useCallback(() => {
+    const newLang = i18n.language === 'en' ? 'fr' : 'en';
+    i18n.changeLanguage(newLang);
+    setToast({
+      visible: true,
+      message: t('menu.language_switched', { lang: newLang.toUpperCase() }),
+      type: 'success',
+    });
+  }, [i18n, t]);
+
   const handleDismissToast = useCallback(() => {
     setToast((prev) => ({ ...prev, visible: false }));
   }, []);
@@ -372,27 +377,45 @@ const SideMenu: React.FC<SideMenuProps> = ({ isVisible, onClose }) => {
     <>
       <Animated.View style={[styles.overlay, overlayStyle]} onTouchEnd={onClose} />
       <Animated.View
-        style={[commonStyles.sideMenuContainer, animatedStyle, styles.menuContainer]}
+        style={[styles.menuContainer, animatedStyle]}
       >
         <LinearGradient
-          colors={isDarkMode ? ['#1F1F21', '#2C2C2E'] : ['#E5E7EB', '#F9FAFB']}
+          colors={
+            isDarkMode
+              ? [theme.colors.dark, theme.colors.dark]
+              : [theme.colors.textPrimary, theme.colors.textSecondary]
+          }
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.menuGradient}
         >
-          <TouchableOpacity
-            onPress={onClose}
-            style={styles.closeButton}
-            accessibilityLabel={t('menu.close')}
-            accessibilityRole="button"
-          >
-            <Icon name="close" size={24} color={theme.colors.textPrimary} />
-          </TouchableOpacity>
+          {/* Header with Logo and Close Button */}
+          <View style={styles.header}>
+            <Image
+              source={require('../../assets/images/gemini-star.png')}
+              style={styles.logo}
+              resizeMode="contain"
+            /><Text style={styles.logoTitle}> Nutriplanner</Text>
+            <TouchableOpacity
+              onPress={onClose}
+              style={styles.closeButton}
+              accessibilityLabel={t('menu.close')}
+              accessibilityRole="button"
+            >
+              <Icon name="close" size={24} color={theme.colors.white} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Profile Section */}
           <View style={styles.profileSection}>
             {loadingProfile ? (
               <ActivityIndicator size="large" color={theme.colors.primary} />
             ) : (
-              <TouchableOpacity onPress={() => handleMenuItemPress(menuItems.find((item) => item.route === 'Profile')!)}>
+              <TouchableOpacity
+              activeOpacity={1}
+                style={styles.profileContainer}
+                onPress={() => handleMenuItemPress(menuItems.find((item) => item.route === 'Profile')!)}
+              >
                 {profileImage ? (
                   <Image
                     source={{ uri: profileImage }}
@@ -401,25 +424,54 @@ const SideMenu: React.FC<SideMenuProps> = ({ isVisible, onClose }) => {
                   />
                 ) : (
                   <LinearGradient
-                    colors={['#FF4F00', '#FF7F3F']}
+                    colors={[theme.colors.primary, theme.colors.secondary]}
                     style={styles.profilePhotoPlaceholder}
                   >
-                    <Icon name="account" size={40} color={theme.colors.textPrimary} />
+                    <Icon name="account" size={40} color="#FFFFFF" />
                   </LinearGradient>
                 )}
-                <Text style={[commonStyles.sectionHeaderTitle, styles.profileName]}>
-                  {userName || t('menu.user')}
-                </Text>
-                <Text style={[commonStyles.cardDescription, styles.profileEmail]}>
-                  {userEmail || 'email@example.com'}
-                </Text>
+                <View style={styles.profileTextContainer}>
+                  <Text style={styles.profileName}>
+                    {userName || 'Hello'}
+                  </Text>
+                  <Text style={styles.profileEmail}>
+                    {userEmail || 'email@example.com'}
+                  </Text>
+                </View>
               </TouchableOpacity>
             )}
           </View>
+
+          {/* Language Switch Button */}
+          <View style={styles.languageSection}>
+            <TouchableOpacity
+              style={styles.languageButton}
+              onPress={handleLanguageSwitch}
+              accessibilityLabel={t('menu.switch_language')}
+              accessibilityRole="button"
+            >
+              <LinearGradient
+                colors={[theme.colors.primary, theme.colors.secondary]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.languageButtonGradient}
+              >
+                <Icon
+                  name="translate"
+                  size={20}
+                  color="#FFFFFF"
+                  style={styles.languageIcon}
+                />
+                <Text style={styles.languageButtonText}>
+                  {i18n.language === 'en' ? 'FR' : 'EN'}
+                </Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+<ScrollView style={styles.listContent}>
+          {/* Recent Queries Section */}
           <View style={styles.section}>
-            <Text style={[commonStyles.sectionHeaderTitle, styles.sectionTitle]}>
-              {t('menu.recent_queries')}
-            </Text>
+            <Text style={styles.sectionTitle}>Requêtes Récentes</Text>
             <FlatList
               data={mockRecentQueries}
               renderItem={({ item }) => (
@@ -434,10 +486,10 @@ const SideMenu: React.FC<SideMenuProps> = ({ isVisible, onClose }) => {
               showsVerticalScrollIndicator={false}
             />
           </View>
+
+          {/* Navigation Section */}
           <View style={styles.section}>
-            <Text style={[commonStyles.sectionHeaderTitle, styles.sectionTitle]}>
-              {t('menu.navigation')}
-            </Text>
+            <Text style={styles.sectionTitle}>{t('menu.navigation')}</Text>
             <FlatList
               data={menuItems}
               renderItem={({ item }) => (
@@ -452,6 +504,7 @@ const SideMenu: React.FC<SideMenuProps> = ({ isVisible, onClose }) => {
               showsVerticalScrollIndicator={false}
             />
           </View>
+</ScrollView>
           {toast.visible && (
             <ToastNotification
               message={toast.message}
@@ -469,18 +522,18 @@ const SideMenu: React.FC<SideMenuProps> = ({ isVisible, onClose }) => {
 const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
   },
   menuContainer: {
-    width: 280,
+    width: 300,
     height: '100%',
     borderTopRightRadius: theme.borderRadius.xlarge,
     borderBottomRightRadius: theme.borderRadius.xlarge,
     shadowColor: theme.shadow.color,
     shadowOffset: { width: 4, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 8,
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 10,
   },
   menuGradient: {
     flex: 1,
@@ -488,42 +541,91 @@ const styles = StyleSheet.create({
     borderTopRightRadius: theme.borderRadius.xlarge,
     borderBottomRightRadius: theme.borderRadius.xlarge,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.disabled,
+  },
+  logo: {
+    width: 100,
+    height: 40,
+  },
   closeButton: {
-    alignSelf: 'flex-end',
-    padding: theme.spacing.md,
+    padding: theme.spacing.sm,
   },
   profileSection: {
-    alignItems: 'center',
     padding: theme.spacing.lg,
-    marginBottom: theme.spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#3A3A3C',
+    borderBottomColor: theme.colors.disabled,
+    marginBottom: theme.spacing.md,
+  },
+  profileContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.background,
+    borderRadius: theme.borderRadius.large,
+    padding: theme.spacing.sm,
+    shadowColor: theme.shadow.color,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   profilePhoto: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     borderWidth: 2,
     borderColor: theme.colors.primary,
-    marginBottom: theme.spacing.sm,
+    marginRight: theme.spacing.sm,
   },
   profilePhotoPlaceholder: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: theme.spacing.sm,
+    marginRight: theme.spacing.sm,
+  },
+  profileTextContainer: {
+    flex: 1,
   },
   profileName: {
     fontFamily: theme.fonts.bold,
     fontSize: theme.fonts.sizes.large,
-    color: theme.colors.textPrimary,
+    color: theme.colors.white,
   },
   profileEmail: {
     fontFamily: theme.fonts.regular,
     fontSize: theme.fonts.sizes.small,
     color: theme.colors.textSecondary,
+  },
+  languageSection: {
+    paddingHorizontal: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+  },
+  languageButton: {
+    borderRadius: theme.borderRadius.medium,
+    overflow: 'hidden',
+  },
+  languageButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    borderRadius: theme.borderRadius.medium,
+  },
+  languageIcon: {
+    marginRight: theme.spacing.xs,
+  },
+  languageButtonText: {
+    fontFamily: theme.fonts.semiBold,
+    fontSize: theme.fonts.sizes.medium,
+    color: '#FFFFFF',
   },
   section: {
     paddingHorizontal: theme.spacing.md,
@@ -532,15 +634,31 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontFamily: theme.fonts.bold,
     fontSize: theme.fonts.sizes.medium,
-    color: theme.colors.textPrimary,
+    color: theme.colors.white,
+    marginBottom: theme.spacing.sm,
+    marginLeft: theme.spacing.sm,
+  },
+    logoTitle: {
+    fontFamily: theme.fonts.bold,
+    fontSize: theme.fonts.sizes.medium,
+    color: theme.colors.white,
+    marginLeft: -10,
     marginBottom: theme.spacing.sm,
   },
   menuItem: {
     marginVertical: theme.spacing.xs,
     borderRadius: theme.borderRadius.large,
-    overflow: 'hidden',
+    backgroundColor: theme.colors.background,
+    shadowColor: theme.shadow.color,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  itemGradient: {
+  menuItemDark: {
+    backgroundColor: theme.colors.background,
+  },
+  itemContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: theme.spacing.md,
@@ -554,12 +672,23 @@ const styles = StyleSheet.create({
     fontSize: theme.fonts.sizes.medium,
     color: theme.colors.textPrimary,
   },
+  itemTextDark: {
+    color: theme.colors.textSecondary,
+  },
   queryItem: {
     marginVertical: theme.spacing.xs,
     borderRadius: theme.borderRadius.medium,
-    overflow: 'hidden',
+    backgroundColor: theme.colors.background,
+    shadowColor: theme.shadow.color,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 1,
   },
-  queryGradient: {
+  queryItemDark: {
+    backgroundColor: theme.colors.background,
+  },
+  queryContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: theme.spacing.sm,
@@ -573,6 +702,9 @@ const styles = StyleSheet.create({
     fontSize: theme.fonts.sizes.small,
     color: theme.colors.textSecondary,
     flex: 1,
+  },
+  queryTextDark: {
+    color: theme.colors.textSecondary,
   },
   listContent: {
     paddingBottom: theme.spacing.md,

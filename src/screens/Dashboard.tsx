@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   SafeAreaView,
@@ -39,6 +40,10 @@ import { AudioContent, NutritionData, TextContent } from '../types/messageTypes'
 import { Vibration } from 'react-native';
 import { Audio } from 'expo-av';
 import AITemplateCarousel from '../components/ai/AITemplateCarousel';
+import RecordingModal from '../components/common/RecordingModal';
+import { commonStyles } from '../styles/commonStyles';
+import { globalStyles } from '../styles/globalStyles';
+import LottieView from 'lottie-react-native';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -87,10 +92,12 @@ const Dashboard: React.FC = () => {
     onClose?: () => void;
   }>({ visible: false, type: 'success', message: '' });
   const [isFetchingSuggestions, setIsFetchingSuggestions] = useState(false);
-
   const [isRecording, setIsRecording] = useState(false);
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const [recordingModalVisible, setRecordingModalVisible] = useState(false); // Nouvel état pour le modal
   const scrollViewRef = useRef<ScrollView>(null);
+const [recordingError, setRecordingError] = useState<string | null>(null);
+
 
   const nutritionData: NutritionData[] = [
     { id: '1', name: 'Calories', value: 2000, unit: 'Kcal' },
@@ -197,12 +204,17 @@ const Dashboard: React.FC = () => {
           allSuggestions = allSuggestions.concat(suggestions);
         }
       }
+      if(allSuggestions.length > 0){
       setAiSuggestions(allSuggestions);
+      }else{
+        setAiSuggestions(mockMenus);
+      }
     } catch (error: any) {
       logger.error('Échec de la récupération des suggestions IA', { error: error.message });
       setModalState({ visible: true, type: 'error', message: 'Échec de la récupération des suggestions' });
     } finally {
       setIsFetchingSuggestions(false);
+      setAiSuggestions(mockMenus);
     }
   }, [aiReady, userId, aiLoading, familyMembers, getCollection, getMenuSuggestions]);
 
@@ -244,113 +256,99 @@ const Dashboard: React.FC = () => {
     return () => backHandler.remove();
   }, [modalState]);
 
-  const startRecording = useCallback(async () => {
-    try {
-      const { status } = await Audio.requestPermissionsAsync();
-      if (status !== 'granted') {
-        setModalState({
-          visible: true,
-          type: 'error',
-          message: 'Permission audio refusée',
-        });
-        return;
-      }
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-        interruptionModeIOS: 1,
-        shouldDuckAndroid: true,
-        interruptionModeAndroid: 1,
-      });
-      const { recording: newRecording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
-      setRecording(newRecording);
-      setIsRecording(true);
-      Vibration.vibrate(100);
-    } catch (err: any) {
-      logger.error('Erreur lors du démarrage de l\'enregistrement', { error: err.message });
-      setModalState({
-        visible: true,
-        type: 'error',
-        message: 'Erreur au démarrage de l\'enregistrement',
-      });
-     }}, []);
-
-  const stopRecording = useCallback(async () => {
-    if (!recording) { return; }
-    try {
-      await recording.stopAndUnloadAsync();
-      const uri = recording.getURI();
-      setIsRecording(false);
-      setRecording(null);
-      setModalState({
-        visible: true,
-        type: 'success',
-        message: 'Enregistrement sauvegardé',
-      });
-
-      if (uri) {
-        const audioContent: AudioContent = { type: 'audio', uri, mimeType: 'audio/m4a' };
-        const interaction: AiInteraction = {
-          id: generateUniqueId(),
-          content: audioContent,
-          isUser: true,
-          timestamp: new Date().toISOString(),
-          type: 'audio',
-          dateCreation: new Date().toISOString(),
-          dateMiseAJour: new Date().toISOString(),
-          conversationId: generateUniqueId(),
-        };
-        navigation.navigate('GeminiChat', { initialInteraction: interaction, promptType: undefined });
-      }
-    } catch (err: any) {
-      logger.error('Erreur lors de l\'arrêt de l\'enregistrement', { error: err.message });
-      setModalState({
-        visible: true,
-        type: 'error',
-        message: 'Erreur à l\'arrêt de l\'enregistrement',
-      });
+const startRecording = useCallback(async () => {
+  try {
+    setRecordingError(null); // Clear previous errors
+    const { status } = await Audio.requestPermissionsAsync();
+    if (status !== 'granted') {
+      setRecordingError('Permission audio refusée');
+      logger.error('Permission audio refusée');
+      return;
     }
-  }, [recording, navigation]);
+    await Audio.setAudioModeAsync({
+      allowsRecordingIOS: true,
+      playsInSilentModeIOS: true,
+      interruptionModeIOS: 1,
+      shouldDuckAndroid: true,
+      interruptionModeAndroid: 1,
+    });
+    const { recording: newRecording } = await Audio.Recording.createAsync(
+      Audio.RecordingOptionsPresets.HIGH_QUALITY
+    );
+    setRecording(newRecording);
+    setIsRecording(true);
+    Vibration.vibrate(100);
+  } catch (err: any) {
+    const errorMessage = 'Erreur au démarrage de l\'enregistrement';
+    setRecordingError(errorMessage);
+    logger.error('Erreur lors du démarrage de l\'enregistrement', { error: err.message });
+    // Don't show modalState here to avoid duplicate error messages
+  }
+}, []);
+
+// Update stopRecording
+const stopRecording = useCallback(async () => {
+  if (!recording) { return; }
+  try {
+    await recording.stopAndUnloadAsync();
+    const uri = recording.getURI();
+    setIsRecording(false);
+    setRecording(null);
+    setRecordingModalVisible(false);
+    setRecordingError(null); // Clear error on success
+    setModalState({
+      visible: true,
+      type: 'success',
+      message: 'Enregistrement sauvegardé',
+    });
+
+    if (uri) {
+      const audioContent: AudioContent = { type: 'audio', uri, mimeType: 'audio/m4a' };
+      const interaction: AiInteraction = {
+        id: generateUniqueId(),
+        content: audioContent,
+        isUser: true,
+        timestamp: new Date().toISOString(),
+        type: 'audio',
+        dateCreation: new Date().toISOString(),
+        dateMiseAJour: new Date().toISOString(),
+        conversationId: generateUniqueId(),
+      };
+      navigation.navigate('GeminiChat', { initialInteraction: interaction, promptType: undefined });
+    }
+  } catch (err: any) {
+    const errorMessage = 'Erreur à l\'arrêt de l\'enregistrement';
+    setRecordingError(errorMessage);
+    logger.error('Erreur lors de l\'arrêt de l\'enregistrement', { error: err.message });
+  }
+}, [recording, navigation]);
 
   const handleMainActionPress = useCallback(() => {
-    const textContent: TextContent = { type: 'text', message: 'Nouvelle conversation' };
-    const interaction: AiInteraction = {
-      id: generateUniqueId(),
-      content: textContent,
-      isUser: true,
-      timestamp: new Date().toISOString(),
-      type: 'text',
-      dateCreation: new Date().toISOString(),
-      dateMiseAJour: new Date().toISOString(),
-      conversationId: generateUniqueId(),
-    };
-    navigation.navigate('GeminiChat', { initialInteraction: interaction, promptType: undefined });
+    navigation.navigate('GeminiAI');
   }, [navigation]);
 
   const handleMainActionLongPress = useCallback(() => {
     Vibration.vibrate([0, 100, 50, 100]);
-    startRecording();
-  }, [startRecording]);
+    setRecordingModalVisible(true); // Ouvre le modal au lieu de démarrer l'enregistrement
+  }, []);
 
   const renderMenuCard = useCallback(
     ({ item }: { item: Menu }) => (
       <TouchableOpacity
-        style={styles.card}
+        style={[styles.card , globalStyles.card]}
         onPress={() => navigation.navigate('MenuDetail', { menuId: item.id })}
         accessibilityLabel={`Menu: ${item.recettes?.[0]?.nom || 'Menu'}`}
       >
         <Image
-          source={item.recettes?.[0]?.imageUrl || require('../assets/images/okok.jpg')}
+          source={item.image || require('../assets/images/okok.jpg')}
           style={styles.cardImage}
         />
-        <LinearGradient colors={['#00000080', '#00000080']} style={styles.cardGradient}>
-          <Text style={styles.cardTitle}>{item.recettes?.[0]?.nom || 'Menu sans nom'}</Text>
+        <LinearGradient colors={[theme.colors.primary, theme.colors.primary]} style={styles.cardGradient}>
+          <Text style={styles.cardTitle}>{item.recettes?.[0]?.nom || 'Menu sans nom'} -<Text style={styles.cardSubtitle} numberOfLines={2}> {item.typeRepas}</Text> </Text>
           <Text style={styles.cardSubtitle} numberOfLines={2}>
             {item.recettes?.[0]?.instructions?.[0] || 'Aucune description'}
           </Text>
-          <Text style={styles.cardPrice}>${item.coutTotalEstime?.toFixed(2) || '0.00'}</Text>
+          <Text style={[styles.cardPrice,commonStyles.text , styles.cardSubtitle ]} selectionColor={theme.colors.accent} >{item.coutTotalEstime?.toFixed(2) || '0.0'} Fcfa - <Text style={[styles.cardPrice , commonStyles.text , styles.cardSubtitle]}>{item.coutReel?.toFixed(2) || '0.0'}Fcfa</Text></Text>
         </LinearGradient>
       </TouchableOpacity>
     ),
@@ -360,10 +358,16 @@ const Dashboard: React.FC = () => {
   const renderStoreCard = useCallback(
     ({ item }: { item: Store }) => (
       <TouchableOpacity
-        style={styles.storeCard}
+        style={[styles.storeCard, globalStyles.card]}
+        activeOpacity={1}
         onPress={() => navigation.navigate('Store', { storeId: item.id })}
         accessibilityLabel={`Magasin: ${item.nom}`}
       >
+
+         <Image
+          source={item.articles[0].imageUrl || require('../assets/images/okok.jpg')}
+          style={styles.cardImage}
+        />
         <Text style={styles.storeName}>{item.nom}</Text>
         <Text style={styles.storeAddress} numberOfLines={2}>
           {item.localisation?.adresse || 'Aucune adresse'}
@@ -376,6 +380,7 @@ const Dashboard: React.FC = () => {
   const renderReminderCard = useCallback(
     ({ item }: { item: Reminder }) => (
       <TouchableOpacity
+      activeOpacity={1}
         style={styles.reminderCard}
         onPress={item.action}
         accessibilityLabel={item.title}
@@ -394,7 +399,7 @@ const Dashboard: React.FC = () => {
       <SuggestionCard
         title={item.recettes?.[0]?.nom || 'Menu sans nom'}
         description={item.recettes?.[0]?.instructions?.[0] || 'Aucune description disponible'}
-        imageUri={item.recettes?.[0]?.imageUrl || 'okok.jpg'}
+        imageUri={item.image}
         onPress={() => navigation.navigate('MenuDetail', { menuId: item.id })}
         onSendToAI={(message) => {
           const textContent: TextContent = { type: 'text', message };
@@ -422,7 +427,12 @@ const Dashboard: React.FC = () => {
         <Image source={require('../assets/images/koki.jpg')} style={styles.loadingBackground} />
         <View style={styles.loadingContainer}>
           <Animated.View style={styles.loadingIcon}>
-            <MaterialCommunityIcons name="food" size={50} color={theme.colors.primary} />
+            <LottieView
+            source={require('../assets/animations/gemini.json')}
+            loop={true}
+            autoPlay={false}
+            style={styles.recordingAnimation}
+          />
           </Animated.View>
           <Text style={styles.loadingText}>Chargement...</Text>
         </View>
@@ -483,7 +493,7 @@ const Dashboard: React.FC = () => {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Menus populaires</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Menu')}>
+              <TouchableOpacity style={globalStyles.card} onPress={() => navigation.navigate('Menu')}>
                 <Text style={styles.seeAll}>Voir tout</Text>
               </TouchableOpacity>
             </View>
@@ -502,15 +512,15 @@ const Dashboard: React.FC = () => {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Suggestions AI</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('MenuSuggestions')}>
+              <TouchableOpacity style={globalStyles.card} onPress={() => navigation.navigate('MenuSuggestions')}>
                 <Text style={styles.seeAll}>Voir tout</Text>
               </TouchableOpacity>
             </View>
             {isFetchingSuggestions ? (
               <ActivityIndicator size="small" color={theme.colors.primary} />
-            ) : aiSuggestions.length > 0 ? (
+            ) : mockMenus.length > 0 ? (
               <FlatList
-                data={aiSuggestions}
+                data={mockMenus}
                 renderItem={renderSuggestionCard}
                 keyExtractor={item => item.id}
                 horizontal
@@ -527,7 +537,7 @@ const Dashboard: React.FC = () => {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Familia</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('MenuSuggestions')}>
+              <TouchableOpacity activeOpacity={1}  style={globalStyles.card} onPress={() => navigation.navigate('MenuSuggestions')}>
                 <Text style={styles.seeAll}>Voir tout</Text>
               </TouchableOpacity>
             </View>
@@ -538,14 +548,6 @@ const Dashboard: React.FC = () => {
             )}
           </View>
 
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Magasins à proximité</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Stores')}>
-                <Text style={styles.seeAll}>Voir tout</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Analyse nutritionnelle</Text>
@@ -586,23 +588,6 @@ const Dashboard: React.FC = () => {
         </Animated.View>
       </ScrollView>
 
-      <View style={styles.bottomInfoBar}>
-        <View style={styles.bottomInfoContent}>
-          <View style={styles.userInfoContainer}>
-            {profileImage ? (
-              <Image source={{ uri: profileImage }} style={styles.bottomProfileImage} />
-            ) : (
-              <MaterialCommunityIcons name="account" size={24} color={theme.colors.primary} />
-            )}
-            <Text style={styles.userName}>
-              {userName ? `Utilisateur: ${userName}` : 'Utilisateur: Utilisateur'}
-            </Text>
-          </View>
-          <Text style={styles.infoText}>Membres de la famille: {familyMembers.length || mockFamilyMembers.length}</Text>
-          <Text style={styles.infoText}>Budget: ${budget}</Text>
-        </View>
-      </View>
-
       <View style={styles.bottomNavigation}>
         <TouchableOpacity
           style={styles.navItem}
@@ -631,7 +616,7 @@ const Dashboard: React.FC = () => {
           onPress={() => navigation.navigate('RecipeList')}
         >
           <View style={styles.navButton}>
-            <MaterialCommunityIcons name="cart-outline" size={28} color={theme.colors.textPrimary} />
+           <MaterialCommunityIcons name="cart-outline" size={28} color={theme.colors.textPrimary} />
           </View>
           <Text style={styles.navText}>Courses</Text>
         </TouchableOpacity>
@@ -648,34 +633,31 @@ const Dashboard: React.FC = () => {
 
       <SideMenu isVisible={sideMenuVisible} onClose={() => setSideMenuVisible(false)} />
       <SearchModal visible={searchModalVisible} onClose={() => setSearchModalVisible(false)} />
-
-      <View style={styles.modalContent}>
-        <TouchableOpacity
-          style={styles.modalButton}
-          onPress={isRecording ? stopRecording : startRecording}
-          accessibilityLabel={isRecording ? 'Arrêter' : 'Démarrer'}
-        >
-          <LinearGradient
-            colors={[theme.colors.primary, theme.colors.secondary]}
-            style={styles.modalButtonGradient}
-          >
-            <MaterialCommunityIcons
-              name={isRecording ? 'stop' : 'microphone'}
-              size={24}
-              color="#fff"
-            />
-            <Text style={styles.modalButtonText}>
-              {isRecording ? 'Arrêter' : 'Démarrer'}
-            </Text>
-          </LinearGradient>
-        </TouchableOpacity>
-      </View>
+      <RecordingModal
+  visible={recordingModalVisible}
+  isRecording={isRecording}
+  error={recordingError}
+  onStartRecording={startRecording}
+  onStopRecording={stopRecording}
+  onClose={() => {
+    if (isRecording) {
+      stopRecording();
+    }
+    setRecordingModalVisible(false);
+    setRecordingError(null);
+  }}
+/>
     </SafeAreaView>
   );
 };
 
-
 const styles = StyleSheet.create({
+      recordingAnimation: {
+    width: 90,
+    height: 90,
+    marginBottom: theme.spacing.md,
+  },
+
   container: {
     flex: 1,
     backgroundColor: theme.colors.surface,
@@ -720,7 +702,7 @@ const styles = StyleSheet.create({
     marginVertical: 16,
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
-    padding: 16,
+    padding: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -764,7 +746,8 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 12,
   },
   cardGradient: {
-    padding: 12,
+    padding: 10,
+    borderRadius: theme.borderRadius.medium,
   },
   cardTitle: {
     color: '#FFFFFF',
@@ -834,55 +817,16 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   storeName: {
-    color: theme.colors.textPrimary,
+    color: theme.colors.white,
     fontSize: 16,
     fontWeight: '600',
     fontFamily: theme.fonts.semiBold,
   },
   storeAddress: {
-    color: theme.colors.textSecondary,
+    color: theme.colors.white,
     fontSize: 12,
     fontFamily: theme.fonts.regular,
     marginTop: 4,
-  },
-  bottomInfoBar: {
-    position: 'absolute',
-    bottom: 60,
-    left: 0,
-    right: 0,
-    paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#E5E5E5',
-  },
-  bottomInfoContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-  },
-  userInfoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  bottomProfileImage: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: theme.colors.primary,
-  },
-  userName: {
-    color: theme.colors.textPrimary,
-    fontSize: 14,
-    fontWeight: '600',
-    fontFamily: theme.fonts.semiBold,
-  },
-  infoText: {
-    color: theme.colors.textSecondary,
-    fontSize: 12,
-    fontFamily: theme.fonts.regular,
   },
   bottomNavigation: {
     position: 'absolute',
@@ -892,7 +836,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 2,
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#E5E5E5',
@@ -931,27 +875,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     fontFamily: theme.fonts.semiBold,
-  },
-  modalContent: {
-    alignItems: 'center',
-    padding: 16,
-  },
-  modalButton: {
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  modalButtonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-  },
-  modalButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-    fontFamily: theme.fonts.semiBold,
-    marginLeft: 8,
   },
   noSuggestionsText: {
     color: theme.colors.textSecondary,

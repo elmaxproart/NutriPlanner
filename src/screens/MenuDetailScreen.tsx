@@ -184,9 +184,8 @@ const MenuDetailScreen: React.FC<{
 
       {/* Détails du menu */}
       <Card title={displayedMenu.foodName || 'Sans nom'} style={styles.card}>
-        {displayedMenu.image && typeof displayedMenu.image === 'string' ? (
-          <Image source={{ uri: displayedMenu.image }} style={styles.menuImage} />
-        ) : null}
+
+          <Image source={displayedMenu.image} style={styles.menuImage} />
         <Text style={styles.detailText}>
           Date : {new Date(displayedMenu.date).toLocaleDateString()}
         </Text>

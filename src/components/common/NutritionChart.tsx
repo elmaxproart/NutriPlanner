@@ -1,5 +1,5 @@
 /* eslint-disable react-native/no-inline-styles */
-import React, { useEffect, useCallback, useMemo } from 'react';
+import React, { useEffect, useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,8 @@ import Animated, {
   withTiming,
   withSequence,
   withDelay,
+  withSpring,
+  Easing,
 } from 'react-native-reanimated';
 import LinearGradient from 'react-native-linear-gradient';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -21,8 +23,6 @@ import { useColorScheme } from 'react-native';
 import { theme } from '../../styles/theme';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { NutritionData } from '../../types/messageTypes';
-
-
 
 interface NutrientConfig {
   icon: string;
@@ -53,8 +53,10 @@ const NutritionChart: React.FC<NutritionChartProps> = ({
   const { t } = useTranslation();
   const isDarkMode = useColorScheme() === 'dark';
   const { isConnected } = useNetworkStatus();
+  const [isDetailedView, setIsDetailedView] = useState(false);
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(20);
+  const headerShimmer = useSharedValue(0);
 
   const defaultNutrientConfig = useMemo(
     () => ({
@@ -86,7 +88,6 @@ const NutritionChart: React.FC<NutritionChartProps> = ({
     [t],
   );
 
-  // Fusionner la configuration par défaut avec la configuration personnalisée
   const nutrientConfig = useMemo(
     () => ({
       ...defaultNutrientConfig,
@@ -95,12 +96,11 @@ const NutritionChart: React.FC<NutritionChartProps> = ({
     [defaultNutrientConfig, customNutrientConfig],
   );
 
-  // Couleurs par défaut des barres
   const defaultBarColors = useMemo(
     () => ({
-      low: ['#26A69A', '#4DB6AC'], // Vert
-      medium: ['#FFB300', '#FFD700'], // Jaune
-      high: ['#FF4F00', '#FF7F3F'], // Rouge-orange
+      low: [theme.colors.success, theme.colors.info],
+      medium: [theme.colors.warning, theme.colors.warning],
+      high: [theme.colors.error, theme.colors.error],
     }),
     [],
   );
@@ -110,14 +110,21 @@ const NutritionChart: React.FC<NutritionChartProps> = ({
   useEffect(() => {
     opacity.value = withTiming(1, { duration: 600 });
     translateY.value = withTiming(0, { duration: 600 });
-  }, [opacity, translateY]);
+    headerShimmer.value = withSequence(
+      withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
+      withTiming(0, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
+    );
+  }, [opacity, translateY, headerShimmer]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
     transform: [{ translateY: translateY.value }],
   }));
 
-  // Validation des données
+  const headerShimmerStyle = useAnimatedStyle(() => ({
+    opacity: 0.3 + headerShimmer.value * 0.2,
+  }));
+
   const isValidData = useMemo(() => {
     return (
       Array.isArray(data) &&
@@ -146,6 +153,10 @@ const NutritionChart: React.FC<NutritionChartProps> = ({
     [colors],
   );
 
+  const toggleView = () => {
+    setIsDetailedView(!isDetailedView);
+  };
+
   const renderNutrientBar = useCallback(
     ({ item, index }: { item: NutritionData; index: number }) => {
       const config = nutrientConfig[item.name] || {
@@ -161,21 +172,27 @@ const NutritionChart: React.FC<NutritionChartProps> = ({
           getBarColor={getBarColor}
           index={index}
           isDarkMode={isDarkMode}
+          isDetailedView={isDetailedView}
         />
       );
     },
-    [nutrientConfig, getBarColor, t, isDarkMode],
+    [nutrientConfig, getBarColor, t, isDarkMode, isDetailedView],
   );
 
   if (!isConnected) {
     return (
       <Animated.View style={[styles.container, style, animatedStyle]}>
         <LinearGradient
-          colors={isDarkMode ? ['#2C2C2E', '#1C1C1E'] : ['#F5F5F5', '#E0E0E0']}
+          colors={
+            isDarkMode
+              ? [theme.colors.dark, theme.colors.secondary]
+              : [theme.colors.primary, theme.colors.primary]
+          }
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.headerGradient}
         >
+          <Animated.View style={[styles.shimmerOverlay, headerShimmerStyle]} />
           <Text style={styles.title}>{t('nutrition.title')}</Text>
         </LinearGradient>
         <Text style={styles.errorText}>{t('nutrition.errors.noConnection')}</Text>
@@ -187,11 +204,16 @@ const NutritionChart: React.FC<NutritionChartProps> = ({
     return (
       <Animated.View style={[styles.container, style, animatedStyle]}>
         <LinearGradient
-          colors={isDarkMode ? ['#2C2C2E', '#1C1C1E'] : ['#F5F5F5', '#E0E0E0']}
+          colors={
+            isDarkMode
+              ? [theme.colors.dark, theme.colors.dark]
+              : [theme.colors.primary, theme.colors.secondary]
+          }
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.headerGradient}
         >
+          <Animated.View style={[styles.shimmerOverlay, headerShimmerStyle]} />
           <Text style={styles.title}>{t('nutrition.title')}</Text>
         </LinearGradient>
         <Text style={styles.errorText}>{t('nutrition.errors.invalidData')}</Text>
@@ -202,12 +224,33 @@ const NutritionChart: React.FC<NutritionChartProps> = ({
   return (
     <Animated.View style={[styles.container, style, animatedStyle]}>
       <LinearGradient
-        colors={isDarkMode ? ['#2C2C2E', '#1C1C1E'] : ['#F5F5F5', '#E0E0E0']}
+        colors={
+          isDarkMode
+            ? [theme.colors.dark, theme.colors.dark]
+            : [theme.colors.primary, theme.colors.primary]
+        }
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.headerGradient}
       >
-        <Text style={styles.title}>{t('nutrition.title')}</Text>
+        <Animated.View style={[styles.shimmerOverlay, headerShimmerStyle]} />
+        <View style={styles.headerContent}>
+          <Text style={styles.title}>{t('nutrition.title')}</Text>
+          <TouchableOpacity
+            onPress={toggleView}
+            style={styles.toggleButton}
+            accessibilityLabel={t('nutrition.toggle_view', {
+              view: isDetailedView ? 'compact' : 'detailed',
+            })}
+            accessibilityRole="button"
+          >
+            <MaterialCommunityIcons
+              name={isDetailedView ? 'eye-off' : 'eye'}
+              size={20}
+              color={theme.colors.white}
+            />
+          </TouchableOpacity>
+        </View>
       </LinearGradient>
       <View style={styles.nutrientList}>
         {data.map((item, index) => (
@@ -226,28 +269,61 @@ interface NutrientBarProps {
   getBarColor: (value: number, maxValue: number) => string[];
   index: number;
   isDarkMode: boolean;
+  isDetailedView: boolean;
 }
 
 const NutrientBar: React.FC<NutrientBarProps> = React.memo(
-  ({ item, config, getBarColor, index, isDarkMode }) => {
+  ({ item, config, getBarColor, index, isDarkMode, isDetailedView }) => {
     const { t } = useTranslation();
     const [showTooltip, setShowTooltip] = React.useState(false);
     const progress = Math.min((item.value / config.maxValue) * 100, 100);
     const barWidth = useSharedValue(0);
+    const scale = useSharedValue(1);
+    const opacity = useSharedValue(1);
+    const tooltipOpacity = useSharedValue(0);
 
     useEffect(() => {
       barWidth.value = withSequence(
-        withDelay(index * 100, withTiming(progress, { duration: 800 })),
+        withDelay(index * 100, withTiming(progress, { duration: 800, easing: Easing.out(Easing.exp) })),
       );
-    }, [barWidth, progress, index]);
+      if (isDetailedView) {
+        setShowTooltip(true);
+      } else {
+        setShowTooltip(false);
+      }
+    }, [barWidth, progress, index, isDetailedView]);
+
+    useEffect(() => {
+      tooltipOpacity.value = withTiming(showTooltip ? 1 : 0, { duration: 300 });
+    }, [showTooltip, tooltipOpacity]);
 
     const barAnimatedStyle = useAnimatedStyle(() => ({
       width: `${barWidth.value}%`,
     }));
 
+    const animatedPressStyle = useAnimatedStyle(() => ({
+      transform: [{ scale: scale.value }],
+      opacity: opacity.value,
+    }));
+
+    const tooltipAnimatedStyle = useAnimatedStyle(() => ({
+      opacity: tooltipOpacity.value,
+    }));
+
+    const handlePressIn = () => {
+      scale.value = withSpring(0.98, { damping: 20, stiffness: 200 });
+      opacity.value = withTiming(0.9, { duration: 200 });
+    };
+
+    const handlePressOut = () => {
+      scale.value = withSpring(1, { damping: 20, stiffness: 200 });
+      opacity.value = withTiming(1, { duration: 200 });
+    };
+
     const handlePress = () => {
-      setShowTooltip(true);
-      setTimeout(() => setShowTooltip(false), 3000);
+      if (!isDetailedView) {
+        setShowTooltip(!showTooltip);
+      }
     };
 
     const percentage = ((item.value / config.maxValue) * 100).toFixed(1);
@@ -256,6 +332,8 @@ const NutrientBar: React.FC<NutrientBarProps> = React.memo(
       <View style={styles.nutrientContainer}>
         <TouchableOpacity
           onPress={handlePress}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
           accessibilityLabel={t('nutrition.barLabel', {
             nutrient: item.name,
             value: item.value,
@@ -263,39 +341,89 @@ const NutrientBar: React.FC<NutrientBarProps> = React.memo(
             percentage,
           })}
           accessibilityRole="button"
+          activeOpacity={1}
         >
-          <View style={styles.nutrientHeader}>
-            <MaterialCommunityIcons
-              name={config.icon}
-              size={24}
-              color={theme.colors.textPrimary}
-              style={styles.nutrientIcon}
-            />
-            <Text style={styles.nutrientName}>{item.name}</Text>
-            <Text style={styles.nutrientValue}>
-              {item.value} {config.unit}
-            </Text>
-          </View>
-          <View style={styles.barContainer}>
-            <Animated.View style={[styles.bar, barAnimatedStyle]}>
-              <LinearGradient
-                colors={getBarColor(item.value, config.maxValue)}
-                style={styles.barGradient}
-              />
-            </Animated.View>
-          </View>
+          <Animated.View style={[animatedPressStyle]}>
+            <View style={styles.nutrientHeader}>
+              <View
+                style={[
+                  styles.nutrientIconWrapper,
+                  {
+                    backgroundColor: isDarkMode
+                      ? theme.colors.dark
+                      : '#fff',
+                    borderColor: isDarkMode ? theme.colors.primary : theme.colors.dark,
+                  },
+                ]}
+              >
+                <MaterialCommunityIcons
+                  name={config.icon}
+                  size={20}
+                  color={isDarkMode ? theme.colors.primary : theme.colors.dark}
+                />
+              </View>
+              <View style={styles.nutrientTextContainer}>
+                <Text
+                  style={[
+                    styles.nutrientName,
+                    { color: isDarkMode ? theme.colors.primary : theme.colors.textPrimary },
+                  ]}
+                >
+                  {item.name}
+                </Text>
+                <Text
+                  style={[
+                    styles.nutrientValue,
+                    { color: isDarkMode ? theme.colors.secondary : theme.colors.textSecondary },
+                  ]}
+                >
+                  {item.value} {config.unit} ({percentage}%)
+                </Text>
+              </View>
+              <View style={styles.circularProgress}>
+                <LinearGradient
+                  colors={getBarColor(item.value, config.maxValue)}
+                  style={styles.circularProgressBackground}
+                >
+                  <Text style={styles.circularProgressText}>{percentage}%</Text>
+                </LinearGradient>
+              </View>
+            </View>
+            <View style={styles.barContainer}>
+              <Animated.View style={[styles.bar, barAnimatedStyle]}>
+                <LinearGradient
+                  colors={getBarColor(item.value, config.maxValue)}
+                  style={styles.barGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                />
+              </Animated.View>
+            </View>
+          </Animated.View>
         </TouchableOpacity>
         {showTooltip && (
           <Animated.View
             style={[
               styles.tooltip,
-              { backgroundColor: isDarkMode ? '#333' : '#FFF' },
+              tooltipAnimatedStyle,
+              {
+                backgroundColor: isDarkMode
+                  ? theme.colors.dark
+                  : theme.colors.dark,
+              },
             ]}
           >
-            <Text style={[styles.tooltipText, { color: isDarkMode ? '#FFF' : '#333' }]}>
+            <Text
+              style={[
+                styles.tooltipText,
+                { color: isDarkMode ? theme.colors.primary : theme.colors.textPrimary },
+              ]}
+            >
               {config.tooltip || t('nutrition.tooltips.default')}
               {'\n'}
-              {t('nutrition.percentage', { percentage })}
+              <Text style={styles.tooltipHighlight}>
+                {t('nutrition.percentage', { percentage })}
+              </Text>
             </Text>
           </Animated.View>
         )}
@@ -306,58 +434,113 @@ const NutrientBar: React.FC<NutrientBarProps> = React.memo(
 
 const styles = StyleSheet.create({
   container: {
-    marginHorizontal: theme.spacing.lg,
+    alignSelf: 'center',
+    marginVertical: theme.spacing.xl,
     borderRadius: theme.borderRadius.xlarge,
     overflow: 'hidden',
     shadowColor: theme.shadow.color,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 4,
+    shadowRadius: 10,
+    elevation: 8,
     backgroundColor: theme.colors.surface,
-    width: width - theme.spacing.lg * 2,
+    width: width > 400 ? 380 : width - theme.spacing.lg * 2,
+    maxWidth: 420,
   },
   headerGradient: {
-    padding: theme.spacing.md,
+    padding: theme.spacing.lg,
     borderTopLeftRadius: theme.borderRadius.xlarge,
     borderTopRightRadius: theme.borderRadius.xlarge,
+    position: 'relative',
+  },
+  shimmerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: theme.colors.white,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   title: {
     fontFamily: theme.fonts.bold,
-    fontSize: theme.fonts.sizes.large, // Augmenté pour meilleure lisibilité
-    color: theme.colors.textPrimary,
-    textAlign: 'center',
+    fontSize: theme.fonts.sizes.large,
+    color: theme.colors.white,
+    textAlign: 'left',
+    letterSpacing: 0.5,
+  },
+  toggleButton: {
+    padding: theme.spacing.sm,
+    borderRadius: theme.borderRadius.medium,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
   nutrientList: {
-    padding: theme.spacing.md,
+    padding: theme.spacing.lg,
+    paddingTop: theme.spacing.md,
+    paddingBottom: theme.spacing.xl,
   },
   nutrientContainer: {
-    marginBottom: theme.spacing.lg, // Plus d'espace entre les barres
+    marginBottom: theme.spacing.lg,
+    borderRadius: theme.borderRadius.large,
+    backgroundColor: theme.colors.dark,
+    padding: theme.spacing.sm,
+    shadowColor: theme.shadow.color,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 4,
   },
   nutrientHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: theme.spacing.sm,
+    width: '100%',
   },
-  nutrientIcon: {
+  nutrientIconWrapper: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: theme.spacing.sm,
+    borderWidth: 1,
+  },
+  nutrientTextContainer: {
+    flex: 1,
   },
   nutrientName: {
-    flex: 1,
     fontFamily: theme.fonts.bold,
     fontSize: theme.fonts.sizes.medium,
-    color: theme.colors.textPrimary,
+    letterSpacing: 0.2,
   },
   nutrientValue: {
     fontFamily: theme.fonts.regular,
     fontSize: theme.fonts.sizes.small,
-    color: theme.colors.textSecondary,
+    marginTop: theme.spacing.xs,
+  },
+  circularProgress: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    overflow: 'hidden',
+    marginLeft: theme.spacing.sm,
+  },
+  circularProgressBackground: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  circularProgressText: {
+    fontFamily: theme.fonts.semiBold,
+    fontSize: theme.fonts.sizes.small,
+    color: theme.colors.white,
   },
   barContainer: {
-    height: 12, // Légèrement plus épais
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    height: 12,
+    backgroundColor: theme.colors.disabled,
     borderRadius: theme.borderRadius.medium,
     overflow: 'hidden',
+    width: '100%',
   },
   bar: {
     height: '100%',
@@ -368,28 +551,34 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: theme.colors.error,
+    fontFamily: theme.fonts.regular,
     fontSize: theme.fonts.sizes.medium,
     textAlign: 'center',
-    padding: theme.spacing.md,
+    padding: theme.spacing.lg,
   },
   tooltip: {
     position: 'absolute',
-    top: -50,
-    left: 50,
-    right: 10,
+    top: -70,
+    left: 20,
+    right: 20,
     padding: theme.spacing.sm,
-    borderRadius: theme.borderRadius.medium,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
+    borderRadius: theme.borderRadius.large,
+    shadowColor: theme.shadow.color,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
     zIndex: 10,
+    alignItems: 'center',
   },
   tooltipText: {
     fontFamily: theme.fonts.regular,
     fontSize: theme.fonts.sizes.small,
     textAlign: 'center',
+  },
+  tooltipHighlight: {
+    fontFamily: theme.fonts.semiBold,
+    color: theme.colors.primary,
   },
 });
 

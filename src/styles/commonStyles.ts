@@ -86,7 +86,7 @@ export const commonStyles = StyleSheet.create({
     alignItems: 'center',
   },
   cardTitle: {
-    color: theme.colors.textPrimary,
+    color: theme.colors.white,
     fontFamily: theme.fonts.bold,
     fontSize: theme.fonts.sizes.medium,
     marginBottom: theme.spacing.xs,

@@ -102,7 +102,7 @@ const NoteRecorderModal: React.FC<NoteRecorderModalProps> = ({
     try {
       if (isRecording) {
         setIsRecording(false);
-        setAudioUri('mock_audio_uri.mp3'); // Placeholder
+        setAudioUri('mock_audio_uri.mp3');
         setRecordingDuration(0);
       } else {
         setIsRecording(true);

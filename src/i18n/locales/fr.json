@@ -1,44 +1,27 @@
-
- {
-    "welcome": "Bienvenue, {{name}} !",
-    "icons": {
-      "bell": "Notifications",
-      "restaurant": "Restaurant",
-      "trending-up": "Tendances",
-      "account-plus": "Ajouter un membre",
-      "camera-plus-outline": "Changer l'image",
-      "content-save": "Enregistrer",
-      "logout": "Déconnexion",
-      "arrow-left": "Retour",
-      "menu": "Menu",
-      "magnify": "Rechercher",
-      "account": "Profil",
-      "gemini": "Assistant IA"
-    },
-
-    "nutrition": {
-    "title": "Analyse Nutritionnelle",
-    "calories": "Calories",
-    "protein": "Protéines",
-    "carbs": "Glucides",
-    "fat": "Lipides",
-    "errors": {
-      "noConnection": "Aucune connexion réseau disponible",
-      "invalidData": "Données nutritionnelles invalides"
-    },
-    "tooltips": {
-      "calories": "Énergie nécessaire pour les activités quotidiennes",
-      "protein": "Essentiel pour la croissance et la réparation des muscles",
-      "carbs": "Source principale d'énergie pour le corps",
-      "fat": "Important pour les fonctions hormonales et l'absorption des vitamines",
-      "default": "Information non disponible"
-    },
-    "barLabel": "{nutrient}: {value} {unit} ({percentage}%)",
-    "percentage": "Pourcentage: {percentage}%"
+{
+  "welcome": "Bienvenue, {{name}} !",
+  "icons": {
+    "bell": "Notifications",
+    "restaurant": "Restaurant",
+    "trending-up": "Tendances",
+    "account-plus": "Ajouter un membre",
+    "camera-plus-outline": "Changer l'image",
+    "content-save": "Enregistrer",
+    "logout": "Déconnexion",
+    "arrow-left": "Retour",
+    "menu": "Menu",
+    "magnify": "Rechercher",
+    "account": "Profil",
+    "gemini": "Assistant IA"
   },
-    "dashboard": {
-
-
+  "nav": {
+    "home": "Accueil",
+    "menus": "Menus",
+    "shopping": "Courses",
+    "profile": "Profil",
+    "chat": "Chat IA"
+  },
+  "dashboard": {
     "title": "Tableau de bord",
     "loading": "Chargement...",
     "errors": {
@@ -63,529 +46,649 @@
       "settings": "Paramètres",
       "profile": "Profil"
     },
-      "searchPlaceholder": "Rechercher des menus...",
-      "userInfo": "Utilisateur : {{name}}",
-      "familyCount": "Membres de la famille : {{count}}",
-      "budget": "Budget : {{amount}} €",
-      "storesTitle": "Magasins à proximité",
-      "nutritionTitle": "Aperçu nutritionnel",
-      "exitApp": {
-        "title": "Quitter l'application",
-        "message": "Voulez-vous vraiment quitter ?",
-        "confirm": "Oui",
-        "cancel": "Annuler"
-      }
-  }
-,
-    "nav": {
-      "home": "Accueil",
-      "menus": "Menus",
-      "shopping": "Courses",
-      "profile": "Profil",
-      "chat": "Chat IA"
-    },
-    
-    "recording": {
-      "saved": "Audio enregistré avec succès",
-      "active": "Enregistrement audio...",
-      "ready": "Prêt à enregistrer",
-      "goToChat": "Aller au chat",
-      "errors": {
-        "audioPermission": "Permission audio refusée",
-        "recordingStart": "Échec du démarrage de l'enregistrement",
-        "recordingStop": "Échec de l'arrêt de l'enregistrement"
-      }
-    },
-    "actions": {
-      "addToMenu": "Ajouter au menu",
-      "addToMenuHint": "Ajoute l'élément sélectionné à un menu",
-      "share": "Partager",
-      "shareHint": "Partage le contenu",
-      "addToList": "Ajouter à la liste de courses",
-      "addToListHint": "Ajoute les ingrédients à votre liste de courses",
-      "plan": "Planifier un repas",
-      "planHint": "Planifie un repas avec cette recette",
-      "saveFavorite": "Enregistrer comme favori",
-      "saveFavoriteHint": "Enregistre la recette comme favori",
-      "addedToList": "Ajouté à la liste de courses",
-      "addToListError": "Échec de l'ajout à la liste de courses",
-      "plannedMeal": "Repas planifié avec succès",
-      "planMealError": "Échec de la planification du repas",
-      "savedFavorite": "Enregistré comme favori",
-      "saveFavoriteError": "Échec de l'enregistrement comme favori",
-      "shareSuccess": "Partagé avec succès",
-      "shareError": "Échec du partage"
-    },
-    "contextMenu": {
-      "container": "Menu contextuel",
-      "hint": "Options pour copier, partager ou supprimer",
-      "opened": "Menu contextuel ouvert",
-      "copy": "Copier",
-      "copyHint": "Copie le contenu dans le presse-papiers",
-      "copySuccess": "Copié dans le presse-papiers",
-      "copyError": "Échec de la copie",
-      "share": "Partager",
-      "shareSuccess": "Partagé avec succès",
-      "shareError": "Échec du partage",
-      "delete": "Supprimer",
-      "deleteSuccess": "Supprimé avec succès",
-      "deleteError": "Échec de la suppression"
-    },
-    "foodTrends": {
-      "title": "Tendances alimentaires",
-      "trends": "Tendances ({{count}})",
-      "container": "Carte des tendances alimentaires",
-      "hint": "Voir et interagir avec les tendances alimentaires",
-      "loaded": "Tendances alimentaires chargées",
-      "trend": "Tendance : {{name}}",
-      "star": "Étoile {{number}}",
-      "popularity": "Popularité : {{popularity}}%",
-      "addToMenu": "Ajouter au menu",
-      "addToMenuHint": "Ajouter cette tendance à un menu",
-      "selectMenuTitle": "Sélectionner ou créer un menu",
-      "selectMenu": "Sélectionner le menu : {{menuName}}",
-      "selectExistingMenu": "Sélectionner un menu existant",
-      "menuList": "Liste des menus",
-      "noMenus": "Aucun menu disponible",
-      "createNewMenu": "Créer un nouveau menu",
-      "menuName": "Nom du menu",
-      "menuDate": "Date du menu",
-      "menuType": "Type de menu",
-      "placeholderDate": "AAAA-MM-JJ",
-      "createMenu": "Créer un menu",
-      "menuModalOpened": "Modal de sélection de menu ouvert",
-      "menuModalClosed": "Modal de sélection de menu fermé",
-      "addedToMenu": "Ajouté au menu : {{menuName}}",
-      "addedToNewMenu": "Ajouté au nouveau menu : {{menuName}}",
-      "addToMenuError": "Échec de l'ajout au menu",
-      "missingData": "Données requises manquantes",
-      "trendsList": "Liste des tendances alimentaires"
-    },
-    "recipe": {
-      "loaded": "Recette chargée : {{name}}",
-      "container": "Carte de recette",
-      "hint": "Voir et interagir avec les détails de la recette",
-      "ingredients": "Ingrédients",
-      "ingredientsList": "Liste des ingrédients",
-      "instructions": "Instructions",
-      "instructionsList": "Liste des instructions",
-      "nutrition": "Analyse nutritionnelle",
-      "comments": "Commentaires ({{count}})",
-      "commentsList": "Liste des commentaires",
-      "portions": "Portions : {{count}}",
-      "time": "Préparation : {{prep}} min, Cuisson : {{cook}} min",
-      "difficulty": "Difficulté : {{level}}",
-      "category": "Catégorie : {{category}}",
-      "image": "Image de la recette",
-      "carousel": "Carrousel d'images",
-      "carouselHint": "Glisser pour voir les images de la recette",
-      "compatibility": "Compatibilité familiale : {{status}}",
-      "calories": "Calories",
-      "spices": "Niveau d'épices",
-      "protein": "Protéines",
-      "fat": "Lipides",
-      "carbs": "Glucides"
-    },
-    "mealTypes": {
-      "breakfast": "Petit-déjeuner",
-      "lunch": "Déjeuner",
-      "dinner": "Dîner",
-      "snack": "Collation"
-    },
-    "foodNames": {
-      "menuPlaceholder": "Entrer le nom du menu"
-    },
-    "imagePreview": {
-      "image": "Image en aperçu",
-      "close": "Fermer l'aperçu",
-      "closeHint": "Ferme l'aperçu de l'image"
-    },
-    "profile": {
-      "title": "Profil",
-      "username": "{{username}}",
-      "logout": "Déconnexion",
-      "loading": "Chargement du profil..."
-    },
-    "settings": {
-      "title": "Paramètres du compte",
-      "darkTheme": "Thème sombre",
-      "language": "Langue : {{language}}",
-      "switchLanguage": "Passer à {{language}}",
-      "notifications": "Notifications"
-    },
-    "preferences": {
-      "title": "Préférences alimentaires",
-      "vegan": "Végane",
-      "spiceLevel": "Niveau d'épices",
-      "cuisine": "Cuisine préférée",
-      "cuisinePlaceholder": "Entrer une cuisine"
-    },
-    "family": {
-      "title": "Membres de la famille",
-      "addMember": "Ajouter un membre",
-      "member": "Membre : {{name}}"
-    },
-    "history": {
-      "title": "Historique d'activité",
-      "addMember": "Ajouté un nouveau membre : {{name}}",
-      "editProfile": "Modifié le profil utilisateur"
-    },
-    "image": {
-      "chooseOption": "Choisir une option",
-      "chooseOptionMessage": "Voulez-vous prendre une photo ou en choisir une dans la galerie ?",
-      "camera": "Caméra",
-      "gallery": "Galerie",
-      "cancel": "Annuler",
-      "uploadProgress": "Chargement : {{progress}}%",
-      "errors": {
-        "noImage": "Aucune image sélectionnée.",
-        "uploadFailed": "Échec du chargement de l'image : {{message}}"
-      }
-    },
-    "alerts": {
-      "logout": {
-        "title": "Déconnexion",
-        "message": "Voulez-vous vraiment vous déconnecter ?",
-        "confirm": "Oui",
-        "cancel": "Annuler"
-      }
-    },
-    "modal": {
-      "aiActionModal": "Choisir une action IA",
-      "selectFamilyMember": "Sélectionner un membre de la famille",
-      "selectFamilyMembers": "Sélectionner des membres de la famille",
-      "selectDate": "Sélectionner une date",
-      "selectMenu": "Sélectionner un menu",
-      "selectIngredients": "Sélectionner des ingrédients",
-      "selectPreferences": "Sélectionner des préférences",
-      "selectBudget": "Sélectionner un budget",
-      "selectIngredient": "Sélectionner un ingrédient",
-      "selectDiet": "Sélectionner un régime",
-      "selectOccasion": "Sélectionner une occasion",
-      "selectGuestCount": "Sélectionner le nombre d'invités",
-      "selectImage": "Sélectionner une image",
-      "selectLocation": "Sélectionner un emplacement",
-      "selectMeal": "Sélectionner un repas",
-      "selectMonth": "Sélectionner un mois",
-      "selectRecipe": "Sélectionner une recette",
-      "inputQuery": "Entrer une requête",
-      "searchPlaceholder": "Rechercher des menus ou recettes...",
-      "searchAccessibilityLabel": "Rechercher des menus ou recettes",
-      "opened": "Modal {{title}} ouvert",
-      "closed": "Modal fermé",
-      "actionsListAccessibilityLabel": "Liste des actions IA",
-      "loading": "Enregistrement...",
-      "noActionsFound": "Aucune action trouvée",
-      "confirm": "Confirmer",
-      "close": "Fermer le modal",
-      "accessibilityLabel": "Modal d'actions IA",
-      "saveSuccess": "Modifications enregistrées avec succès !",
-      "saveError": "Échec de l'enregistrement des modifications.",
-      "logoutLoading": "Déconnexion en cours...",
-      "logoutError": "Échec de la déconnexion : {{message}}"
-    },
-    "templates": {
-      "title": "Explorer les modèles",
-      "filter": "Filtrer par {{category}}",
-      "all": "Tous",
-      "recipe_personalized": {
-        "title": "Recette personnalisée",
-        "description": "Obtenez une recette adaptée à vos préférences"
-      },
-      "weekly_menu": {
-        "title": "Menu hebdomadaire",
-        "description": "Planifiez vos repas pour la semaine"
-      },
-      "shopping_list": {
-        "title": "Liste de courses",
-        "description": "Générez une liste de courses pour votre menu"
-      },
-      "recipe_nutrition_analysis": {
-        "title": "Analyse nutritionnelle des recettes",
-        "description": "Analysez le contenu nutritionnel d'une recette"
-      },
-      "recipe_suggestion": {
-        "title": "Suggestions de recettes",
-        "description": "Découvrez de nouvelles recettes basées sur les ingrédients"
-      },
-      "quick_recipe": {
-        "title": "Recette rapide",
-        "description": "Idées de repas rapides et faciles"
-      },
-      "budget_planning": {
-        "title": "Planification budgétaire",
-        "description": "Planifiez vos repas dans un budget"
-      },
-      "store_suggestion": {
-        "title": "Suggestion de magasin",
-        "description": "Trouvez des magasins pour vos ingrédients",
-        "recommendation": "Magasins recommandés pour {{ingredient}}"
-      },
-      "meal_analysis": {
-        "title": "Analyse des repas",
-        "description": "Analysez votre historique de repas"
-      },
-      "kids_recipe": {
-        "title": "Recette pour enfants",
-        "description": "Recettes amusantes pour les enfants"
-      },
-      "special_occasion_menu": {
-        "title": "Menu pour occasion spéciale",
-        "description": "Planifiez un menu pour des événements spéciaux comme {{occasion}}"
-      },
-      "inventory_optimization": {
-        "title": "Optimisation d'inventaire",
-        "description": "Utilisez vos ingrédients existants"
-      },
-      "ingredient_based_recipe": {
-        "title": "Recette basée sur un ingrédient",
-        "description": "Recettes basées sur un ingrédient clé"
-      },
-      "budget_menu": {
-        "title": "Menu économique",
-        "description": "Planification de menus abordables"
-      },
-      "recipe_compatibility": {
-        "title": "Compatibilité des recettes",
-        "description": "Vérifiez si une recette convient à votre famille"
-      },
-      "specific_diet_recipe": {
-        "title": "Recette pour régime spécifique",
-        "description": "Recettes pour des régimes spécifiques"
-      },
-      "balanced_daily_menu": {
-        "title": "Menu quotidien équilibré",
-        "description": "Plans de repas quotidiens sains"
-      },
-      "recipe_from_image": {
-        "title": "Recette à partir d'une image",
-        "description": "Créez une recette à partir d'une photo"
-      },
-      "leftover_recipe": {
-        "title": "Recette avec restes",
-        "description": "Recettes utilisant des restes"
-      },
-      "guest_recipe": {
-        "title": "Recette pour invités",
-        "description": "Recettes pour les invités"
-      },
-      "ingredient_availability": {
-        "title": "Disponibilité des ingrédients",
-        "description": "Vérifiez où trouver des ingrédients"
-      },
-      "nutritional_info": {
-        "title": "Informations nutritionnelles",
-        "description": "Obtenez des informations nutritionnelles"
-      },
-      "troubleshoot_problem": {
-        "title": "Résoudre un problème",
-        "description": "Résolvez les problèmes de cuisine"
-      },
-      "creative_ideas": {
-        "title": "Idées créatives",
-        "description": "Obtenez des idées de cuisine créatives"
-      },
-      "food_trend_analysis": {
-        "title": "Analyse des tendances alimentaires",
-        "description": "Explorez les tendances alimentaires actuelles"
-      },
-      "text": { "title": "Message texte" },
-      "error": { "title": "Message d'erreur" },
-      "json": { "title": "Données JSON" },
-      "image": { "title": "Image" },
-      "tool_use": { "title": "Utilisation d'outil" },
-      "tool_response": { "title": "Réponse d'outil" },
-      "previewOnly": "Ce modèle est uniquement pour prévisualisation",
-      "noTemplates": "Aucun modèle disponible pour cette catégorie",
-      "selected": "{{title}} sélectionné"
-    },
-    "categories": {
-      "all": "Tous",
-      "recipes": "Recettes",
-      "menus": "Menus",
-      "shopping": "Courses",
-      "budget": "Budget",
-      "nutrition": "Nutrition",
-      "troubleshooting": "Dépannage",
-      "creative": "Idées créatives",
-      "stores": "Magasins",
-      "other": "Autres",
-      "filter": "Filtrer par {{category}}"
-    },
+    "searchPlaceholder": "Rechercher des menus...",
+    "userInfo": "Utilisateur : {{name}}",
+    "familyCount": "Membres de la famille : {{count}}",
+    "budget": "Budget : {{amount}} €",
+    "storesTitle": "Magasins à proximité",
+    "nutritionTitle": "Aperçu nutritionnel",
+    "exitApp": {
+      "title": "Quitter l'application",
+      "message": "Voulez-vous vraiment quitter ?",
+      "confirm": "Oui",
+      "cancel": "Annuler"
+    }
+  },
+  "nutrition": {
+    "title": "Analyse Nutritionnelle",
+    "calories": "Calories",
+    "protein": "Protéines",
+    "carbs": "Glucides",
+    "fat": "Lipides",
     "errors": {
-      "animationFailed": "Échec du chargement de l'animation",
-      "generic": "Une erreur inattendue s'est produite",
-      "invalidFoodTrends": "Données de tendances alimentaires invalides",
-      "invalidRecipe": "Données de recette invalides",
-      "templateNavigation": "Échec de la navigation vers le modèle",
-      "renderError": "Une erreur s'est produite lors du rendu du modèle",
-      "retry": "Réessayer",
-      "loadingTemplates": "Échec du chargement des modèles",
-      "unsupportedModalType": "Type de modal non supporté : {{modalType}}",
-      "noNextModal": "Aucun modal suivant pour {{modalType}}",
-      "modalSubmission": "Erreur lors de la soumission du modal {{modalType}}",
-      "actionExecution": "Erreur lors de l'exécution de l'action",
-      "noTemplate": "Aucun modèle sélectionné"
-    },
-    "search": {
-      "placeholder": "Rechercher des menus, recettes, ingrédients ou membres de la famille...",
-      "accessibilityLabel": "Champ de recherche",
-      "loading": "Recherche en cours...",
-      "noResults": "Aucun résultat trouvé",
-      "errors": {
-        "searchFailed": "Échec de la recherche. Veuillez réessayer."
-      }
-    },
-    "chat": {
-      "title": "Chat IA",
-      "placeholder": "Posez une question ou demandez une suggestion...",
-      "send": "Envoyer",
-      "loading": "Chargement de la réponse...",
-      "noResponse": "Aucune réponse disponible",
-      "error": {
-        "message": "Une erreur s'est produite lors de la récupération de la réponse",
-        "retry": "Réessayer"
-      },
-      "actions": {
-        "askAI": "Demander à l'IA",
-        "suggestRecipe": "Suggérer une recette",
-        "planMeal": "Planifier un repas",
-        "findStore": "Trouver un magasin"
-      }
+      "noConnection": "Aucune connexion réseau disponible",
+      "invalidData": "Données nutritionnelles invalides"
     },
     "tooltips": {
-      "addToMenu": "Ajouter au menu",
-      "shareRecipe": "Partager la recette",
-      "saveToFavorites": "Enregistrer dans les favoris",
-      "viewDetails": "Voir les détails",
-      "editProfile": "Modifier le profil",
-      "viewHistory": "Voir l'historique"
+      "calories": "Énergie nécessaire pour les activités quotidiennes",
+      "protein": "Essentiel pour la croissance et la réparation des muscles",
+      "carbs": "Source principale d'énergie pour le corps",
+      "fat": "Important pour les fonctions hormonales et l'absorption des vitamines",
+      "default": "Information non disponible"
     },
-    "accessibility": {
-      "loading": "Chargement en cours...",
-      "error": "Une erreur s'est produite",
-      "noData": "Aucune donnée disponible",
-      "searchResults": "Résultats de la recherche pour '{{query}}'",
-      "itemSelected": "{{item}} sélectionné",
-      "actionCompleted": "{{action}} terminé avec succès"
+    "barLabel": "{nutrient} : {value} {unit} ({percentage}%)",
+    "percentage": "Pourcentage : {percentage}%"
+  },
+  "recording": {
+    "saved": "Audio enregistré avec succès",
+    "active": "Enregistrement audio...",
+    "ready": "Prêt à enregistrer",
+    "goToChat": "Aller au chat",
+    "errors": {
+      "audioPermission": "Permission audio refusée",
+      "recordingStart": "Échec du démarrage de l'enregistrement",
+      "recordingStop": "Échec de l'arrêt de l'enregistrement"
     },
-    "notifications": {
-      "newMessage": "Nouveau message de {{sender}}",
-      "reminder": "Rappel : {{message}}",
-      "error": "Erreur : {{message}}",
-      "success": "Succès : {{message}}"
-    },
-    "confirmation": {
-      "yes": "Oui",
-      "no": "Non",
-      "ok": "OK",
-      "cancel": "Annuler"
-    },
-    "date": {
-      "today": "Aujourd'hui",
-      "tomorrow": "Demain",
-      "yesterday": "Hier",
-      "dayAfterTomorrow": "Après-demain",
-      "lastWeek": "La semaine dernière",
-      "nextWeek": "La semaine prochaine"
-    },
-    "time": {
-      "morning": "Matin",
-      "afternoon": "Après-midi",
-      "evening": "Soirée",
-      "night": "Nuit"
-    },
-    "months": {
-      "january": "Janvier",
-      "february": "Février",
-      "march": "Mars",
-      "april": "Avril",
-      "may": "Mai",
-      "june": "Juin",
-      "july": "Juillet",
-      "august": "Août",
-      "september": "Septembre",
-      "october": "Octobre",
-      "november": "Novembre",
-      "december": "Décembre"
-    },
-    "days": {
-      "monday": "Lundi",
-      "tuesday": "Mardi",
-      "wednesday": "Mercredi",
-      "thursday": "Jeudi",
-      "friday": "Vendredi",
-      "saturday": "Samedi",
-      "sunday": "Dimanche"
-    },
-    "familyRoles": {
-      "father": "Père",
-      "mother": "Mère",
-      "son": "Fils",
-      "daughter": "Fille",
-      "brother": "Frère",
-      "sister": "Sœur",
-      "grandfather": "Grand-père",
-      "grandmother": "Grand-mère",
-      "uncle": "Oncle",
-      "aunt": "Tante"
-    },
-    "familyActions": {
-      "addMember": "Ajouter un membre de la famille",
-      "editMember": "Modifier le membre de la famille",
-      "removeMember": "Supprimer le membre de la famille",
-      "viewProfile": "Voir le profil du membre de la famille"
-    },
-    "familyNotifications": {
-      "memberAdded": "{{name}} a été ajouté à votre famille",
-      "memberRemoved": "{{name}} a été retiré de votre famille",
-      "profileUpdated": "Le profil de {{name}} a été mis à jour"
-    },
-    "familyErrors": {
-      "memberNotFound": "Membre de la famille non trouvé",
-      "memberAlreadyExists": "Le membre de la famille existe déjà",
-      "invalidMemberData": "Données du membre de la famille invalides"
-    },
-    "familySuccess": {
-      "memberAdded": "Membre de la famille ajouté avec succès",
-      "memberRemoved": "Membre de la famille supprimé avec succès",
-      "profileUpdated": "Profil mis à jour avec succès"
-    },
-    "familyWarnings": {
-      "unsavedChanges": "Des modifications non enregistrées existent pour ce membre de la famille",
-      "deleteConfirmation": "Êtes-vous sûr de vouloir supprimer ce membre de la famille ?"
-    },
-    "familyInfo": {
-      "memberCount": "Nombre de membres de la famille : {{count}}",
-      "familyBudget": "Budget familial : {{amount}} €",
-      "familyPreferences": "Préférences familiales",
-      "familyHistory": "Historique des activités familiales"
-    },
-    "familySettings": {
-      "title": "Paramètres familiaux",
-      "notifications": "Notifications familiales",
-      "language": "Langue familiale : {{language}}",
-      "switchLanguage": "Passer à {{language}}",
-      "darkTheme": "Thème sombre pour la famille"
-    },
-    "familyProfile": {
-      "title": "Profil de la famille",
-      "familyName": "Nom de la famille : {{name}}",
-      "familyMembers": "Membres de la famille",
-      "editProfile": "Modifier le profil de la famille",
-      "viewHistory": "Voir l'historique familial"
-    },
-    "familyPreferences": {
-      "title": "Préférences familiales",
-      "dietaryRestrictions": "Restrictions alimentaires",
-      "favoriteCuisines": "Cuisines préférées",
-      "spiceLevel": "Niveau d'épices préféré",
-      "mealPreferences": "Préférences de repas"
-    },
-    "familyHistory": {
-      "title": "Historique familial",
-      "activityLog": "Journal d'activité",
-      "recentActivities": "Activités récentes",
-      "viewDetails": "Voir les détails de l'activité"
+  "modalTitleRecording": "Enregistrement en cours...",
+  "modalTitleReady": "Prêt à enregistrer",
+  "startButton": "Démarrer",
+  "stopButton": "Arrêter",
+  "cancelButton": "Annuler"
+  },
+  "actions": {
+    "addToMenu": "Ajouter au menu",
+    "addToMenuHint": "Ajoute l'élément sélectionné à un menu",
+    "share": "Partager",
+    "shareHint": "Partage le contenu",
+    "addToList": "Ajouter à la liste de courses",
+    "addToListHint": "Ajoute les ingrédients à votre liste de courses",
+    "plan": "Planifier un repas",
+    "planHint": "Planifie un repas avec cette recette",
+    "saveFavorite": "Enregistrer comme favori",
+    "saveFavoriteHint": "Enregistre la recette comme favori",
+    "addedToList": "Ajouté à la liste de courses",
+    "addToListError": "Échec de l'ajout à la liste de courses",
+    "plannedMeal": "Repas planifié avec succès",
+    "planMealError": "Échec de la planification du repas",
+    "savedFavorite": "Enregistré comme favori",
+    "saveFavoriteError": "Échec de l'enregistrement comme favori",
+    "shareSuccess": "Partagé avec succès",
+    "shareError": "Échec du partage"
+  },
+  "contextMenu": {
+    "container": "Menu contextuel",
+    "hint": "Options pour copier, partager ou supprimer",
+    "opened": "Menu contextuel ouvert",
+    "copy": "Copier",
+    "copyHint": "Copie le contenu dans le presse-papiers",
+    "copySuccess": "Copié dans le presse-papiers",
+    "copyError": "Échec de la copie",
+    "share": "Partager",
+    "shareSuccess": "Partagé avec succès",
+    "shareError": "Échec du partage",
+    "delete": "Supprimer",
+    "deleteSuccess": "Supprimé avec succès",
+    "deleteError": "Échec de la suppression"
+  },
+  "foodTrends": {
+    "title": "Tendances alimentaires",
+    "trends": "Tendances ({{count}})",
+    "container": "Carte des tendances alimentaires",
+    "hint": "Voir et interagir avec les tendances alimentaires",
+    "loaded": "Tendances alimentaires chargées",
+    "trend": "Tendance : {{name}}",
+    "star": "Étoile {{number}}",
+    "popularity": "Popularité : {{popularity}}%",
+    "addToMenu": "Ajouter au menu",
+    "addToMenuHint": "Ajouter cette tendance à un menu",
+    "selectMenuTitle": "Sélectionner ou créer un menu",
+    "selectMenu": "Sélectionner le menu : {{menuName}}",
+    "selectExistingMenu": "Sélectionner un menu existant",
+    "menuList": "Liste des menus",
+    "noMenus": "Aucun menu disponible",
+    "createNewMenu": "Créer un nouveau menu",
+    "menuName": "Nom du menu",
+    "menuDate": "Date du menu",
+    "menuType": "Type de menu",
+    "placeholderDate": "AAAA-MM-JJ",
+    "createMenu": "Créer un menu",
+    "menuModalOpened": "Modal de sélection de menu ouvert",
+    "menuModalClosed": "Modal de sélection de menu fermé",
+    "addedToMenu": "Ajouté au menu : {{menuName}}",
+    "addedToNewMenu": "Ajouté au nouveau menu : {{menuName}}",
+    "addToMenuError": "Échec de l'ajout au menu",
+    "missingData": "Données requises manquantes",
+    "trendsList": "Liste des tendances alimentaires"
+  },
+  "recipe": {
+    "loaded": "Recette chargée : {{name}}",
+    "container": "Carte de recette",
+    "hint": "Voir et interagir avec les détails de la recette",
+    "ingredients": "Ingrédients",
+    "ingredientsList": "Liste des ingrédients",
+    "instructions": "Instructions",
+    "instructionsList": "Liste des instructions",
+    "nutrition": "Analyse nutritionnelle",
+    "comments": "Commentaires ({{count}})",
+    "commentsList": "Liste des commentaires",
+    "portions": "Portions : {{count}}",
+    "time": "Préparation : {{prep}} min, Cuisson : {{cook}} min",
+    "difficulty": "Difficulté : {{level}}",
+    "category": "Catégorie : {{category}}",
+    "image": "Image de la recette",
+    "carousel": "Carrousel d'images",
+    "carouselHint": "Glisser pour voir les images de la recette",
+    "compatibility": "Compatibilité familiale : {{status}}",
+    "calories": "Calories",
+    "spices": "Niveau d'épices",
+    "protein": "Protéines",
+    "fat": "Lipides",
+    "carbs": "Glucides"
+  },
+  "mealTypes": {
+    "breakfast": "Petit-déjeuner",
+    "lunch": "Déjeuner",
+    "dinner": "Dîner",
+    "snack": "Collation"
+  },
+  "foodNames": {
+    "menuPlaceholder": "Entrer le nom du menu"
+  },
+  "imagePreview": {
+    "image": "Image en aperçu",
+    "close": "Fermer l'aperçu",
+    "closeHint": "Ferme l'aperçu de l'image"
+  },
+  "profile": {
+    "title": "Profil",
+    "username": "{{username}}",
+    "logout": "Déconnexion",
+    "loading": "Chargement du profil..."
+  },
+  "settings": {
+    "title": "Paramètres du compte",
+    "darkTheme": "Thème sombre",
+    "language": "Langue : {{language}}",
+    "switchLanguage": "Passer à {{language}}",
+    "notifications": "Notifications"
+  },
+  "preferences": {
+    "title": "Préférences alimentaires",
+    "vegan": "Végane",
+    "spiceLevel": "Niveau d'épices",
+    "cuisine": "Cuisine préférée",
+    "cuisinePlaceholder": "Entrer une cuisine"
+  },
+  "family": {
+    "title": "Membres de la famille",
+    "addMember": "Ajouter un membre",
+    "member": "Membre : {{name}}"
+  },
+  "history": {
+    "title": "Historique d'activité",
+    "addMember": "Ajouté un nouveau membre : {{name}}",
+    "editProfile": "Modifié le profil utilisateur"
+  },
+  "image": {
+    "chooseOption": "Choisir une option",
+    "chooseOptionMessage": "Voulez-vous prendre une photo ou en choisir une dans la galerie ?",
+    "camera": "Caméra",
+    "gallery": "Galerie",
+    "cancel": "Annuler",
+    "uploadProgress": "Chargement : {{progress}}%",
+    "errors": {
+      "noImage": "Aucune image sélectionnée.",
+      "uploadFailed": "Échec du chargement de l'image : {{message}}"
     }
-  }
+  },
+  "alerts": {
+    "logout": {
+      "title": "Déconnexion",
+      "message": "Voulez-vous vraiment vous déconnecter ?",
+      "confirm": "Oui",
+      "cancel": "Annuler"
+    }
+  },
+  "modal": {
+    "aiActionModal": "Choisir une action IA",
+    "selectFamilyMember": "Sélectionner un membre de la famille",
+    "selectFamilyMembers": "Sélectionner des membres de la famille",
+    "selectDate": "Sélectionner une date",
+    "selectMenu": "Sélectionner un menu",
+    "selectIngredients": "Sélectionner des ingrédients",
+    "selectPreferences": "Sélectionner des préférences",
+    "selectBudget": "Sélectionner un budget",
+    "selectIngredient": "Sélectionner un ingrédient",
+    "selectDiet": "Sélectionner un régime",
+    "selectOccasion": "Sélectionner une occasion",
+    "selectGuestCount": "Sélectionner le nombre d'invités",
+    "selectImage": "Sélectionner une image",
+    "selectLocation": "Sélectionner un emplacement",
+    "selectMeal": "Sélectionner un repas",
+    "selectMonth": "Sélectionner un mois",
+    "selectRecipe": "Sélectionner une recette",
+    "inputQuery": "Entrer une requête",
+    "searchPlaceholder": "Rechercher des menus ou recettes...",
+    "searchAccessibilityLabel": "Rechercher des menus ou recettes",
+    "opened": "Modal {{title}} ouvert",
+    "closed": "Modal fermé",
+    "actionsListAccessibilityLabel": "Liste des actions IA",
+    "loading": "Enregistrement...",
+    "noActionsFound": "Aucune action trouvée",
+    "confirm": "Confirmer",
+    "close": "Fermer le modal",
+    "accessibilityLabel": "Modal d'actions IA",
+    "saveSuccess": "Modifications enregistrées avec succès !",
+    "saveError": "Échec de l'enregistrement des modifications.",
+    "logoutLoading": "Déconnexion en cours...",
+    "logoutError": "Échec de la déconnexion : {{message}}"
+  },
+  "templates": {
+    "title": "Explorer les modèles",
+    "filter": "Filtrer par {{category}}",
+    "all": "Tous",
+    "recipe_personalized": {
+      "title": "Recette personnalisée",
+      "description": "Obtenez une recette adaptée à vos préférences"
+    },
+    "weekly_menu": {
+      "title": "Menu hebdomadaire",
+      "description": "Planifiez vos repas pour la semaine"
+    },
+    "shopping_list": {
+      "title": "Liste de courses",
+      "description": "Générez une liste de courses pour votre menu"
+    },
+    "recipe_nutrition_analysis": {
+      "title": "Analyse nutritionnelle des recettes",
+      "description": "Analysez le contenu nutritionnel d'une recette"
+    },
+    "recipe_suggestion": {
+      "title": "Suggestions de recettes",
+      "description": "Découvrez de nouvelles recettes basées sur les ingrédients"
+    },
+    "quick_recipe": {
+      "title": "Recette rapide",
+      "description": "Idées de repas rapides et faciles"
+    },
+    "budget_planning": {
+      "title": "Planification budgétaire",
+      "description": "Planifiez vos repas dans un budget"
+    },
+    "store_suggestion": {
+      "title": "Suggestion de magasin",
+      "description": "Trouvez des magasins pour vos ingrédients",
+      "recommendation": "Magasins recommandés pour {{ingredient}}"
+    },
+    "meal_analysis": {
+      "title": "Analyse des repas",
+      "description": "Analysez votre historique de repas"
+    },
+    "kids_recipe": {
+      "title": "Recette pour enfants",
+      "description": "Recettes amusantes pour les enfants"
+    },
+    "special_occasion_menu": {
+      "title": "Menu pour occasion spéciale",
+      "description": "Planifiez un menu pour des événements spéciaux comme {{occasion}}"
+    },
+    "inventory_optimization": {
+      "title": "Optimisation d'inventaire",
+      "description": "Utilisez vos ingrédients existants"
+    },
+    "ingredient_based_recipe": {
+      "title": "Recette basée sur un ingrédient",
+      "description": "Recettes basées sur un ingrédient clé"
+    },
+    "budget_menu": {
+      "title": "Menu économique",
+      "description": "Planification de menus abordables"
+    },
+    "recipe_compatibility": {
+      "title": "Compatibilité des recettes",
+      "description": "Vérifiez si une recette convient à votre famille"
+    },
+    "specific_diet_recipe": {
+      "title": "Recette pour régime spécifique",
+      "description": "Recettes pour des régimes spécifiques"
+    },
+    "balanced_daily_menu": {
+      "title": "Menu quotidien équilibré",
+      "description": "Plans de repas quotidiens sains"
+    },
+    "recipe_from_image": {
+      "title": "Recette à partir d'une image",
+      "description": "Créez une recette à partir d'une photo"
+    },
+    "leftover_recipe": {
+      "title": "Recette avec restes",
+      "description": "Recettes utilisant des restes"
+    },
+    "guest_recipe": {
+      "title": "Recette pour invités",
+      "description": "Recettes pour les invités"
+    },
+    "ingredient_availability": {
+      "title": "Disponibilité des ingrédients",
+      "description": "Vérifiez où trouver des ingrédients"
+    },
+    "nutritional_info": {
+      "title": "Informations nutritionnelles",
+      "description": "Obtenez des informations nutritionnelles"
+    },
+    "troubleshoot_problem": {
+      "title": "Résoudre un problème",
+      "description": "Résolvez les problèmes de cuisine"
+    },
+    "creative_ideas": {
+      "title": "Idées créatives",
+      "description": "Obtenez des idées de cuisine créatives"
+    },
+    "food_trend_analysis": {
+      "title": "Analyse des tendances alimentaires",
+      "description": "Explorez les tendances alimentaires actuelles"
+    },
+    "text": {
+      "title": "Message texte"
+    },
+    "image": {
+      "title": "Image"
+    },
+    "recipe": {
+      "title": "Recette"
+    },
+    "recipe_analysis": {
+      "title": "Analyse de recette"
+    },
+    "menu_suggestion": {
+      "title": "Suggestion de menu"
+    },
+      "menu": {
+    "title": "Menu",
+    "accueil": "Accueil",
+    "recettes": "Recettes",
+    "planificateur_de_menus": "Planificateur de Menus",
+    "liste_de_courses": "Liste de Courses",
+    "profil": "Profil",
+    "paramètres": "Paramètres",
+    "déconnexion": "Déconnexion",
+    "recent_queries": "Requêtes Récentes",
+    "navigation": "Navigation",
+    "close": "Fermer le Menu",
+    "user": "Invité",
+    "switch_language": "Changer de Langue",
+    "logout_success": "Déconnexion réussie",
+    "language_switched": "Langue changée en {{lang}}"
+  },
+  "errors": {
+    "profileLoad": "Échec du chargement du profil",
+    "navigation": "Erreur de navigation",
+    "menuNavigation": "Erreur de navigation dans le menu",
+    "queryNavigation": "Erreur de navigation des requêtes"
+  },
+  "recent_query": {
+    "repeat": "Répéter la requête : {{query}}"
+  },
+    "shopping_list_suggestion": {
+      "title": "Suggestion de liste de courses"
+    },
+    "shopping": {
+      "title": "Liste de courses"
+    },
+    "budget": {
+      "title": "Plan budgétaire"
+    },
+    "stores": {
+      "title": "Magasins"
+    },
+    "food_trends": {
+      "title": "Tendances alimentaires"
+    },
+    "json": {
+      "title": "Données JSON"
+    },
+    "tool_use": {
+      "title": "Utilisation d'outil"
+    },
+    "tool_response": {
+      "title": "Réponse d'outil"
+    },
+    "error": {
+      "title": "Message d'erreur"
+    },
+    "previewOnly": "Ce modèle est uniquement pour prévisualisation",
+    "noTemplates": "Aucun modèle disponible pour cette catégorie",
+    "selected": "{{title}} sélectionné"
+  },
+  "categories": {
+    "all": "Tous",
+    "recipes": "Recettes",
+    "menus": "Menus",
+    "shopping": "Courses",
+    "budget": "Budget",
+    "nutrition": "Nutrition",
+    "troubleshooting": "Dépannage",
+    "creative": "Idées créatives",
+    "stores": "Magasins",
+    "other": "Autres",
+    "filter": "Filtrer par {{category}}"
+  },
+  "errors": {
+    "animationFailed": "Échec du chargement de l'animation",
+    "generic": "Une erreur inattendue s'est produite",
+    "invalidFoodTrends": "Données de tendances alimentaires invalides",
+    "invalidRecipe": "Données de recette invalides",
+    "templateNavigation": "Échec de la navigation vers le modèle",
+    "renderError": "Une erreur s'est produite lors du rendu du modèle",
+    "retry": "Réessayer",
+    "loadingTemplates": "Échec du chargement des modèles",
+    "unsupportedModalType": "Type de modal non supporté : {{modalType}}",
+    "noNextModal": "Aucun modal suivant pour {{modalType}}",
+    "modalSubmission": "Erreur lors de la soumission du modal {{modalType}}",
+    "actionExecution": "Erreur lors de l'exécution de l'action",
+    "noTemplate": "Aucun modèle sélectionné",
+    "emptyMessage": "Veuillez entrer un message avant d'envoyer.",
+    "noInternet": "Pas de connexion Internet. Veuillez vérifier votre réseau.",
+    "notLoggedIn": "Vous devez être connecté pour utiliser cette fonctionnalité.",
+    "sendMessage": "Échec de l'envoi du message. Veuillez réessayer.",
+    "sendImage": "Échec de l'envoi de l'image. Veuillez réessayer.",
+    "unsupportedAction": "Action non prise en charge : {{action}}.",
+    "retryFailed": "Échec de la nouvelle tentative de message. Veuillez réessayer.",
+    "textToSpeech": "Erreur lors de la lecture du texte par synthèse vocale.",
+    "createConversation": "Échec de la création de la conversation. Veuillez réessayer.",
+    "titleMissing": "Titre manquant",
+    "enterTitle": "Veuillez entrer un titre pour la conversation.",
+    "aiError": "Erreur IA : {{error}}.",
+    "networkError": "Erreur de réseau"
+  },
+  "search": {
+    "placeholder": "Rechercher des menus, recettes, ingrédients ou membres de la famille...",
+    "accessibilityLabel": "Champ de recherche",
+    "loading": "Recherche en cours...",
+    "noResults": "Aucun résultat trouvé",
+    "errors": {
+      "searchFailed": "Échec de la recherche. Veuillez réessayer."
+    }
+  },
+  "chat": {
+    "title": "Chat IA",
+    "placeholder": "Posez une question ou demandez une suggestion...",
+    "send": "Envoyer",
+    "loading": "Chargement de la réponse...",
+    "noResponse": "Aucune réponse disponible",
+    "error": {
+      "message": "Une erreur s'est produite lors de la récupération de la réponse",
+      "retry": "Réessayer"
+    },
+    "actions": {
+      "askAI": "Demander à l'IA",
+      "suggestRecipe": "Suggérer une recette",
+      "planMeal": "Planifier un repas",
+      "findStore": "Trouver un magasin"
+    }
+  },
+  "tooltips": {
+    "addToMenu": "Ajouter au menu",
+    "shareRecipe": "Partager la recette",
+    "saveToFavorites": "Enregistrer dans les favoris",
+    "viewDetails": "Voir les détails",
+    "editProfile": "Modifier le profil",
+    "viewHistory": "Voir l'historique"
+  },
+  "accessibility": {
+    "loading": "Chargement en cours...",
+    "error": "Une erreur s'est produite",
+    "noData": "Aucune donnée disponible",
+    "searchResults": "Résultats de la recherche pour '{{query}}'",
+    "itemSelected": "{{item}} sélectionné",
+    "actionCompleted": "{{action}} terminé avec succès"
+  },
+  "notifications": {
+    "newMessage": "Nouveau message de {{sender}}",
+    "reminder": "Rappel : {{message}}",
+    "error": "Erreur : {{message}}",
+    "success": "Succès : {{message}}"
+  },
+  "confirmation": {
+    "yes": "Oui",
+    "no": "Non",
+    "ok": "OK",
+    "cancel": "Annuler"
+  },
+  "date": {
+    "today": "Aujourd'hui",
+    "tomorrow": "Demain",
+    "yesterday": "Hier",
+    "dayAfterTomorrow": "Après-demain",
+    "lastWeek": "La semaine dernière",
+    "nextWeek": "La semaine prochaine"
+  },
+  "time": {
+    "morning": "Matin",
+    "afternoon": "Après-midi",
+    "evening": "Soirée",
+    "night": "Nuit"
+  },
+  "months": {
+    "january": "Janvier",
+    "february": "Février",
+    "march": "Mars",
+    "april": "Avril",
+    "may": "Mai",
+    "june": "Juin",
+    "july": "Juillet",
+    "august": "Août",
+    "september": "Septembre",
+    "october": "Octobre",
+    "november": "Novembre",
+    "december": "Décembre"
+  },
+  "days": {
+    "monday": "Lundi",
+    "tuesday": "Mardi",
+    "wednesday": "Mercredi",
+    "thursday": "Jeudi",
+    "friday": "Vendredi",
+    "saturday": "Samedi",
+    "sunday": "Dimanche"
+  },
+  "familyRoles": {
+    "father": "Père",
+    "mother": "Mère",
+    "son": "Fils",
+    "daughter": "Fille",
+    "brother": "Frère",
+    "sister": "Sœur",
+    "grandfather": "Grand-père",
+    "grandmother": "Grand-mère",
+    "uncle": "Oncle",
+    "aunt": "Tante"
+  },
+  "familyActions": {
+    "addMember": "Ajouter un membre de la famille",
+    "editMember": "Modifier le membre de la famille",
+    "removeMember": "Supprimer le membre de la famille",
+    "viewProfile": "Voir le profil du membre de la famille"
+  },
+  "familyNotifications": {
+    "memberAdded": "{{name}} a été ajouté à votre famille",
+    "memberRemoved": "{{name}} a été retiré de votre famille",
+    "profileUpdated": "Le profil de {{name}} a été mis à jour"
+  },
+  "familyErrors": {
+    "memberNotFound": "Membre de la famille non trouvé",
+    "memberAlreadyExists": "Le membre de la famille existe déjà",
+    "invalidMemberData": "Données du membre de la famille invalides"
+  },
+  "familySuccess": {
+    "memberAdded": "Membre de la famille ajouté avec succès",
+    "memberRemoved": "Membre de la famille supprimé avec succès",
+    "profileUpdated": "Profil mis à jour avec succès"
+  },
+  "familyWarnings": {
+    "unsavedChanges": "Des modifications non enregistrées existent pour ce membre de la famille",
+    "deleteConfirmation": "Êtes-vous sûr de vouloir supprimer ce membre de la famille ?"
+  },
+  "familyInfo": {
+    "memberCount": "Nombre de membres de la famille : {{count}}",
+    "familyBudget": "Budget familial : {{amount}} €",
+    "familyPreferences": "Préférences familiales",
+    "familyHistory": "Historique des activités familiales"
+  },
+  "familySettings": {
+    "title": "Paramètres familiaux",
+    "notifications": "Notifications familiales",
+    "language": "Langue familiale : {{language}}",
+    "switchLanguage": "Passer à {{language}}",
+    "darkTheme": "Thème sombre pour la famille"
+  },
+  "familyProfile": {
+    "title": "Profil de la famille",
+    "familyName": "Nom de la famille : {{name}}",
+    "familyMembers": "Membres de la famille",
+    "editProfile": "Modifier le profil de la famille",
+    "viewHistory": "Voir l'historique familial"
+  },
+  "familyPreferences": {
+    "title": "Préférences familiales",
+    "dietaryRestrictions": "Restrictions alimentaires",
+    "favoriteCuisines": "Cuisines préférées",
+    "spiceLevel": "Niveau d'épices préféré",
+    "mealPreferences": "Préférences de repas"
+  },
+  "familyHistory": {
+    "title": "Historique familial",
+    "activityLog": "Journal d'activité",
+    "recentActivities": "Activités récentes",
+    "viewDetails": "Voir les détails de l'activité"
+  },
+  "message": {
+    "deleteSuccess": "Message supprimé avec succès.",
+    "delete": "Supprimer le message",
+    "retry": "Réessayer le message"
+  },
+  "welcomeMessage": "Bonjour ! Je suis ici pour vous aider avec des recettes, la planification de repas, et plus encore. Que puis-je faire pour vous aujourd'hui ?",
+  "loading": "Chargement...",
+  "pleaseLogin": "Veuillez vous connecter pour continuer.",
+  "conversation": {
+    "empty": "Aucun message pour l'instant. Commencez une conversation !",
+    "startNew": "Démarrer une nouvelle conversation",
+    "manage": "Gérer les conversations",
+    "new": "Nouvelle conversation",
+    "titlePlaceholder": "Entrer le titre de la conversation",
+    "titleInput": "Saisie du titre de la conversation",
+    "create": "Créer une conversation",
+    "selected": "Conversation sélectionnée.",
+    "created": "Conversation créée avec succès.",
+    "delete": "Supprimer la conversation",
+    "select": "Sélectionner la conversation"
+  },
+  "navigation": {
+    "back": "Retour",
+    "chat": "Navigué vers le chat avec {{promptType}}"
+  },
+  "aiTyping": "L'IA est en train de taper...",
+  "stopSpeaking": "Arrêter de parler",
+  "speakMessage": "Lire le message",
+  "scrollToBottom": "Défiler vers le bas"
+}
