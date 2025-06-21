@@ -14,9 +14,39 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
 import AntDesign from 'react-native-vector-icons/AntDesign';
-import { ModalComponent } from '../../components/common/Modal';
+import ModalComponent from '../../components/common/ModalComponent';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { useNavigation } from '@react-navigation/native';
+
+// Configuration
+const COLORS = {
+  primary: '#E95221',
+  secondary: '#F2A03D',
+  backgroundDark: '#0D0D0D',
+  backgroundLight: '#1A1A1A',
+  inputBg: '#282828',
+  inputBorder: '#444',
+  inputFocus: '#E95221',
+  text: '#FFFFFF',
+  textSecondary: '#CCCCCC',
+  error: '#FF6B6B',
+  buttonText: '#FFFFFF',
+};
+
+const FONTS = {
+  title: 22,
+  inputLabel: 18,
+  input: 16,
+  button: 16,
+  small: 12,
+};
+
+const SPACING = {
+  s: 8,
+  m: 16,
+  l: 24,
+  xl: 32,
+};
 
 type NavigationProp = StackNavigationProp<RootStackParamList, 'UserOnboardingStep4'>;
 
@@ -44,7 +74,8 @@ const UserOnboardingStep4: React.FC<{ route: { params: { userId: string; familyI
     try {
       const storedData = await AsyncStorage.getItem('onboardingStep4');
       if (storedData) {
-        setPhotoProfil(JSON.parse(storedData).photoProfil);
+        const parsedData = JSON.parse(storedData);
+        setPhotoProfil(parsedData.photoProfil || null);
       }
     } catch (e: any) {
       setErrorMessage('Erreur lors du chargement des données.');
@@ -61,7 +92,11 @@ const UserOnboardingStep4: React.FC<{ route: { params: { userId: string; familyI
         maxHeight: 300,
       });
       if (!result.didCancel && result.assets && result.assets[0].uri) {
-        setPhotoProfil(result.assets[0].uri);
+        const imageUri = result.assets[0].uri;
+        setPhotoProfil(imageUri);
+      } else if (result.didCancel) {
+        setErrorMessage('Sélection d’image annulée.');
+        setErrorModalVisible(true);
       }
     } catch (e: any) {
       setErrorMessage('Erreur lors de la sélection de l’image.');
@@ -77,7 +112,15 @@ const UserOnboardingStep4: React.FC<{ route: { params: { userId: string; familyI
     }
     setIsLoading(true);
     try {
-      await AsyncStorage.setItem('onboardingStep4', JSON.stringify({ photoProfil }));
+      const imageData = {
+        photoProfil,
+        width: 300,
+        height: 300,
+        fileName: photoProfil.split('/').pop() || 'profile_image.jpg',
+        fileSize: 0,
+        mimeType: 'image/jpeg',
+      };
+      await AsyncStorage.setItem('onboardingStep4', JSON.stringify(imageData));
       navigation.navigate('UserOnboardingStep5', { userId, familyId });
     } catch (e: any) {
       setErrorMessage('Erreur lors de la sauvegarde des données.');
@@ -87,11 +130,11 @@ const UserOnboardingStep4: React.FC<{ route: { params: { userId: string; familyI
     }
   };
 
-  const getImageSource = () => {
+  const getDefaultImageSource = () => {
     try {
-      return require('../../assets/images/profile.jpg');
-    } catch {
       return require('../../assets/images/ai.jpg');
+    } catch {
+      return null;
     }
   };
 
@@ -113,65 +156,87 @@ const UserOnboardingStep4: React.FC<{ route: { params: { userId: string; familyI
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={['#0d0d0d', '#000']} style={styles.backgroundGradient} />
-      <Image source={getImageSource()} style={styles.backgroundImage} resizeMode="cover" />
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.content}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <AntDesign name="arrowleft" size={24} color="#f7b733" />
-            <Text style={styles.backText}>Retour</Text>
-          </TouchableOpacity>
-          <Animated.Text style={[styles.title, { opacity: titleOpacity }]}>
-            Étape 4 : Image de profil
-          </Animated.Text>
+      <LinearGradient
+        colors={[COLORS.backgroundDark, '#282828']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+        style={StyleSheet.absoluteFillObject}
+      />
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContainer,
+          { paddingHorizontal: SPACING.l, paddingTop: SPACING.xl, paddingBottom: SPACING.m },
+        ]}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.header}>
+          <View style={styles.titleWrapper}>
+            <LinearGradient
+              colors={[COLORS.primary, COLORS.secondary]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.titleGradient}
+            >
+              <Text style={styles.titleText}>Image de profil</Text>
+            </LinearGradient>
+          </View>
+        </View>
+
+        <View style={styles.formContainer}>
           <TouchableOpacity onPress={pickImage} style={styles.imagePicker} disabled={isLoading}>
             <Image
-              source={photoProfil ? { uri: photoProfil } : getImageSource()}
+              source={photoProfil ? { uri: photoProfil } : getDefaultImageSource()}
               style={styles.profileImage}
+              resizeMode="cover"
             />
-            <LinearGradient colors={['#fc4a1a', '#f7b733']} style={styles.imagePickerOverlay}>
-              <AntDesign name="camera" size={30} color="#fff" />
-            </LinearGradient>
+            {!photoProfil && (
+              <LinearGradient colors={[COLORS.primary, COLORS.secondary]} style={styles.imagePickerOverlay}>
+                <AntDesign name="camera" size={30} color={COLORS.buttonText} />
+              </LinearGradient>
+            )}
           </TouchableOpacity>
-          <Animated.View
-            style={[
-              styles.buttonContainer,
-              {
-                transform: [
-                  {
-                    scale: buttonAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0.98, 1],
-                    }),
-                  },
-                ],
-              },
-            ]}>
+        </View>
+
+        <View style={[styles.navigationButtons, { marginBottom: SPACING.xl }]}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.prevButton}>
+            <AntDesign name="arrowleft" size={24} color={COLORS.text} />
+            <Text style={styles.prevButtonText}>Retour</Text>
+          </TouchableOpacity>
+
             <TouchableOpacity
               onPress={saveAndProceed}
-              style={styles.buttonInner}
+              style={styles.nextButtonOuter}
               disabled={isLoading}
               onPressIn={handleFocusButton}
-              onPressOut={handleBlurButton}>
-              <LinearGradient colors={['#fc4a1a', '#f7b733']} style={styles.gradientButton}>
+              onPressOut={handleBlurButton}
+            >
+              <LinearGradient
+                colors={[COLORS.primary, COLORS.secondary]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.nextButtonGradient}
+              >
                 {isLoading ? (
-                  <ActivityIndicator color="#fff" />
+                  <ActivityIndicator color={COLORS.buttonText} />
                 ) : (
                   <>
-                    <AntDesign name="arrowright" size={20} color="#fff" style={styles.buttonIcon} />
-                    <Text style={styles.buttonText}>Suivant</Text>
+                    <Text style={styles.nextButtonText}>Suivant</Text>
+                    <AntDesign name="arrowright" size={20} color={COLORS.buttonText} style={styles.buttonIcon} />
                   </>
                 )}
               </LinearGradient>
             </TouchableOpacity>
-          </Animated.View>
+
         </View>
       </ScrollView>
-      <ModalComponent
-        visible={errorModalVisible}
-        onClose={() => setErrorModalVisible(false)}
-        title="Erreur">
-        <Text style={styles.modalMessageText}>{errorMessage}</Text>
+
+      <ModalComponent style={styles.center} visible={errorModalVisible} onClose={() => setErrorModalVisible(false)} title="Information">
+        <Image
+          source={require('../../assets/icons/info.png')}
+          style={styles.modalImage}
+          accessibilityLabel="Icône d’erreur"
+        />
+        <Text style={styles.errorText}>{errorMessage}</Text>
       </ModalComponent>
     </View>
   );
@@ -182,54 +247,48 @@ export default UserOnboardingStep4;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: COLORS.backgroundDark,
   },
-  backgroundGradient: {
-    ...StyleSheet.absoluteFillObject,
-    opacity: 0.8,
-  },
-  backgroundImage: {
-    ...StyleSheet.absoluteFillObject,
-    opacity: 0.5,
-  },
-  scrollContent: {
+  scrollContainer: {
     flexGrow: 1,
-    justifyContent: 'center',
-    paddingTop: 40,
-    paddingBottom: 20,
+    justifyContent: 'space-between',
   },
-  content: {
-    paddingHorizontal: 25,
+  header: {
+    marginBottom: SPACING.m,
     alignItems: 'center',
   },
-  backButton: {
+  titleWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
-    marginBottom: 20,
+    justifyContent: 'center',
   },
-  backText: {
-    color: '#f7b733',
-    fontSize: 16,
-    marginLeft: 10,
+  titleGradient: {
+    paddingVertical: SPACING.s,
+    paddingHorizontal: SPACING.l,
+    borderRadius: 25,
+    overflow: 'hidden',
   },
-  title: {
-    color: '#fff',
-    fontSize: 26,
+  titleText: {
+    fontSize: FONTS.title,
     fontWeight: 'bold',
+    color: COLORS.text,
     textAlign: 'center',
-    marginBottom: 30,
+  },
+  formContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   imagePicker: {
     width: 150,
     height: 150,
     borderRadius: 75,
     overflow: 'hidden',
-    marginBottom: 30,
+    marginBottom: SPACING.l,
     position: 'relative',
     borderWidth: 2,
-    borderColor: '#f7b733',
-    shadowColor: '#000',
+    borderColor: COLORS.secondary,
+    shadowColor: COLORS.inputFocus,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
@@ -241,46 +300,70 @@ const styles = StyleSheet.create({
   },
   imagePickerOverlay: {
     position: 'absolute',
-    bottom: 0,
+    top: 0,
     left: 0,
     right: 0,
-    height: 50,
+    bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
     opacity: 0.7,
   },
-  buttonContainer: {
-    width: '100%',
-    marginBottom: 15,
+  navigationButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: SPACING.m,
+    paddingBottom: SPACING.m,
   },
-  buttonInner: {
-    overflow: 'hidden',
-    borderRadius: 10,
-  },
-  gradientButton: {
+  prevButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 15,
-    borderRadius: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
+    padding: SPACING.m,
+    backgroundColor: COLORS.inputBg,
+    borderRadius: 15,
     elevation: 5,
   },
-  buttonText: {
-    color: '#fff',
+  prevButtonText: {
+    color: COLORS.text,
+    fontSize: FONTS.button,
+    marginLeft: SPACING.s,
+  },
+
+    nextButtonOuter: {
+    flex: 1,
+    marginLeft: SPACING.l,
+    borderRadius: 15,
+    overflow: 'hidden',
+    elevation: 6,
+  },
+  nextButtonGradient: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: SPACING.m,
+  },
+  nextButtonText: {
+    color: COLORS.buttonText,
+    fontSize: FONTS.button,
     fontWeight: 'bold',
-    fontSize: 16,
+    marginRight: SPACING.s,
   },
   buttonIcon: {
-    marginRight: 10,
+    marginRight: 0,
   },
-  modalMessageText: {
-    color: '#fff',
+  center: {
+    alignItems: 'center',
+  },
+  modalImage: {
+    width: 80,
+    height: 80,
+    marginBottom: SPACING.m,
+    borderRadius: 10,
+  },
+  errorText: {
+    color: COLORS.text,
     fontSize: 16,
     textAlign: 'center',
-    marginBottom: 10,
+    marginVertical: SPACING.m,
   },
 });

@@ -1,16 +1,13 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
-
-import FamilyMemberForm from '../components/forms/FamilyMemberForm';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, StatusBar } from 'react-native';
 import { ModalComponent } from '../components/common/Modal';
-
 import AntDesign from 'react-native-vector-icons/AntDesign';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../App';
 import { useAuth } from '../hooks/useAuth';
 import { useFamilyData } from '../hooks/useFamilyData';
 import { MembreFamille } from '../constants/entities';
-import { generateId } from '../utils/helpers';
+import { FamilyMemberWizard } from '../components/forms/FamilyMemberWizard';
 
 type AddFamilyMemberScreenNavigationProp = StackNavigationProp<RootStackParamList, 'AddFamilyMember'>;
 
@@ -20,28 +17,43 @@ interface AddFamilyMemberScreenProps {
 
 const AddFamilyMemberScreen: React.FC<AddFamilyMemberScreenProps> = ({ navigation }) => {
   const { userId } = useAuth();
-  const familyId = generateId('family');
-
-  const { addFamilyMember, loading, error } = useFamilyData(userId || '', familyId);
+  const { familyMembers, loading: familyLoading, error: familyError, addFamilyMember } = useFamilyData();
 
   const [isSuccessModalVisible, setIsSuccessModalVisible] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [isErrorModalVisible, setIsErrorModalVisible] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [familyId, setFamilyId] = useState<string | null>(null);
 
-  // Effect to show error modal if useFamilyData reports an error
-  React.useEffect(() => {
-    if (error) {
-      setErrorMessage(error);
+  // Obtenir familyId à partir des membres existants ou d'une autre source
+  useEffect(() => {
+    if (familyMembers.length > 0) {
+      setFamilyId(familyMembers[0].familyId!);
+    } else {
+      setErrorMessage('Aucune famille trouvée. Veuillez créer une famille avant d’ajouter un membre.');
       setIsErrorModalVisible(true);
     }
-  }, [error]);
+  }, [familyMembers]);
+
+  // Afficher les erreurs de useFamilyData
+  useEffect(() => {
+    if (familyError) {
+      setErrorMessage(familyError);
+      setIsErrorModalVisible(true);
+    }
+  }, [familyError]);
 
   const handleSaveMember = async (formData: Omit<MembreFamille, 'id' | 'dateCreation' | 'dateMiseAJour'>) => {
-    // The formData already includes userId, familyId, createurId from the form
-    const newMemberData: Omit<MembreFamille, 'id' | 'dateMiseAJour'> = { // Removed dateCreation from Omit as it's set in form
+    if (!familyId) {
+      setErrorMessage('ID de famille manquant. Veuillez réessayer.');
+      setIsErrorModalVisible(true);
+      return;
+    }
+
+    const newMemberData: Omit<MembreFamille, 'id' | 'dateMiseAJour'> = {
       ...formData,
-      dateCreation: new Date().toISOString(), // Ensure dateCreation is set here or in the form
+      dateCreation: new Date().toISOString(),
+      familyId, // Assurez-vous que familyId est inclus
     };
 
     const memberId = await addFamilyMember(newMemberData);
@@ -50,50 +62,55 @@ const AddFamilyMemberScreen: React.FC<AddFamilyMemberScreenProps> = ({ navigatio
       setIsSuccessModalVisible(true);
       setTimeout(() => {
         setIsSuccessModalVisible(false);
-        navigation.goBack(); // Navigate back after success
+        navigation.goBack();
       }, 1500);
     } else {
-      // Error message is already handled by useFamilyData and propagated to 'error' state
-      // If addFamilyMember returns null without setting an error, use a generic message
-      if (!error) { // Only set generic message if no specific error from hook
-        setErrorMessage('Une erreur inattendue est survenue lors de l\'ajout du membre.');
+      if (!familyError) {
+        setErrorMessage('Une erreur inattendue est survenue lors de l’ajout du membre.');
         setIsErrorModalVisible(true);
       }
     }
   };
 
   const handleCancel = () => {
-    navigation.goBack(); // Navigate back
+    navigation.goBack();
   };
+
+  if (familyLoading || !userId || !familyId) {
+    return (
+      <View style={styles.loadingContainer}>
+        <StatusBar backgroundColor="#0d0d0d" barStyle="light-content" />
+        <ActivityIndicator size="large" color="#f7b733" />
+        <Text style={styles.loadingText}>Chargement des informations...</Text>
+        {(!userId || !familyId) && (
+          <Text style={styles.errorText}>
+            {userId ? 'Aucune famille configurée.' : 'Veuillez vous connecter.'}
+          </Text>
+        )}
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
+      <StatusBar backgroundColor="#0d0d0d" barStyle="light-content" />
       <View style={styles.header}>
         <TouchableOpacity onPress={handleCancel} style={styles.backButton}>
           <AntDesign name="arrowleft" size={24} color="#FFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Ajouter un membre</Text>
-        <View style={styles.headerRightPlaceholder} /> {/* Replaced inline style */}
+        <View style={styles.headerRightPlaceholder} />
       </View>
 
       <ScrollView contentContainerStyle={styles.formContainer}>
-        {loading ? (
-          <View style={styles.loadingOverlay}>
-            <ActivityIndicator size="large" color="#f7b733" />
-            <Text style={styles.loadingText}>Ajout du membre...</Text>
-          </View>
-        ) : (
-          <FamilyMemberForm
-            userId={userId || ''}
-            familyId={familyId}
-            onSave={handleSaveMember} // Correct prop name
-            onCancel={handleCancel}
-            loading={loading} // Pass loading state to form
-          />
-        )}
+        <FamilyMemberWizard
+          onSave={handleSaveMember}
+          onCancel={handleCancel}
+          loading={familyLoading}
+          familyId={familyId}
+        />
       </ScrollView>
 
-      {/* Success Modal */}
       <ModalComponent
         visible={isSuccessModalVisible}
         onClose={() => setIsSuccessModalVisible(false)}
@@ -102,7 +119,6 @@ const AddFamilyMemberScreen: React.FC<AddFamilyMemberScreenProps> = ({ navigatio
         <Text style={styles.modalMessageText}>{successMessage}</Text>
       </ModalComponent>
 
-      {/* Error Modal */}
       <ModalComponent
         visible={isErrorModalVisible}
         onClose={() => setIsErrorModalVisible(false)}
@@ -128,7 +144,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1a1a1a',
     borderBottomWidth: 1,
     borderBottomColor: '#333',
-    marginTop: 20, // Adjust for SafeAreaView/StatusBar
+    marginTop: StatusBar.currentHeight,
   },
   backButton: {
     padding: 5,
@@ -138,25 +154,29 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FFF',
   },
-  headerRightPlaceholder: { // New style for placeholder
-    width: 24, // Consistent width
+  headerRightPlaceholder: {
+    width: 24,
   },
   formContainer: {
     flexGrow: 1,
-    // The FamilyMemberForm has its own padding, so remove padding here
-    // padding: 20,
   },
-  loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(13, 13, 13, 0.8)',
+  loadingContainer: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 10,
+    backgroundColor: '#0d0d0d',
   },
   loadingText: {
     color: '#FFF',
     marginTop: 10,
     fontSize: 16,
+    textAlign: 'center',
+  },
+  errorText: {
+    color: '#E74C3C',
+    marginTop: 10,
+    fontSize: 14,
+    textAlign: 'center',
   },
   modalMessageText: {
     color: '#FFF',

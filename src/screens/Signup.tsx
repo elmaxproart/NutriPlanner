@@ -18,7 +18,6 @@ import LinearGradient from 'react-native-linear-gradient';
 import AntDesign from 'react-native-vector-icons/AntDesign';
 import Feather from 'react-native-vector-icons/Feather';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { signUp } from '../hooks/SignUpFnAuth';
 import { isValidEmail } from '../utils/helpers';
 
 interface ModalProps {
@@ -27,6 +26,7 @@ interface ModalProps {
   title: string;
   children: React.ReactNode;
   style?: any;
+  styleb?: any;
   showCloseButton?: boolean;
   animationType?: 'fade' | 'slide' | 'none';
 }
@@ -37,6 +37,7 @@ const ModalComponent = ({
   title,
   children,
   style,
+  styleb,
   showCloseButton = true,
   animationType = 'fade',
 }: ModalProps) => {
@@ -59,10 +60,58 @@ const ModalComponent = ({
           <Text style={styles.title}>{title}</Text>
           {children}
           {showCloseButton && (
-            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+            <TouchableOpacity style={styleb ? styleb : styles.closeButton} onPress={onClose}>
               <Text style={styles.buttonText}>Fermer</Text>
             </TouchableOpacity>
           )}
+        </View>
+      </Animated.View>
+    </Modal>
+  );
+};
+
+interface SuccessModalProps {
+  visible: boolean;
+  message: string;
+}
+
+const SuccessModal = ({
+  visible,
+  message,
+}: SuccessModalProps) => {
+
+  const [dots, setDots] = useState('');
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setDots(prev => (prev.length < 3 ? prev + '.' : ''));
+    }, 500);
+
+    Animated.timing(fadeAnim, {
+      toValue: visible ? 1 : 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+
+    return () => clearInterval(interval);
+  }, [visible, fadeAnim]);
+
+  if (!visible) {return null;}
+
+  return (
+    <Modal transparent visible={visible} animationType="fade">
+      <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
+        <View style={styles.contentModal}>
+          <Image
+            source={require('../assets/icons/success.png')}
+            style={styles.modalImage}
+            accessibilityLabel="Icône de succès"
+          />
+          <Text style={styles.modalMessageText}>
+            {message}
+            {dots}
+          </Text>
         </View>
       </Animated.View>
     </Modal>
@@ -77,6 +126,7 @@ const Signup: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isErrorModalVisible, setIsErrorModalVisible] = useState(false);
+  const [isSuccessModalVisible, setIsSuccessModalVisible] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [isInfoModalVisible, setIsInfoModalVisible] = useState(false);
   const [infoMessage, setInfoMessage] = useState('');
@@ -149,17 +199,14 @@ const Signup: React.FC<{ navigation: any }> = ({ navigation }) => {
 
     setIsLoading(true);
     try {
-      const  id  = 'moi'; //await signUp(email, password);
+      const id = 'moi'; // await signUp(email, password);
       await AsyncStorage.setItem('signupEmail', email);
       await AsyncStorage.setItem('signupPassword', password);
-      setInfoMessage('Compte créé avec succès ! Complétez votre profil.');
-      setIsInfoModalVisible(true);
-      if(!isInfoModalVisible){
+      setIsSuccessModalVisible(true);
       setTimeout(() => {
-        setIsInfoModalVisible(false);
+        setIsSuccessModalVisible(false);
         navigation.replace('UserOnboarding', { userId: id });
-      }, 1500);
-    }
+      }, 3000);
     } catch (error: any) {
       setErrorMessage(error.message || 'Échec de l’inscription. Veuillez réessayer.');
       setIsErrorModalVisible(true);
@@ -406,6 +453,10 @@ const Signup: React.FC<{ navigation: any }> = ({ navigation }) => {
           </TouchableOpacity>
         </View>
       </ModalComponent>
+      <SuccessModal
+        visible={isSuccessModalVisible}
+        message="Inscription réussie ! Redirection en cours"
+      />
     </SafeAreaView>
   );
 };
@@ -585,6 +636,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   contentModal: {
+    alignItems: 'center',
     backgroundColor: '#1e1e1e',
     borderRadius: 20,
     padding: 20,

@@ -1,81 +1,155 @@
 import { useState, useEffect, useCallback } from 'react';
-import { FirestoreService } from '../services/FirestoreService';
+import { useFirestore } from './useFirestore';
+import { useAuth } from './useAuth';
 import { MembreFamille } from '../constants/entities';
 import { validateMembreFamille } from '../utils/dataValidators';
 import { logger } from '../utils/logger';
-import { generateId } from '../utils/helpers';
 
-export const useFamilyData = (userId: string, familyId: string = 'family1') => {
+export const useFamilyData = () => {
+  const { userId } = useAuth();
   const [familyMembers, setFamilyMembers] = useState<MembreFamille[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { firestoreService, addEntity, updateEntity, deleteEntity, loading: firestoreLoading, error: firestoreError } = useFirestore();
+
+  useEffect(() => {
+    if (!firestoreService || !userId) {
+      setLoading(false);
+      setError(firestoreError || 'Service Firestore non initialisé ou utilisateur non connecté');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    const unsubscribe = firestoreService.listenToFamilyMembers(
+      (members) => {
+        setFamilyMembers(members);
+        setLoading(false);
+        logger.info('Family members updated', { count: members.length });
+      },
+      (err) => {
+        const errorMsg = err.message || 'Erreur lors de la récupération des membres';
+        setError(errorMsg);
+        setLoading(false);
+        logger.error('Error listening to family members', { error: errorMsg });
+      }
+    );
+
+    return () => {
+      unsubscribe();
+      logger.info('Unsubscribed from family members listener');
+    };
+  }, [firestoreService, userId, firestoreError]);
+
+  const addFamilyMember = useCallback(
+    async (member: Omit<MembreFamille, 'id' | 'dateCreation' | 'dateMiseAJour'>) => {
+      if (!firestoreService || !userId) {
+        setError('Service Firestore non initialisé ou utilisateur non connecté');
+        return null;
+      }
+
+      const errors = validateMembreFamille({ ...member, id: '', dateCreation: '', dateMiseAJour: '' });
+      if (errors.length > 0) {
+        const errorMsg = `Validation failed: ${errors.join(', ')}`;
+        setError(errorMsg);
+        logger.error('Validation failed for family member', { errors });
+        return null;
+      }
+
+      setLoading(true);
+      setError(null);
+      try {
+        const memberId = await addEntity('FamilyMembers', { ...member, userId });
+        if (memberId) {
+          logger.info('Family member added', { memberId });
+        }
+        return memberId;
+      } catch (err: any) {
+        const errorMsg = err.message || 'Erreur lors de l’ajout du membre';
+        setError(errorMsg);
+        logger.error('Error adding family member', { error: errorMsg });
+        return null;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [firestoreService, userId, addEntity]
+  );
 
   const fetchFamilyMembers = useCallback(async () => {
-    if (!userId || !familyId) {return;}
+    if (!firestoreService || !userId) {
+      setError('Service Firestore non initialisé ou utilisateur non connecté');
+      return;
+    }
+
     setLoading(true);
+    setError(null);
     try {
-      const firestoreService = new FirestoreService(userId, familyId);
-      const members = await firestoreService.getFamilyMembers();
+      const members = await firestoreService.getFamilyMembersForCurrentUser();
       setFamilyMembers(members);
       logger.info('Family members fetched', { count: members.length });
     } catch (err: any) {
-      logger.error('Error fetching family members', { error: err.message });
-      setError(err.message || 'Erreur lors de la récupération des membres');
+      const errorMsg = err.message || 'Erreur lors de la récupération des membres';
+      setError(errorMsg);
+      logger.error('Error fetching family members', { error: errorMsg });
     } finally {
       setLoading(false);
     }
-  }, [userId, familyId]);
+  }, [firestoreService, userId]);
 
-  useEffect(() => {
-    fetchFamilyMembers();
-  }, [fetchFamilyMembers]);
+  const updateFamilyMember = useCallback(
+    async (memberId: string, updates: Partial<MembreFamille>) => {
+      if (!firestoreService || !userId) {
+        setError('Service Firestore non initialisé ou utilisateur non connecté');
+        return;
+      }
 
-  const addFamilyMember = async (member: Omit<MembreFamille, 'id' | 'dateCreation' | 'dateMiseAJour'>) => {
-    const errors = validateMembreFamille(member);
-    if (errors.length > 0) {
-      logger.error('Validation failed for family member', { errors });
-      setError(`Validation failed: ${errors.join(', ')}`);
-      return null;
-    }
-    try {
-      const firestoreService = new FirestoreService(userId, familyId);
-      const memberId = await firestoreService.addFamilyMember(member);
-      await fetchFamilyMembers();
-      logger.info('Family member added', { memberId });
-      return memberId;
-    } catch (err: any) {
-      logger.error('Error adding family member', { error: err.message });
-      setError(err.message || 'Erreur lors de l’ajout du membre');
-      return null;
-    }
-  };
-
-  const createFamily = async (creatorId: string, familyName?: string) => {
-    if(!familyId){ familyId = generateId(familyName || 'family1'); }
-    try {
       setLoading(true);
-      const firestoreService = new FirestoreService(creatorId, 'family1');
-      await firestoreService.createFamily('family1', familyName);
-      logger.info('Family created', { familyId, familyName });
-    } catch (err: any) {
-      logger.error('Error creating family', { error: err.message, familyId });
-      setError(err.message || 'Erreur lors de la création de la famille');
-    } finally {
-      setLoading(false);
-    }
-  };
+      setError(null);
+      try {
+        await updateEntity('FamilyMembers', memberId, updates);
+        logger.info('Family member updated', { memberId });
+      } catch (err: any) {
+        const errorMsg = err.message || 'Erreur lors de la mise à jour du membre';
+        setError(errorMsg);
+        logger.error('Error updating family member', { error: errorMsg });
+      } finally {
+        setLoading(false);
+      }
+    },
+    [firestoreService, userId, updateEntity]
+  );
 
-  const updateFamilyMember = async (memberId: string, updates: Partial<MembreFamille>) => {
-    try {
-      const firestoreService = new FirestoreService(userId, familyId);
-      await firestoreService.updateFamilyMember(memberId, updates);
-      await fetchFamilyMembers();
-      logger.info('Family member updated', { memberId });
-    } catch (err: any) {
-      logger.error('Error updating family member', { error: err.message });
-      setError(err.message || 'Erreur lors de la mise à jour du membre');
-    }
-  };
+  const deleteFamilyMember = useCallback(
+    async (memberId: string) => {
+      if (!firestoreService || !userId) {
+        setError('Service Firestore non initialisé ou utilisateur non connecté');
+        return;
+      }
 
-  return { familyMembers, loading, error, fetchFamilyMembers, addFamilyMember, createFamily, updateFamilyMember };
+      setLoading(true);
+      setError(null);
+      try {
+        await deleteEntity('FamilyMembers', memberId);
+        logger.info('Family member deleted', { memberId });
+      } catch (err: any) {
+        const errorMsg = err.message || 'Erreur lors de la suppression du membre';
+        setError(errorMsg);
+        logger.error('Error deleting family member', { error: errorMsg });
+      } finally {
+        setLoading(false);
+      }
+    },
+    [firestoreService, userId, deleteEntity]
+  );
+
+  return {
+    familyMembers,
+    loading: loading || firestoreLoading,
+    error: error || firestoreError,
+    addFamilyMember,
+    fetchFamilyMembers,
+    updateFamilyMember,
+    deleteFamilyMember,
+  };
 };

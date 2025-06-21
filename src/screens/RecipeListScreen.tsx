@@ -32,10 +32,10 @@ const RecipeListScreen: React.FC<RecipeListScreenProps> = ({ navigation }) => {
   const familyId = 'family1';
 
   // useRecipes hook for fetching recipe data.
-  const { recipes, loading: recipesLoading, error: recipesError, fetchRecipes } = useRecipes(userId || '', familyId);
+  const { recipes, loading: recipesLoading, error: recipesError, fetchRecipes } = useRecipes();
 
   // NEW: Initialize useFirestore for deletion operations
-  const { deleteEntity, loading: firestoreLoading, error: firestoreError } = useFirestore(userId || '', familyId);
+  const { deleteEntity, loading: firestoreLoading, error: firestoreError } = useFirestore();
 
   const [isErrorModalVisible, setIsErrorModalVisible] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -84,7 +84,7 @@ const RecipeListScreen: React.FC<RecipeListScreenProps> = ({ navigation }) => {
 
   // Navigate to RecipeDetail screen, passing both recipeId and familyId
   const handleCardPress = (recipeId: string) => {
-    navigation.navigate('RecipeDetail', { recipeId});
+    navigation.navigate('RecipeDetail', { recipeId });
   };
 
   // Navigate to AddRecipe screen

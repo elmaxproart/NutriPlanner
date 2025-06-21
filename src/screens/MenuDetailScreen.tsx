@@ -51,8 +51,7 @@ const MenuDetailScreen: React.FC<{
 }> = ({ navigation, route }) => {
   const { userId, loading: authLoading } = useAuth();
   const { loading: menusLoading, error: menusError, getMenuById, updateMenu, deleteMenu } = useMenus(
-    userId || '',
-    'defaultFamilyId'
+
   ) as unknown as UseMenusReturn;
   const [menu, setMenu] = useState<Menu | null>(null);
   const [isLoading, setIsLoading] = useState(true);

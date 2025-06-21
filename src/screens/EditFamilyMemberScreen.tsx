@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, StatusBar } from 'react-native';
 import { useAuth } from '../hooks/useAuth';
-import { useFamilyData } from '../hooks/useFamilyData'; // This hook is expected to handle Firestore operations
-import FamilyMemberForm from '../components/forms/FamilyMemberForm'; // Your FamilyMemberForm component
-import { ModalComponent } from '../components/common/Modal'; // Your ModalComponent
-import { MembreFamille } from '../constants/entities'; // Your MembreFamille entity
-import AntDesign from 'react-native-vector-icons/AntDesign'; // Icon library
+import { useFamilyData } from '../hooks/useFamilyData';
+import { FamilyMemberWizard } from '../components/forms/FamilyMemberWizard';
+import { ModalComponent } from '../components/common/Modal';
+import { MembreFamille } from '../constants/entities';
+import AntDesign from 'react-native-vector-icons/AntDesign';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
-import { RootStackParamList } from '../App'; // Adjust path if needed
+import { RootStackParamList } from '../App';
 
 type EditFamilyMemberScreenNavigationProp = StackNavigationProp<RootStackParamList, 'EditFamilyMember'>;
 type EditFamilyMemberScreenRouteProp = RouteProp<RootStackParamList, 'EditFamilyMember'>;
@@ -19,29 +19,21 @@ interface EditFamilyMemberScreenProps {
 }
 
 const EditFamilyMemberScreen: React.FC<EditFamilyMemberScreenProps> = ({ navigation, route }) => {
-  const { memberId } = route.params; // Get memberId from navigation params
-  const { userId } = useAuth(); // Get current userId from useAuth
-
-  // --- IMPORTANT ---
-  // You need a valid familyId here. If it's not dynamically obtained from user profile
-  // (which you explicitly don't want to use), you must provide it from another source.
-  // For this example, I'm using a placeholder 'your_hardcoded_family_id_here'.
-  // In a real app, this should come from user's authenticated family context.
-  const hardcodedFamilyId = 'your_hardcoded_family_id_here'; // <--- REMEMBER TO CHANGE THIS!
-
-  const { familyMembers, loading: familyLoading, error: familyError, updateFamilyMember } = useFamilyData(userId || '', hardcodedFamilyId);
+  const { memberId } = route.params;
+  const { userId } = useAuth();
+  const { familyMembers, loading: familyLoading, error: familyError, updateFamilyMember } = useFamilyData();
 
   const [memberToEdit, setMemberToEdit] = useState<MembreFamille | null>(null);
   const [isSuccessModalVisible, setIsSuccessModalVisible] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [isErrorModalVisible, setIsErrorModalVisible] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [isUpdating, setIsUpdating] = useState(false); // Local state for the update operation itself
+  const [isUpdating, setIsUpdating] = useState(false);
 
-  // Effect to find the member to edit from the fetched family members
+  // Effect to find the member to edit
   useEffect(() => {
     if (familyMembers && memberId) {
-      const foundMember = familyMembers.find(m => m.id === memberId);
+      const foundMember = familyMembers.find((m) => m.id === memberId);
       if (foundMember) {
         setMemberToEdit(foundMember);
       } else {
@@ -51,7 +43,7 @@ const EditFamilyMemberScreen: React.FC<EditFamilyMemberScreenProps> = ({ navigat
     }
   }, [familyMembers, memberId]);
 
-  // Effect to display errors from useFamilyData hook
+  // Effect to display errors from useFamilyData
   useEffect(() => {
     if (familyError) {
       setErrorMessage(familyError);
@@ -59,62 +51,60 @@ const EditFamilyMemberScreen: React.FC<EditFamilyMemberScreenProps> = ({ navigat
     }
   }, [familyError]);
 
-  // Callback to handle data submitted from FamilyMemberForm
-  const handleSubmit = useCallback(async (formData: Omit<MembreFamille, 'id' | 'dateCreation' | 'dateMiseAJour'>) => {
-    if (!memberToEdit) {
-      setErrorMessage('Aucun membre sélectionné pour la mise à jour. Veuillez recharger l\'écran.');
-      setIsErrorModalVisible(true);
-      return;
-    }
-    if (!userId || !hardcodedFamilyId) {
+
+  const handleSubmit = useCallback(
+    async (formData: Omit<MembreFamille, 'id' | 'dateCreation' | 'dateMiseAJour'>) => {
+      if (!memberToEdit) {
+        setErrorMessage('Aucun membre sélectionné pour la mise à jour.');
+        setIsErrorModalVisible(true);
+        return;
+      }
+      if (!userId || !memberToEdit.familyId) {
         setErrorMessage('Erreur: Identifiants utilisateur ou famille manquants.');
         setIsErrorModalVisible(true);
         return;
-    }
+      }
 
-    setIsUpdating(true); // Start showing the update loading overlay
-    setErrorMessage(''); // Clear previous errors
-    setSuccessMessage(''); // Clear previous success messages
+      setIsUpdating(true);
+      setErrorMessage('');
+      setSuccessMessage('');
 
-    try {
-      // The `formData` comes directly from the FamilyMemberForm
-      // The `memberToEdit.id` is the ID of the document to update
-      await updateFamilyMember(memberToEdit.id, formData);
-      setSuccessMessage('Membre de la famille mis à jour avec succès !');
-      setIsSuccessModalVisible(true);
-      // Navigate back after a short delay to allow user to see success message
-      setTimeout(() => {
-        setIsSuccessModalVisible(false);
-        navigation.goBack(); // Go back to the previous screen (e.g., FamilyMembersList)
-      }, 1500);
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Une erreur est survenue lors de la mise à jour du membre de la famille.');
-      setIsErrorModalVisible(true);
-    } finally {
-      setIsUpdating(false); // Stop showing the update loading overlay
-    }
-  }, [memberToEdit, updateFamilyMember, navigation, userId, hardcodedFamilyId]);
+      try {
+        await updateFamilyMember(memberToEdit.id, formData);
+        setSuccessMessage('Membre de la famille mis à jour avec succès !');
+        setIsSuccessModalVisible(true);
+        setTimeout(() => {
+          setIsSuccessModalVisible(false);
+          navigation.goBack();
+        }, 1500);
+      } catch (err: any) {
+        setErrorMessage(err.message || 'Erreur lors de la mise à jour du membre.');
+        setIsErrorModalVisible(true);
+      } finally {
+        setIsUpdating(false);
+      }
+    },
+    [memberToEdit, updateFamilyMember, navigation, userId]
+  );
 
-  // Handle cancellation from the form
+  // Handle cancellation
   const handleCancel = useCallback(() => {
-    navigation.goBack(); // Navigate back to the previous screen
+    navigation.goBack();
   }, [navigation]);
 
-  // Show global loading indicator while family data is being fetched
-  if (familyLoading || !userId || !hardcodedFamilyId || hardcodedFamilyId === 'your_hardcoded_family_id_here') {
+  // Show loading while fetching data
+  if (familyLoading || !userId) {
     return (
       <View style={styles.loadingContainer}>
         <StatusBar backgroundColor="#0d0d0d" barStyle="light-content" />
         <ActivityIndicator size="large" color="#f7b733" />
-        <Text style={styles.loadingText}>Chargement des informations de la famille...</Text>
-        {(!userId || !hardcodedFamilyId || hardcodedFamilyId === 'your_hardcoded_family_id_here') && (
-            <Text style={styles.errorText}>Veuillez vous connecter et configurer l'ID de la famille.</Text>
-        )}
+        <Text style={styles.loadingText}>Chargement des informations...</Text>
+        {!userId && <Text style={styles.errorText}>Veuillez vous connecter.</Text>}
       </View>
     );
   }
 
-  // If memberToEdit is null after loading, it means the member wasn't found or an error occurred
+  // Show error if member not found
   if (!memberToEdit) {
     return (
       <View style={styles.emptyContainer}>
@@ -123,7 +113,6 @@ const EditFamilyMemberScreen: React.FC<EditFamilyMemberScreenProps> = ({ navigat
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.goBackButton}>
           <Text style={styles.goBackButtonText}>Retour</Text>
         </TouchableOpacity>
-        {/* Error Modal for member not found */}
         <ModalComponent
           visible={isErrorModalVisible}
           onClose={() => setIsErrorModalVisible(false)}
@@ -143,30 +132,26 @@ const EditFamilyMemberScreen: React.FC<EditFamilyMemberScreenProps> = ({ navigat
           <AntDesign name="arrowleft" size={24} color="#FFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Modifier le membre</Text>
-        <View style={styles.w } />
+        <View style={styles.headerRightPlaceholder} />
       </View>
 
       <ScrollView contentContainerStyle={styles.formContainer}>
-        {/* The loading overlay for the update operation */}
         {isUpdating && (
           <View style={styles.loadingOverlay}>
             <ActivityIndicator size="large" color="#f7b733" />
             <Text style={styles.loadingText}>Mise à jour du membre...</Text>
           </View>
         )}
-        {/* Pass the member data, onSave, onCancel, and loading state to the form */}
-        <FamilyMemberForm
+        <FamilyMemberWizard
           isEditing
           initialData={memberToEdit}
-          onSave={handleSubmit} // This is the new callback for the form
-          onCancel={handleCancel} // Pass the handleCancel callback
-          loading={isUpdating} // Tell the form about the saving state
-          userId={userId || ''} // Ensure userId is passed
-          familyId={hardcodedFamilyId} // Ensure familyId is passed
+          onSave={handleSubmit}
+          onCancel={handleCancel}
+          loading={isUpdating}
+          familyId={memberToEdit.familyId!}
         />
       </ScrollView>
 
-      {/* Success Modal (controlled by this screen) */}
       <ModalComponent
         visible={isSuccessModalVisible}
         onClose={() => setIsSuccessModalVisible(false)}
@@ -175,7 +160,6 @@ const EditFamilyMemberScreen: React.FC<EditFamilyMemberScreenProps> = ({ navigat
         <Text style={styles.modalMessageText}>{successMessage}</Text>
       </ModalComponent>
 
-      {/* Error Modal (controlled by this screen) */}
       <ModalComponent
         visible={isErrorModalVisible}
         onClose={() => setIsErrorModalVisible(false)}
@@ -201,10 +185,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1a1a1a',
     borderBottomWidth: 1,
     borderBottomColor: '#333',
-    paddingTop: StatusBar.currentHeight,
-  },
-  w:{
-    width: 24,
+    marginTop: StatusBar.currentHeight,
   },
   backButton: {
     padding: 5,
@@ -214,10 +195,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FFF',
   },
+  headerRightPlaceholder: {
+    width: 24,
+  },
   formContainer: {
     flexGrow: 1,
-    padding: 20,
-    position: 'relative', // Needed for absolute positioning of loadingOverlay
+    position: 'relative',
   },
   loadingContainer: {
     flex: 1,
@@ -260,12 +243,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   loadingOverlay: {
-    ...StyleSheet.absoluteFillObject, // Covers the entire formContainer
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(13, 13, 13, 0.8)',
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 10, // Ensure it's above the form content
-    borderRadius: 15, // Optional: match form card style if applies
+    zIndex: 10,
+    borderRadius: 15,
   },
   modalMessageText: {
     color: '#FFF',

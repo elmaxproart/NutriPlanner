@@ -1,54 +1,92 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withDelay, withTiming } from 'react-native-reanimated';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Animated } from 'react-native';
+import FontAwesome from 'react-native-vector-icons/FontAwesome';
+
+
+const COLORS = {
+  text: '#FFFFFF',
+  textSecondary: '#CCCCCC',
+  secondary: '#F2A03D',
+};
+
+const FONTS = {
+  title: 20,
+  description: 14,
+};
+
+const SPACING = {
+  xs: 4,
+  s: 8,
+  m: 16,
+};
 
 const FeaturesScreenContent: React.FC = () => {
-  const opacity1 = useSharedValue(0);
-  const opacity2 = useSharedValue(0);
-  const translateY1 = useSharedValue(20);
-  const translateY2 = useSharedValue(20);
+  const fadeAnimIcon = useRef(new Animated.Value(0)).current;
+  const fadeAnimTitle = useRef(new Animated.Value(0)).current;
+  const fadeAnimDesc = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    opacity1.value = withDelay(200, withTiming(1, { duration: 600 }));
-    opacity2.value = withDelay(400, withTiming(1, { duration: 600 }));
-    translateY1.value = withDelay(200, withTiming(0, { duration: 600 }));
-    translateY2.value = withDelay(400, withTiming(0, { duration: 600 }));
-  }, [opacity1, opacity2, translateY1, translateY2]);
-
-  const animatedStyle1 = useAnimatedStyle(() => ({
-    opacity: opacity1.value,
-    transform: [{ translateY: translateY1.value }],
-  }));
-  const animatedStyle2 = useAnimatedStyle(() => ({
-    opacity: opacity2.value,
-    transform: [{ translateY: translateY2.value }],
-  }));
+    Animated.sequence([
+      Animated.timing(fadeAnimIcon, {
+        toValue: 1,
+        duration: 500,
+        delay: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fadeAnimTitle, {
+        toValue: 1,
+        duration: 500,
+        delay: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fadeAnimDesc, {
+        toValue: 1,
+        duration: 500,
+        delay: 300,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [fadeAnimIcon, fadeAnimTitle, fadeAnimDesc]);
 
   return (
-    <View>
-      <Animated.View style={animatedStyle1}>
-        <Text style={styles.title}>Fonctionnalités Intelligentes</Text>
+    <View style={styles.container}>
+      <Animated.View style={[styles.iconContainer, { opacity: fadeAnimIcon }]}>
+        <FontAwesome name="lightbulb-o" size={30} color={COLORS.secondary} />
       </Animated.View>
-      <Animated.Text style={[styles.description, animatedStyle2]}>
-        Explorez des suggestions de menus et de listes de courses personnalisées.
+      <Animated.View style={{ opacity: fadeAnimTitle }}>
+        <Text style={styles.title}>
+          Fonctionnalités de Famil<Text style={styles.iaText}>IA</Text>
+        </Text>
+      </Animated.View>
+      <Animated.Text style={[styles.description, { opacity: fadeAnimDesc }]}>
+        Menus intelligents et listes de courses pour toute la famille.
       </Animated.Text>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
+  container: {
+    alignItems: 'center',
+  },
+  iconContainer: {
+    marginBottom: SPACING.s,
+  },
   title: {
-    fontSize: 24,
-    color: '#fff',
-    fontWeight: 'bold',
+    fontSize: FONTS.title,
+    color: COLORS.text,
+    fontWeight: '700',
     textAlign: 'center',
-    marginBottom: 10,
+  },
+  iaText: {
+    color: COLORS.secondary,
   },
   description: {
-    fontSize: 16,
-    color: '#aaa',
+    fontSize: FONTS.description,
+    color: COLORS.textSecondary,
     textAlign: 'center',
-    marginBottom: 20,
+    marginTop: SPACING.s,
+    lineHeight: 20,
   },
 });
 

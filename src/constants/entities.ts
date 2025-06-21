@@ -1,350 +1,380 @@
-// types/entities.ts
-
-// Importation des types énumérés et des catégories depuis d'autres fichiers
-import type { IngredientCategory, RecipeCategory, MealType, UserRole, StoreCategory, Genre } from './categories';
-import type { Unit } from './units';
+import type {
+  IngredientCategory,
+  RecipeCategory,
+  MealType,
+  UserRole,
+  StoreCategory,
+  Genre,
+} from './categories';
 import type { Currency } from './config';
 import { ImageSourcePropType } from 'react-native';
-
+import {
+  TextContent,
+  JsonContent,
+  ImageContent,
+  MenuSuggestionContent,
+  ShoppingListSuggestionContent,
+  RecipeAnalysisContent,
+  RecipeSuggestionContent,
+  RecipePersonnalizedContent,
+  ToolUseContent,
+  ToolResponseContent,
+  ErrorContent,
+  RecipeContent,
+  MenuContent,
+  ShoppingListContent,
+  BudgetContent,
+  IngredientAvailabilityContent,
+  FoodTrendsContent,
+  NutritionalInfoContent,
+  TroubleshootProblemContent,
+  CreativeIdeasContent,
+  StoreSuggestionContent,
+  RecipeCompatibilityContent,
+  AudioContent,
+} from '../types/messageTypes';
+import { Unit } from './units';
 
 /**
- * @interface BaseEntity
- * @description Définit les champs communs à toutes les entités du système.
- * Chaque entité dans la base de données partagera ces propriétés fondamentales.
+ * Base interface for all entities in the system.
+ * Ensures common fields for consistency across entities.
  */
 interface BaseEntity {
-  id: string; // Identifiant unique de l'entité (ex: UUID ou ID de document Firestore).
-  familyId: string; // L'ID de la famille à laquelle cette entité appartient, permettant le support multi-familles.
-  createurId: string; // L'ID de l'utilisateur qui a créé cette entité.
-  dateCreation: string; // Date et heure de création de l'entité (format ISO 8601: AAAA-MM-DDTHH:mm:ssZ).
-  dateMiseAJour?: string; // Optionnel: Date et heure de la dernière mise à jour de l'entité (format ISO 8601).
+  id: string; // Unique identifier (e.g., UUID or Firestore document ID)
+  createurId: string; // ID of the user who created the entity
+  dateCreation: string; // Creation timestamp (ISO 8601: YYYY-MM-DDTHH:mm:ssZ)
+  dateMiseAJour?: string; // Optional: Last update timestamp (ISO 8601)
 }
 
-
 /**
- * @interface Localisation
- * @description Représente les informations géographiques et d'adresse pour un lieu physique.
- * Principalement utilisé pour les magasins.
+ * Represents geographic and address information for a physical location.
+ * Primarily used for stores.
  */
 export interface Localisation {
-  latitude: number; // Coordonnée géographique de latitude.
-  longitude: number; // Coordonnée géographique de longitude.
-  adresse: string; // Adresse civique (ex: '123 Rue de Paris').
-  ville?: string; // Optionnel: La ville (ex: 'Paris').
-  codePostal?: string; // Optionnel: Le code postal (ex: '75001').
-  pays?: string; // Optionnel: Le pays (ex: 'France').
+  latitude: number; // Latitude coordinate
+  longitude: number; // Longitude coordinate
+  adresse: string; // Street address (e.g., '123 Rue de Paris')
+  ville?: string; // Optional: City (e.g., 'Paris')
+  codePostal?: string; // Optional: Postal code (e.g., '75001')
+  pays?: string; // Optional: Country (e.g., 'France')
 }
 
 /**
- * @interface Horaire
- * @description Définit les heures d'ouverture et de fermeture pour un jour spécifique.
- * Utilisé pour les horaires d'ouverture des magasins.
+ * Defines opening and closing hours for a specific day.
+ * Used for store schedules.
  */
 export interface Horaire {
-  jour: string;
-  ouverture: string;
-  fermeture: string;
+  jour: string; // Day of the week (e.g., 'Lundi')
+  ouverture: string; // Opening time (e.g., '09:00')
+  fermeture: string; // Closing time (e.g., '18:00')
 }
 
 /**
- * @interface Contact
- * @description Contient diverses coordonnées pour une entité, généralement un magasin.
+ * Contains contact details for an entity, typically a store.
  */
 export interface Contact {
-  telephone: string;
-  email?: string;
-  siteWeb?: string;
+  telephone: string; // Phone number
+  email?: string; // Optional email address
+  siteWeb?: string; // Optional website URL
 }
 
-
 /**
- * @interface Promotion
- * @description Décrit une offre spéciale ou une réduction sur un article, associée à un magasin.
+ * Describes a promotional offer or discount for a store item.
  */
 export interface Promotion {
-  articleId: string; // L'ID de l'article (StoreItem) en promotion.
-  reduction: number; // Le pourcentage de réduction (ex: 10 pour 10% de réduction).
-  dateDebut: string; // Date de début de la promotion (format AAAA-MM-DD).
-  dateFin: string; // Date de fin de la promotion (format AAAA-MM-DD).
-  description?: string; // Optionnel: Une description plus détaillée de la promotion (ex: "Achetez-en 2, le 3ème offert").
+  articleId: string; // ID of the promoted item
+  reduction: number;
+  dateDebut: string;
+  dateFin?: string;
+  description?: string; // Optional: Promotion details (e.g., 'Buy 2, get 1 free')
 }
 
 /**
- * @interface StoreItem
- * @description Représente un produit spécifique vendu dans un magasin.
+ * Represents a product available in a store.
  */
 export interface StoreItem {
-  id: string; // ID unique de cet article de magasin (peut être le même que Ingredient.id si directement lié).
-  storeId: string; // Référence à l'ID du magasin.
-  nom: string; // Nom du produit (ex: "Tomates").
-  categorie: IngredientCategory | undefined; // Catégorie de l'article, s'aligne avec IngredientCategory.
-  prixUnitaire: number;
-  unite: Unit; // ex: 'kg', 'unité', 'paquet'.
-  stockDisponible: number; // Quantité actuellement en stock dans le magasin.
-  imageUrl?: string; // URL de l'image du produit.
-  description?: string;
-  marque?: string;
-  dateMiseAJour: string; // AAAA-MM-DD: Dernière mise à jour des données de cet article pour ce magasin.
+  id: string; // Unique ID for the store item
+  storeId: string; // Reference to the store ID
+  nom: string; // Product name (e.g., 'Tomates')
+  categorie?: IngredientCategory; // Product category (e.g., 'vegetable')
+  prixUnitaire: number; // Unit price
+  unite: Unit; // Unit of measurement (e.g., 'kg', 'unit')
+  stockDisponible: number; // Available stock quantity
+  imageUrl?: string; // Optional image URL
+  description?: string; // Optional description
+  marque?: string; // Optional brand
+  dateMiseAJour: string; // Last update date (YYYY-MM-DD)
 }
 
-
 /**
- * @interface Store
- * @description Représente un magasin physique ou en ligne où des produits peuvent être achetés.
- * Inclut des informations détaillées sur l'emplacement, les horaires, les contacts et les articles.
+ * Represents a physical or online store.
  */
 export interface Store {
-  id: string;
-  nom: string;
-  categorie: StoreCategory; // ex: 'supermarché', 'poissonnerie', 'en ligne'.
-  localisation?: Localisation; // Optionnel: Détails de localisation physique.
-  horaires?: Horaire[]; // Optionnel: Tableau des horaires d'ouverture pour chaque jour.
-  contact?: Contact; // Optionnel: Informations de contact du magasin.
-  articles: StoreItem[]; // Tableau des produits disponibles dans ce magasin.
-  promotions?: Promotion[]; // Optionnel: Tableau des promotions actuelles.
-  dateCreation: string; // Date de création de l'entrée du magasin (format ISO 8601).
-  dateMiseAJour?: string; // Optionnel: Date de la dernière mise à jour de l'entrée du magasin (format ISO 8601).
+  id: string; // Unique store ID
+  nom: string; // Store name
+  categorie: StoreCategory; // Store type (e.g., 'supermarket', 'online')
+  localisation?: Localisation; // Optional: Physical location details
+  horaires?: Horaire[]; // Optional: Array of opening hours
+  contact?: Contact; // Optional: Contact information
+  articles: StoreItem[]; // Available products
+  promotions?: Promotion[]; // Optional: Current promotions
+  dateCreation: string; // Creation timestamp (ISO 8601)
+  dateMiseAJour?: string; // Optional: Last update timestamp (ISO 8601)
 }
 
 /**
- * @interface MembreFamille
- * @augments BaseEntity
- * @description Représente le profil d'un membre de la famille.
- * Contient des informations personnelles, des préférences et des historiques.
+ * Represents a family member’s profile.
  */
 export interface MembreFamille extends BaseEntity {
-  userId: string; // L'ID d'authentification utilisateur associé à ce membre de la famille.
-  nom: string;
-  prenom: string;
-  dateNaissance: string; // AAAA-MM-DD.
-  genre: Genre;
-  role: UserRole;
-  preferencesAlimentaires: string[]; // ex: 'végétarien', 'sans gluten', 'bio'.
-  allergies: string[]; // ex: 'arachides', 'lactose'.
-  restrictionsMedicales: string[]; // ex: 'diabète', 'hypertension'.
-  photoProfil?: string; // URL vers l'image de profil.
-  repasFavoris?: string[]; // Tableau des IDs de Recettes favorites.
-  historiqueRepas: HistoriqueRepas[]; // Historique des repas consommés par ce membre.
+  userId: string; // User ID
+  nom: string; // Last name
+  prenom: string; // First name
+  dateNaissance: string; // Birth date (YYYY-MM-DD)
+  genre: Genre; // Gender
+  familyId?: string; // Optional: Family ID
+  role: UserRole; // Role (e.g., 'parent', 'child')
+  preferencesAlimentaires: string[]; // Dietary preferences (e.g., 'vegetarian')
+  allergies: string[]; // Allergies (e.g., 'peanuts')
+  restrictionsMedicales: string[]; // Medical restrictions (e.g., 'diabetes')
+  photoProfil?: string; // Optional: Profile picture URL
+  repasFavoris?: string[]; // Optional: Favorite recipe IDs
+  historiqueRepas: HistoriqueRepas[]; // Meal history
   contactUrgence: {
-    nom: string;
-    telephone: string;
+    nom: string; // Emergency contact name
+    telephone: string; // Emergency contact phone
   };
   aiPreferences: {
-    niveauEpices: number; // Échelle de 1 à 5 pour le niveau d'épices préféré.
-    apportCaloriqueCible: number; // Apport calorique quotidien cible en kcal.
-    cuisinesPreferees: string[]; // ex: 'Italienne', 'Asiatique'.
+    niveauEpices: number; // Spice level preference (1-5)
+    apportCaloriqueCible: number; // Target daily calorie intake (kcal)
+    cuisinesPreferees: string[]; // Preferred cuisines (e.g., 'Italian')
   };
   historiqueSante?: {
-    condition: string;
-    dateDiagnostic: string; // AAAA-MM-DD.
-    notesMedecin?: string;
+    condition: string; // Health condition
+    dateDiagnostic: string; // Diagnosis date (YYYY-MM-DD)
+    notesMedecin?: string; // Optional: Doctor’s notes
   }[];
-  niveauAcces: 'admin' | 'membre'; // Niveau d'accès dans l'application pour ce membre.
+  niveauAcces: 'admin' | 'membre'; // Access level
 }
 
-
 /**
- * @interface Ingredient
- * @augments BaseEntity
- * @description Représente un ingrédient disponible dans l'inventaire de la famille.
- * Contient des informations sur la quantité, l'unité, la catégorie et les valeurs nutritionnelles.
+ * Represents an ingredient in the family’s inventory.
  */
 export interface Ingredient extends BaseEntity {
-  nom: string;
-  quantite: number; // Quantité actuelle en stock.
-  unite: Unit; // ex: 'kg', 'l', 'unité'.
-  categorie?: IngredientCategory; // ex: 'légume', 'viande', 'fruit'.
-  prixUnitaire?: number; // Prix par unité à l'achat.
-  description?: string;
-  perissable: boolean; // Indique si l'ingrédient est périssable.
-  datePeremption?: string; // AAAA-MM-DD.
-  dateAchat?: string; // AAAA-MM-DD: Date du dernier achat de l'ingrédient.
-  stockActuel: number; // Représente la quantité physique en stock.
-  marque?: string;
-  fournisseur?: { // Tableau des magasins où cet ingrédient peut être acheté.
-    storeId: string; // Référence à l'ID du magasin.
-    prixUnitaire: number; // Prix à ce magasin spécifique.
-    dernierAchat?: string; // AAAA-MM-DD: Dernière fois acheté dans ce magasin.
+  nom: string; // Ingredient name
+  quantite: number; // Current quantity in stock
+  unite: Unit; // Unit of measurement (e.g., 'kg')
+  categorie?: IngredientCategory; // Optional: Category (e.g., 'vegetable')
+  prixUnitaire?: number; // Optional: Unit price
+  description?: string; // Optional: Description
+  perissable: boolean; // Whether the ingredient is perishable
+  datePeremption?: string; // Optional: Expiry date (YYYY-MM-DD)
+  dateAchat?: string; // Optional: Purchase date (YYYY-MM-DD)
+  stockActuel: number; // Physical stock quantity
+  marque?: string; // Optional: Brand
+  fournisseur?: {
+    storeId: string; // Store ID
+    prixUnitaire: number; // Price at this store
+    dernierAchat?: string; // Last purchase date (YYYY-MM-DD)
   }[];
   valeurNutritionnelle?: {
-    calories: number; // par 100g/ml ou par unité.
-    proteines: number;
-    glucides: number;
-    lipides: number;
-    fibres?: number;
+    calories: number; // Calories per 100g/ml or unit
+    proteines: number; // Proteins
+    glucides: number; // Carbohydrates
+    lipides: number; // Fats
+    fibres?: number; // Optional: Fibers
   };
 }
 
-
 /**
- * @interface Recette
- * @augments BaseEntity
- * @description Représente une recette avec ses ingrédients, instructions et métadonnées.
+ * Represents a recipe with ingredients and instructions.
  */
 export interface Recette extends BaseEntity {
-  nom: string;
-  ingredients: Ingredient[];
-  instructions: string; // Texte complet des instructions.
-  tempsPreparation: number; // En minutes.
-  tempsCuisson?: number; // En minutes.
-  portions: number; // Nombre de portions.
-  categorie: RecipeCategory; // ex: 'plat principal', 'dessert', 'apéritif'.
-  difficulte: 'facile' | 'moyen' | 'difficile';
-  imageUrl?: string; // URL vers l'image de la recette.
-  etapesPreparation: { texte: string; ordre: number }[]; // Étapes ordonnées pour les recettes complexes.
-  tags?: string[]; // ex: 'rapide', 'sain', 'enfant'.
-  coutEstime?: number; // Coût estimé pour réaliser la recette.
+  nom: string; // Recipe name
+  ingredients: Ingredient[]; // Required ingredients
+  instructions: string[]; // Cooking instructions
+  tempsPreparation: number; // Preparation time (minutes)
+  tempsCuisson?: number; // Optional: Cooking time (minutes)
+  portions: number; // Number of servings
+  categorie: RecipeCategory; // Category (e.g., 'main dish')
+  difficulte: 'facile' | 'moyen' | 'difficile'; // Difficulty level
+  imageUrl?: string; // Optional: Recipe image URL
+  etapesPreparation: { texte: string; ordre: number }[]; // Preparation steps
+  tags?: string[]; // Optional: Tags (e.g., 'quick', 'healthy')
+  coutEstime?: number; // Optional: Estimated cost
   variantes?: {
-    nom: string;
-    modifications: string; // Description des modifications pour cette variante.
+    nom: string; // Variant name
+    modifications: string; // Description of modifications
   }[];
-  tutorielVideo?: string; // URL vers un tutoriel vidéo.
+  tutorielVideo?: string; // Optional: Video tutorial URL
   commentaires?: {
-    userId: string; // Référence à MembreFamille.userId.
-    texte: string;
-    date: string; // Format ISO 8601.
+    userId: string; // Commenter’s user ID
+    texte: string; // Comment text
+    date: string; // Comment date (ISO 8601)
   }[];
   aiAnalysis?: {
-    caloriesTotales: number; // Calories totales pour la recette.
-    niveauEpices: number; // Échelle de 1 à 5.
-    adequationMembres: { [membreId: string]: 'adapté' | 'non adapté' | 'modifié' }; // Adéquation pour chaque membre de la famille.
+    caloriesTotales: number; // Total calories
+    niveauEpices: number; // Spice level (1-5)
+    adequationMembres: { [membreId: string]: 'adapté' | 'non adapté' | 'modifié' }; // Member suitability
   };
 }
 
-
-
 /**
- * @interface AiInteraction
- * @description Représente une seule interaction (message/réponse) au sein d'une conversation AI.
- * Le contenu peut être du texte, des données structurées (JSON), ou des références d'image.
+ * Represents a single interaction (message or response) in an AI conversation.
  */
 export interface AiInteraction {
-  id?: string; // Optionnel: sera généré par Firestore lors de l'ajout
-  content: string | object | { type: 'image', uri: string, mimeType: string, data: string }; // Texte, JSON structuré, ou données d'image.
-  isUser: boolean; // Vrai si le message vient de l'utilisateur, Faux si de l'IA.
-  timestamp: string; // Date et heure de l'interaction (format ISO 8601).
-  type: 'text' | 'json' | 'image' | 'menu_suggestion' | 'shopping_list_suggestion' | 'recipe_analysis' | 'recipe_suggestion' | 'tool_use' | 'tool_response' | 'error'; // Catégorise le contenu.
-  dateCreation?: string; // Auto-généré par FirestoreService.
-  dateMiseAJour?: string; // Auto-généré par FirestoreService.
-  conversationId?: string; // Ajouté pour faciliter la recherche si AiInteraction n'est pas une sous-collection.
+  id: string; // Unique interaction ID
+  content: AiInteractionContent; // Content of the interaction
+  isUser: boolean; // True if from user, false if from AI
+  timestamp: string; // Timestamp (ISO 8601, e.g., '2025-06-16T08:12:00.000Z')
+  type: AiInteractionType; // Interaction type
+  dateCreation: string; // Creation timestamp (Firestore format)
+  dateMiseAJour: string; // Last update timestamp (Firestore format)
+  conversationId: string;
 }
+
+/**
+ * Types of AI interactions, defining the content structure.
+ */
+export type AiInteractionType =
+  | 'text'
+  | 'json'
+  | 'image'
+  | 'menu_suggestion'
+  | 'shopping_list_suggestion'
+  | 'recipe_analysis' // Recipe analysis
+  | 'recipe_suggestion' // Recipe suggestion
+  | 'tool_use' // Tool usage
+  | 'tool_response' // Tool response
+  | 'error' // Error message
+  | 'recipe' // Recipe entity
+  | 'menu' // Menu entity
+  | 'shopping' // Shopping list entity
+  | 'budget' // Budget entity
+  | 'ingredient_availability' // Ingredient availability
+  | 'food_trends' // Food trends
+  | 'nutritional_info' // Nutritional information
+  | 'troubleshoot_problem' // Troubleshooting
+  | 'creative_ideas' // Creative ideas
+  | 'stores' // Store suggestions
+  | 'recipe_compatibility'
+  | 'audio'
+  | 'recipe_personalized';
+
+/**
+ * Union type for all possible AI interaction content.
+ */
+export type AiInteractionContent =
+  | TextContent
+  | JsonContent
+  | ImageContent
+  | MenuSuggestionContent
+  | ShoppingListSuggestionContent
+  | RecipeAnalysisContent
+  | RecipeSuggestionContent
+  | ToolUseContent
+  | ToolResponseContent
+  | ErrorContent
+  | RecipeContent
+  | MenuContent
+  | ShoppingListContent
+  | BudgetContent
+  | IngredientAvailabilityContent
+  | FoodTrendsContent
+  | NutritionalInfoContent
+  | TroubleshootProblemContent
+  | CreativeIdeasContent
+  | StoreSuggestionContent
+  | RecipeCompatibilityContent
+  | AudioContent
+  | RecipePersonnalizedContent;
 
 
 /**
- * @interface Conversation
- * @description Représente un fil de conversation complet avec l'assistant IA.
- * Elle contient l'historique des messages sous forme d'un tableau d'AiInteraction.
+ * Represents a conversation thread with the AI assistant.
  */
 export interface Conversation {
-  id?: string;
-  userId: string; // L'ID de l'utilisateur propriétaire de cette conversation.
-  familyId: string; // L'ID de la famille à laquelle cette conversation est associée.
-  messages: AiInteraction[]; // Tableau des messages dans cette conversation, ordonnés chronologiquement.
-  date: string; // Chaîne ISO 8601 représentant la date de début / dernière activité de la conversation.
-  title: string; // Un titre court pour la conversation (ex: "Menu semaine prochaine", "Liste de courses pour le dîner").
-  dateCreation?: string;
-  dateMiseAJour?: string;
+  id?: string; // Optional: Conversation ID
+  userId: string; // User ID
+  messages: AiInteraction[]; // Array of interactions
+  date: string; // Conversation date
+  title: string; // Conversation title
+  dateCreation?: string; // Creation timestamp
+  dateMiseAJour?: string; // Last update timestamp
 }
 
-
 /**
- * @interface HistoriqueRepas
- * @description Enregistre les détails d'un repas consommé pour un membre de la famille.
- * Cette interface est imbriquée dans MembreFamille pour un accès direct à l'historique personnel.
+ * Records details of a meal consumed by a family member.
  */
 export interface HistoriqueRepas {
-  id: string; // ID unique pour cet enregistrement historique.
-  menuId: string; // Référence à Menu.id si ce repas faisait partie d'un menu planifié.
-  date: string; // AAAA-MM-DD: Date de consommation.
-  typeRepas: MealType;
-  dateCreation: string; // Format ISO 8601.
-  dateMiseAJour: string; // Format ISO 8601.
-  notes?: string; // Notes personnelles sur le repas.
+  id: string; // Unique ID
+  menuId: string; // Reference to Menu ID
+  date: string; // Consumption date (YYYY-MM-DD)
+  typeRepas: MealType; // Meal type (e.g., 'Dinner')
+  dateCreation: string; // Creation timestamp (ISO 8601)
+  dateMiseAJour: string; // Last update timestamp (ISO 8601)
+  notes?: string; // Optional: Personal notes
   evaluation?: {
-    note: number; // Note de 1 à 5 étoiles.
-    commentaire: string;
+    note: number; // Rating (1-5)
+    commentaire: string; // Comment
   };
 }
 
-
-
 /**
- * @interface Menu
- * @augments BaseEntity
- * @description Représente un repas planifié ou un repas qui a été consommé.
- * Inclut les recettes, le type de repas, les coûts et le statut.
+ * Represents a planned or consumed meal.
  */
 export interface Menu extends BaseEntity {
-  date: string; // AAAA-MM-DD: La date à laquelle ce repas est planifié ou a été consommé.
-  typeRepas: MealType; // ex: 'Petit déjeuner', 'Déjeuner', 'Dîner', 'Collation'.
-  recettes: Omit<Recette[] , 'id'>; // Références aux IDs de Recettes.
-  foodName?: string; // Optionnel: Un nom générique pour l'aliment si aucune recette spécifique n'est utilisée.
-  foodPick?: string; // Optionnel: Un choix spécifique pour le repas (ex: "Pizza commandée").
-  description?: string; // Notes additionnelles sur le repas.
-  coutTotalEstime?: number;
-  image?: ImageSourcePropType;
-  coutReel?: number;
-  statut: 'planifié' | 'terminé' | 'annulé';
-  notes?: string;
+  date: string; // Meal date (YYYY-MM-DD)
+  typeRepas: MealType;
+  recettes: Recette[]; // Array of recipes
+  foodName?: string; // Optional: Generic food name
+  foodPick?: string; // Optional: Specific food choice (e.g., 'Ordered pizza')
+  description?: string; // Optional: Additional notes
+  coutTotalEstime?: number; // Optional: Estimated cost
+  image?: ImageSourcePropType; // Optional: Image
+  coutReel?: number; // Optional: Actual cost
+  statut: 'planifié' | 'terminé' | 'annulé'; // Status
+  notes?: string; // Optional: Notes
   feedback?: {
-    userId: string;
-    note: number;
-    date: string;
-    commentaire: string;
+    userId: string; // User ID
+    note: number; // Rating
+    date: string; // Feedback date (ISO 8601)
+    commentaire: string; // Comment
   }[];
   aiSuggestions?: {
     recettesAlternatives: string[];
-    ingredientsManquants: { nom: string; quantite: number; unite: Unit }[]; // Ingrédients manquants pour ce menu.
+    ingredientsManquants: Ingredient[];
   };
 }
 
-
-
 /**
- * @interface ListeCourses
- * @augments BaseEntity
- * @description Représente une liste de courses pour la famille.
- * Permet de suivre les articles à acheter, leur quantité et leur statut d'achat.
+ * Represents a shopping list for the family.
  */
 export interface ListeCourses extends BaseEntity {
-  nom: string; // Nom de la liste de courses (ex: "Courses du week-end").
-  items: {
-    ingredientId: string; // Référence à Ingredient.id.
-    quantite: number;
-    unite: Unit;
-    achete: boolean; // Vrai si l'article a été acheté.
-    magasinSuggeré?: string; // Optionnel: ID du magasin recommandé.
-  }[];
-  budgetEstime?: number;
-  budgetReel?: number;
-  statut: 'en cours' | 'terminée' | 'archivée';
-  notes?: string;
+  nom: string; // List name
+  items: Ingredient[]; // Items to purchase
+  budgetEstime?: number; // Optional: Estimated budget
+  budgetReel?: number; // Optional: Actual budget
+  statut: 'en cours' | 'terminée' | 'archivée'; // Status
+  notes?: string; // Optional: Notes
 }
-
-
 
 /**
- * @interface Budget
- * @augments BaseEntity
- * @description Suit les dépenses de la famille liées à la nourriture et aux courses.
- * Permet de définir un plafond mensuel et d'enregistrer les dépenses.
+ * Tracks family expenses related to food and groceries.
  */
 export interface Budget extends BaseEntity {
-  mois: string; // Format: "AAAA-MM".
-  plafond: number; // Budget maximal pour le mois.
+  mois: string; // Month (e.g., '2025-06')
+  plafond: number; // Monthly budget ceiling
   depenses: {
-    date: string; // AAAA-MM-DD.
-    montant: number;
+    date: string; // Expense date (YYYY-MM-DD)
+    montant: number; // Amount
     description: string;
     categorie: 'nourriture' | 'hygiène' | 'entretien' | 'autre';
-    preuveAchatUrl?: string; // Optionnel: URL vers l'image d'un reçu.
+    preuveAchatUrl?: string;
   }[];
-  devise: Currency;
+  devise: Currency; // Currency (e.g., 'EUR')
   alertes?: {
-    seuil: number; // Pourcentage du plafond (ex: 80 pour 80%).
-    message: string;
-    date: string; // Format ISO 8601.
+    seuil: number; // Threshold percentage (e.g., 80 for 80%)
+    message: string; // Alert message
+    date: string; // Alert date (ISO 8601)
   }[];
 }
-
-

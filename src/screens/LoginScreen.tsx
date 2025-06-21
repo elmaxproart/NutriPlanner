@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import AntDesign from 'react-native-vector-icons/AntDesign';
-import Feather from 'react-native-vector-icons/Feather'; // Importé pour l'icône œil
+import Feather from 'react-native-vector-icons/Feather';
 import Video from 'react-native-video';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { login } from '../hooks/SignUpFnAuth';
@@ -26,10 +26,11 @@ const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [isFocused, setIsFocused] = useState({ email: false, password: false });
   const [isErrorModalVisible, setIsErrorModalVisible] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [showPassword, setShowPassword] = useState(false); // Nouvel état pour afficher/masquer le mot de passe
+  const [showPassword, setShowPassword] = useState(false);
+  const [isVideoLoading, setIsVideoLoading] = useState(true); // New state for video loading
   const titleOpacity = useRef(new Animated.Value(0)).current;
   const loadingOpacity = useRef(new Animated.Value(0)).current;
-  const inputAnim = useRef(new Animated.Value(0)).current; // Animation pour le zoom
+  const inputAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.timing(titleOpacity, {
@@ -78,7 +79,7 @@ const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         if (!hasAccessedAI || !hasSkippedOnboarding) {
           navigation.replace('WelcomeAI', { userId });
         } else {
-          navigation.replace('Home');
+          navigation.replace('Home',{ userId });
         }
       }
     } catch (err: any) {
@@ -98,19 +99,33 @@ const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     setShowPassword(prev => !prev);
   };
 
+
+  const handleVideoLoad = () => {
+    setIsVideoLoading(false);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar backgroundColor="#000" barStyle="light-content" />
       <View style={styles.videoContainer}>
+        {isVideoLoading && (
+          <Image
+            source={require('../assets/images/menu.jpg')}
+            style={styles.video}
+            resizeMode="cover"
+            accessibilityLabel="Image de chargement"
+          />
+        )}
         <Video
           source={require('../assets/videos/hamburgeur.mp4')}
-          style={styles.video}
+          style={[styles.video, isVideoLoading && styles.hiddenVideo]}
           repeat
           resizeMode="cover"
           muted
           controls={false}
           paused={false}
           ignoreSilentSwitch="obey"
+          onLoad={handleVideoLoad}
         />
         <LinearGradient colors={['transparent', '#0d0d0d']} style={styles.gradientOverlay} />
       </View>
@@ -181,7 +196,7 @@ const LoginScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             <TextInput
               placeholder="Mot de passe"
               placeholderTextColor="#aaa"
-              secureTextEntry={!showPassword} // Basculer entre masqué et visible
+              secureTextEntry={!showPassword}
               style={styles.input}
               value={password}
               onChangeText={setPassword}
@@ -276,6 +291,9 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
   },
+  hiddenVideo: {
+    opacity: 0, // Hide video while loading
+  },
   content: {
     flex: 1,
     paddingHorizontal: 25,
@@ -323,7 +341,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 15,
     borderWidth: 1,
-    borderColor: '#1a1a1a', // Couleur par défaut
+    borderColor: '#1a1a1a',
   },
   input: {
     flex: 1,
@@ -331,11 +349,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     color: '#fff',
     fontSize: 16,
-    paddingLeft: 40, // Pour laisser de la place à l'icône
+    paddingLeft: 40,
   },
   inputFocused: {
     borderColor: '#f7b733',
-    backgroundColor: '#252525', // Légèrement plus clair que le fond normal
+    backgroundColor: '#252525',
     shadowColor: '#f7b733',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,

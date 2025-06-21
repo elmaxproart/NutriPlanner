@@ -1,74 +1,85 @@
-import { Menu, MembreFamille, Recette } from '../constants/entities';
 import { FirestoreService } from './FirestoreService';
 import { GeminiService } from './GeminiService';
+import { Menu, MembreFamille, Recette} from '../constants/entities';
 import { validateMenu } from '../utils/dataValidators';
 import { formatDateForFirestore } from '../utils/helpers';
 import { logger } from '../utils/logger';
+import { RecipeAnalysisContent } from '../types/messageTypes';
 
 export class MealPlanningService {
   private firestoreService: FirestoreService;
   private geminiService: GeminiService;
+  private userId: string;
 
-  constructor(userId: string, familyId: string) {
-    this.firestoreService = new FirestoreService(userId, familyId);
-    this.geminiService = new GeminiService();
+  constructor(firestoreService: FirestoreService, userId: string) {
+    if (!firestoreService) {
+      throw new Error('FirestoreService is required');
+    }
+    if (!userId) {
+      throw new Error('User ID is required');
+    }
+    this.firestoreService = firestoreService;
+    this.geminiService = new GeminiService(userId);
+    this.userId = userId;
   }
 
-  async generateWeeklyPlan(familyMembers: MembreFamille[], startDate: string): Promise<Menu[]> {
-    try {
-      const recipes = await this.firestoreService.getRecipes();
-      const menus: Menu[] = [];
-      const days = ['petit-déjeuner', 'déjeuner', 'dîner', 'collation'];
+  async generateWeeklyPlan(familyMembers: MembreFamille[], startDate: string, conversationId?: string): Promise<Menu[]> {
+    if (!familyMembers.length || !startDate) {
+      logger.error('Family members and start date are required');
+      return [];
+    }
 
-      for (let i = 0; i < 7; i++) {
-        const date = new Date(startDate);
-        date.setDate(date.getDate() + i);
-        for (const typeRepas of days) {
-          const suitableRecipes = await Promise.all(
-            recipes.map(async (recipe) => {
-              const analysis = await this.geminiService.analyzeRecipeWithAI(recipe, familyMembers);
-              const isSuitable = familyMembers.every(
-                (member) => analysis.suitability[member.userId] === 'adapté'
-              );
-              return isSuitable ? recipe : null;
-            })
-          );
-          const filteredRecipes = suitableRecipes.filter((recipe): recipe is Recette => recipe !== null);
-          const selectedRecipe = filteredRecipes[Math.floor(Math.random() * filteredRecipes.length)];
-          if (selectedRecipe) {
-            const menu: Omit<Menu, 'id' | 'dateCreation' | 'dateMiseAJour'> = {
-              date: formatDateForFirestore(date),
-              typeRepas: typeRepas as any,
-              recettes: [ selectedRecipe ],
-              familyId: familyMembers[0].familyId,
-              createurId: familyMembers[0].createurId,
-              statut: 'planifié',
-              aiSuggestions: { recettesAlternatives: [], ingredientsManquants: [] }, // Ajout pour conformité
-            };
-            const menuId = await this.firestoreService.addMenu(menu);
-            menus.push({
-              ...menu,
-              id: menuId,
-              dateCreation: formatDateForFirestore(new Date()),
-              dateMiseAJour: formatDateForFirestore(new Date()),
-            });
-          }
-        }
+    try {
+      const interaction = await this.geminiService.generateWeeklyMenu(this.userId, familyMembers, startDate, conversationId);
+
+      if (interaction.content.type === 'menu_suggestion') {
+        const content = interaction.content;
+        const menus: Menu[] = (Array.isArray(content.menu) ? content.menu : [content.menu]).map((menu: Menu) => ({
+          ...menu,
+          dateCreation: formatDateForFirestore(new Date()),
+          dateMiseAJour: formatDateForFirestore(new Date()),
+          aiInteractionId: interaction.id,
+          aiSuggestions: {
+            recettesAlternatives: [],
+            ingredientsManquants: [],
+          },
+        }));
+
+        await Promise.all(
+          menus.map(async (menu) => {
+            const {...menuData } = menu; // Exclude id from Firestore add
+            const menuId = await this.firestoreService.addMenu(menuData);
+            if (menuId) {
+              menu.id = menuId;
+            }
+          })
+        );
+
+        logger.info('Weekly plan generated', { count: menus.length });
+        return menus;
       }
-      logger.info('Weekly plan generated', { count: menus.length });
-      return menus;
-    } catch (error) {
-      logger.error('Error generating weekly plan', { error: error instanceof Error ? error.message : error });
-      throw new Error('Failed to generate weekly plan');
+
+      logger.error('Unexpected response type for weekly menu');
+      return [];
+    } catch (error: any) {
+      const errorMsg = error.message || 'Failed to generate weekly plan';
+      logger.error('Error generating weekly plan', { error: errorMsg });
+      return [];
     }
   }
 
-  async optimizeMenu(menu: Menu, familyMembers: MembreFamille[]): Promise<Menu> {
+  async optimizeMenu(menu: Menu, familyMembers: MembreFamille[], conversationId?: string): Promise<Menu | null> {
     const errors = validateMenu(menu);
     if (errors.length > 0) {
       logger.error('Validation failed for menu', { errors });
-      throw new Error(`Validation failed: ${errors.join(', ')}`);
+      return null;
     }
+
+    if (!familyMembers.length) {
+      logger.error('Family members are required for menu optimization');
+      return null;
+    }
+
     try {
       const optimizedMenu: Menu = {
         ...menu,
@@ -76,24 +87,45 @@ export class MealPlanningService {
           recettesAlternatives: [],
           ingredientsManquants: [],
         },
+        dateMiseAJour: formatDateForFirestore(new Date()),
       };
+
       for (const recette of menu.recettes) {
-        const recipe = await this.firestoreService.getRecipes().then((recipes) =>
-          recipes.find((r) => r.id === recette.id) || { id: recette.id }
-        ); // Récupérer la recette complète
-        const analysis = await this.geminiService.analyzeRecipeWithAI(recipe as Recette, familyMembers);
-        familyMembers.forEach((member) => {
-          if (analysis.suitability[member.userId] === 'non adapté') {
-            optimizedMenu.aiSuggestions!.recettesAlternatives.push('alternative-recipe-id'); // Placeholder
+        // Fallback to getRecipes until getRecipeById is implemented
+        const recipe = (await this.firestoreService.getRecipes()).find((r) => r.id === recette.id) || recette;
+        const interaction = await this.geminiService.analyzeRecipeWithAI(
+          this.userId,
+          recipe as Recette,
+          familyMembers,
+          conversationId
+        );
+
+        const analysis = (interaction.content as RecipeAnalysisContent).analysis;
+
+          familyMembers.forEach((member) => {
+          if (analysis.calories > 800) {
+            optimizedMenu.aiSuggestions!.recettesAlternatives.push(
+              `Recette alternative suggérée pour ${recette.nom || recette.id} (trop calorique pour ${member.nom})`
+            );
           }
         });
+
       }
-      await this.firestoreService.addMenu(optimizedMenu);
-      logger.info('Menu optimized', { id: menu.id });
-      return optimizedMenu;
-    } catch (error) {
-      logger.error('Error optimizing menu', { error: error instanceof Error ? error.message : error });
-      throw new Error('Failed to optimize menu');
+
+      const menuData = { ...optimizedMenu };
+      const menuId = await this.firestoreService.addMenu(menuData);
+      if (menuId) {
+        const finalMenu = { ...optimizedMenu, id: menuId };
+        logger.info('Menu optimized', { id: menuId });
+        return finalMenu;
+      }
+
+      logger.error('Failed to save optimized menu');
+      return null;
+    } catch (error: any) {
+      const errorMsg = error.message || 'Failed to optimize menu';
+      logger.error('Error optimizing menu', { error: errorMsg });
+      return null;
     }
   }
 }

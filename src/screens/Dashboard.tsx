@@ -1,501 +1,965 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   SafeAreaView,
   View,
   Text,
-  StyleSheet,
-  Image,
-  TextInput,
   FlatList,
   TouchableOpacity,
+  Image,
+  StyleSheet,
   ScrollView,
+  Dimensions,
+  ActivityIndicator,
   BackHandler,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
-import { Alert } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { width } from '../styles/DashbordStyle';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { RootStackParamList } from '../App';
 import { useAuth } from '../hooks/useAuth';
-import { useMenus } from '../hooks/useMenus';
-//import { useAIConversation } from '../hooks/useAIConversation';
 import { useFamilyData } from '../hooks/useFamilyData';
-import { Menu} from '../constants/entities'; // Import Menu and MealType
-import { MealType } from '../constants/categories';
+import { useAIConversation } from '../hooks/useAIConversation';
+import { useFirestore } from '../hooks/useFirestore';
+import { Ingredient, Menu, Store, Budget } from '../constants/entities';
+import { logger } from '../utils/logger';
+import { mockMenus, mockFamilyMembers, mockStores, mockIngredients } from '../constants/mockData';
+import SideMenu from '../components/ai/SideMenu';
+import SearchModal from '../components/common/SearchModal';
+import LearnMoreCarousel from '../components/ai/LearnMoreCarousel';
+import FamilySection from '../components/ai/FamilySection';
+import NutritionChart from '../components/common/NutritionChart';
+import MainActionButton from '../components/ai/MainActionButton';
+import { SuggestionCard } from '../components/ai/SuggestionCard';
+import { theme } from '../styles/theme';
+import { generateUniqueId } from '../utils/helpers';
+import { AiInteraction } from '../constants/entities';
+import { AudioContent, NutritionData, TextContent } from '../types/messageTypes';
+import { Vibration } from 'react-native';
+import { Audio } from 'expo-av';
+import AITemplateCarousel from '../components/ai/AITemplateCarousel';
 
-const radius = 80; // rayon du cercle
+const { width: screenWidth } = Dimensions.get('window');
 
-const sliderImages = [
-  {
-    image: require('../assets/images/Le-met-de-pistache1.jpg'),
-    title: 'Pistach Delight',
-    description: 'Savourez la tradition en une bouchée',
-  },
-  {
-    image: require('../assets/images/pizza.jpg'),
-    title: 'Pizza Chaude',
-    description: 'Du fromage fondant, toujours frais',
-  },
-  {
-    image: require('../assets/images/noodle.jpg'),
-    title: 'Nouilles Asiatiques',
-    description: "L'authenticité dans chaque fourchette",
-  },
-];
+type NavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
-// Adjust mockMenus to match Menu interface
-const mockMenus: Menu[] = [
-  {
-    id: '1',
-    date: '2025-06-06', // Example date
-    typeRepas: 'Déjeuner' as MealType,
-    recettes: [], // Empty array as no recipe IDs are provided
-    foodName: 'Black Burger',
-    description: 'Ambuger facile a preparer a la letue ,stake...',
-    image: require('../assets/images/hamburgeur.jpg'),
-    coutTotalEstime: 12.99,
-    statut: 'planifié',
-    familyId: '',
-    createurId: '',
-    dateCreation: '',
-  },
-  {
-    id: '2',
-    date: '2025-06-06',
-    typeRepas: 'Dîner' as MealType,
-    recettes: [],
-    foodName: 'Pizza Margarita',
-    description: 'pizza de luxe facile a preparer au peperonie',
-    image: require('../assets/images/pizza.jpg'),
-    coutTotalEstime: 7.99,
-    statut: 'planifié',
-    familyId: '',
-    createurId: '',
-    dateCreation: '',
-  },
-  {
-    id: '3',
-    date: '2025-06-06',
-    typeRepas: 'Déjeuner' as MealType,
-    recettes: [],
-    foodName: 'Koki Chaud',
-    description: 'koko de la grnde mere',
-    image: require('../assets/images/koki.jpg'),
-    coutTotalEstime: 4.59,
-    statut: 'planifié',
-    familyId: '',
-    createurId: '',
-    dateCreation: '',
-  },
-  {
-    id: '4',
-    date: '2025-06-06',
-    typeRepas: 'Collation' as MealType,
-    recettes: [],
-    foodName: 'Wrap Cheese',
-    description: 'wrap sheese ',
-    image: require('../assets/images/wrap.jpg'),
-    coutTotalEstime: 5.49,
-    statut: 'planifié',
-    familyId: '',
-    createurId: '',
-    dateCreation: '',
-  },
-  {
-    id: '5',
-    date: '2025-06-06',
-    typeRepas: 'Dîner' as MealType,
-    recettes: [],
-    foodName: 'Noodles',
-    description: "noodele italian a l'huile d'huile ",
-    image: require('../assets/images/noodle.jpg'),
-    coutTotalEstime: 6.99,
-    statut: 'planifié',
-    familyId: '',
-    createurId: '',
-    dateCreation: '',
-  },
-  {
-    id: '6',
-    date: '2025-06-06',
-    typeRepas: 'Déjeuner' as MealType,
-    recettes: [],
-    foodName: 'Harricot',
-    description: 'Harricot au oeufs et au socise de france',
-    image: require('../assets/images/R.jpg'),
-    coutTotalEstime: 5.99,
-    statut: 'planifié',
-    familyId: '',
-    createurId: '',
-    dateCreation: '',
-  },
-];
+interface Reminder {
+  id: string;
+  title: string;
+  icon: string;
+  action: () => void;
+}
 
-const Dashboard: React.FC<{ navigation: any }> = ({ navigation }) => {
-  const { userId, loading: authLoading , error: AuthError } = useAuth();
-  const { familyMembers, loading: familyLoading , error: FamilyError } = useFamilyData(userId || '', 'family1');
-  const familyId = familyMembers.length > 0 ? familyMembers[0].familyId || 'family1' : 'family1';
-  const { menus: dynamicMenus, loading: menusLoading ,error: menuError } = useMenus(userId || '', familyId);
- // const { loading: aiLoading, error: aiError, isReady: aiReady } = useAIConversation({ familyId });
+interface Preference {
+  id: string;
+  label: string;
+  value: boolean | number | string;
+  type: 'switch' | 'slider' | 'textPrimary';
+}
+
+const Dashboard: React.FC = () => {
+  const navigation = useNavigation<NavigationProp>();
+  const { userId, loading: authLoading } = useAuth();
+  const { familyMembers, loading: familyLoading } = useFamilyData();
+  const { loading: aiLoading, isReady: aiReady, getMenuSuggestions } = useAIConversation();
+  const { getCollection } = useFirestore();
+  const [menus, setMenus] = useState<Menu[]>(mockMenus);
+  const [aiSuggestions, setAiSuggestions] = useState<Menu[]>([]);
+  const [stores, setStores] = useState<Store[]>(mockStores);
+  const [budget, setBudget] = useState<number>(500);
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string | null>(null);
+  const [___, setDarkTheme] = useState(true);
+  const [__, setNotifications] = useState(true);
+  const [_, setPreferences] = useState<Preference[]>([
+    { id: 'vegan', label: 'Végan', value: false, type: 'switch' },
+    { id: 'spiceLevel', label: 'Niveau d\'épices', value: 1, type: 'slider' },
+    { id: 'cuisine', label: 'Cuisine préférée', value: 'Non spécifié', type: 'textPrimary' },
+  ]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [sideMenuVisible, setSideMenuVisible] = useState(false);
+  const [searchModalVisible, setSearchModalVisible] = useState(false);
+  const [modalState, setModalState] = useState<{
+    visible: boolean;
+    type: 'success' | 'error' | 'loading';
+    message: string;
+    onClose?: () => void;
+  }>({ visible: false, type: 'success', message: '' });
+  const [isFetchingSuggestions, setIsFetchingSuggestions] = useState(false);
+
+  const [isRecording, setIsRecording] = useState(false);
+  const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
 
-
-  const [search, setSearch] = useState<string>('');
-  const [menus, setMenus] = useState<Menu[]>(mockMenus);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [showOptions, setShowOptions] = useState(false);
-
-  const mappedMenus: Menu[] = dynamicMenus.map(menu => ({
-    ...menu,
-    image: mockMenus.find(mock => mock.foodName?.toLowerCase().includes(menu.foodName?.toLowerCase() || ''))?.image || require('../assets/images/pizza.jpg'),
-  }));
-
-
-  useEffect(() => {
-    const checkAIAccess = async () => {
-      if (!userId) {return;}
-      const hasAccessedAI = await AsyncStorage.getItem('hasAccessedAI');
-      if (!hasAccessedAI) {
-        navigation.replace('OnboardingScreen');
-      } else {
-        await AsyncStorage.setItem('hasAccessedAI', 'true'); // Ensure flag is set
-      }
-    };
-    checkAIAccess();
-  }, [userId, navigation]);
-
-  const options = [
-    { icon: 'food', action: () => navigation.navigate('addMenu') },
-    { icon: 'robot', action: () => navigation.navigate('GeminiAIScreen') },
-    { icon: 'calendar', action: () => alert('Planifier manuellement') },
-    { icon: 'magnify', action: () => alert('Rechercher menu') },
+  const nutritionData: NutritionData[] = [
+    { id: '1', name: 'Calories', value: 2000, unit: 'Kcal' },
+    { id: '2', name: 'Protéines', value: 80, unit: 'g' },
+    { id: '3', name: 'Glucides', value: 250, unit: 'g' },
+    { id: '4', name: 'Lipides', value: 70, unit: 'g' },
   ];
 
-  const toggleOptions = () => {
-    setShowOptions(!showOptions);
-  };
+  const reminders: Reminder[] = [
+    { id: '1', title: 'Liste de courses', icon: 'cart', action: () => navigation.navigate('ShoppingList') },
+    { id: '2', title: 'Budget', icon: 'cash', action: () => navigation.navigate('BudgetOverview') },
+    { id: '3', title: 'Historique des repas', icon: 'history', action: () => navigation.navigate('MealHistory') },
+    { id: '4', title: 'Magasins', icon: 'store', action: () => navigation.navigate('Stores') },
+    { id: '5', title: 'Ajouter un menu', icon: 'food', action: () => navigation.navigate('AddMenu') },
+    { id: '6', title: 'Ajouter une recette', icon: 'book-open-page-variant', action: () => navigation.navigate('AddRecipe') },
+    { id: '7', title: 'Paramètres', icon: 'cog', action: () => navigation.navigate('Settings') },
+    { id: '8', title: 'Profil', icon: 'account', action: () => navigation.navigate('Profile') },
+  ];
 
-  const handleScroll = (event: any) => {
-    const slideIndex = Math.round(event.nativeEvent.contentOffset.x / width);
-    setCurrentIndex(slideIndex);
-  };
+  const headerOpacity = useSharedValue(0);
+  const contentOpacity = useSharedValue(0);
+  const contentStyle = useAnimatedStyle(() => ({
+    opacity: contentOpacity.value,
+    transform: [{ translateY: withTiming(contentOpacity.value * 30 - 30, { duration: 400, easing: Easing.out(Easing.ease) }) }],
+  }));
 
   useEffect(() => {
-    const backAction = () => {
-      Alert.alert('Quitter l\'application', 'Voulez-vous vraiment quitter ?', [
-        {
-          text: 'Annuler',
-          onPress: () => null,
-          style: 'cancel',
-        },
-        {
-          text: 'Oui',
-          onPress: () => BackHandler.exitApp(),
-        },
-      ]);
-      return true;
+    headerOpacity.value = withTiming(1, { duration: 400 });
+    contentOpacity.value = withTiming(1, { duration: 500 });
+  }, [headerOpacity, contentOpacity]);
+
+  useEffect(() => {
+    if (!userId || authLoading) { return; }
+
+    const fetchProfile = async () => {
+      try {
+        const usernameFromEmail = userId.split('@')[0];
+        setUserName(usernameFromEmail.replace(/[^a-zA-Z0-9]/g, ''));
+
+        const firestore = (await import('@react-native-firebase/firestore')).default;
+        const doc = await firestore().collection('users').doc(userId).get();
+        if (doc.exists()) {
+          const data = doc.data();
+          if (data?.userImageProfile) { setProfileImage(data.userImageProfile); }
+          if (data?.name) { setUserName(data.name); }
+          if (data?.theme) { setDarkTheme(data.theme === 'dark'); }
+          if (data?.notifications !== undefined) { setNotifications(data.notifications); }
+          if (data?.preferences) { setPreferences(data.preferences); }
+        }
+      } catch (error: any) {
+        logger.error('Erreur lors de la récupération du profil', { error: error.message });
+        setModalState({ visible: true, type: 'error', message: 'Erreur lors de la récupération du profil' });
+      }
     };
 
-    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
-    return () => backHandler.remove();
-  }, []);
+    fetchProfile();
+  }, [userId, authLoading]);
+
+  useEffect(() => {
+    const initialize = async () => {
+      if (!userId || authLoading) {
+        logger.info('Initialisation ignorée : pas d\'userId, authLoading ou networkLoading');
+        return;
+      }
+
+      try {
+        logger.info('Récupération des données du tableau de bord...');
+        const [menuList, storeList, budgetList] = await Promise.all([
+          getCollection<Menu>('Menus'),
+          getCollection<Store>('Stores'),
+          getCollection<Budget>('Budgets'),
+        ]);
+        logger.info('Données récupérées:', { menus: menuList.length, stores: storeList.length, budgets: budgetList.length });
+        setMenus(menuList.length > 0 ? menuList : mockMenus);
+        setStores(storeList.length > 0 ? storeList : mockStores);
+        setBudget(
+          budgetList.length > 0
+            ? (budgetList[0].depenses?.reduce((sum, d) => sum + (d.montant || 0), 0) ?? 0)
+            : 0
+        );
+      } catch (error: any) {
+        logger.error('Erreur lors de la récupération des données', { error: error.message });
+        setModalState({ visible: true, type: 'error', message: 'Échec de la récupération des données' });
+      }
+    };
+    initialize();
+  }, [userId, authLoading, familyMembers, getCollection, navigation]);
+
+  const fetchAiSuggestions = useCallback(async () => {
+    if (!aiReady || !userId || aiLoading || familyMembers.length === 0) {
+      logger.info('Suggestions IA ignorées : conditions non remplies');
+      return;
+    }
+    setIsFetchingSuggestions(true);
+    try {
+      let allSuggestions: Menu[] = [];
+      let ingredients = await getCollection<Ingredient>('Ingredients');
+      if (!ingredients || ingredients.length === 0) {
+        ingredients = mockIngredients;
+      }
+      for (let i = 0; i < 5; i++) {
+        const suggestions = await getMenuSuggestions(ingredients, familyMembers, 2, 2);
+        if (Array.isArray(suggestions)) {
+          allSuggestions = allSuggestions.concat(suggestions);
+        }
+      }
+      setAiSuggestions(allSuggestions);
+    } catch (error: any) {
+      logger.error('Échec de la récupération des suggestions IA', { error: error.message });
+      setModalState({ visible: true, type: 'error', message: 'Échec de la récupération des suggestions' });
+    } finally {
+      setIsFetchingSuggestions(false);
+    }
+  }, [aiReady, userId, aiLoading, familyMembers, getCollection, getMenuSuggestions]);
+
+  useEffect(() => {
+    fetchAiSuggestions();
+  }, [fetchAiSuggestions]);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      const nextIndex = (currentIndex + 1) % sliderImages.length;
+      const nextIndex = (currentIndex + 1) % 3;
       setCurrentIndex(nextIndex);
-      scrollViewRef.current?.scrollTo({
-        x: nextIndex * width,
-        animated: true,
-      });
+      scrollViewRef.current?.scrollTo({ x: nextIndex * screenWidth, animated: true });
     }, 3000);
-
     return () => clearInterval(interval);
   }, [currentIndex]);
 
-  const filterMenus = (text: string): void => {
-    setSearch(text);
-    const filtered = (mappedMenus.length > 0 ? mappedMenus : mockMenus).filter(item =>
-      item.foodName?.toLowerCase().includes(text.toLowerCase()) || ''
-    );
-    setMenus(filtered);
-  };
+  useEffect(() => {
+    const backAction = () => {
+      setModalState({
+        visible: true,
+        type: 'loading',
+        message: 'Voulez-vous quitter ?',
+        onClose: () => setModalState({ ...modalState, visible: false }),
+      });
+      setTimeout(() => {
+        setModalState({
+          visible: true,
+          type: 'error',
+          message: 'Voulez-vous quitter ?',
+          onClose: () => {
+            setModalState({ ...modalState, visible: false });
+            BackHandler.exitApp();
+          },
+        });
+      }, 1000);
+      return true;
+    };
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+    return () => backHandler.remove();
+  }, [modalState]);
 
-  const renderItem = ({ item }: { item: Menu }) => (
-    <View style={styles.cardModern}>
-      <Image source={item.image} style={styles.cardImage} />
-      <View style={styles.cardContent}>
-        <Text style={styles.cardTitle}>{item.foodName || 'Unnamed Menu'}</Text>
-        <Text style={styles.cardPrice}>${(item.coutTotalEstime || 0).toFixed(2)}</Text>
-        <Text style={styles.cardDescription}>{item.description || 'No description'}</Text>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => alert(`Added ${item.foodName || 'Unnamed Menu'} to cart`)}>
-          <Text style={styles.addButtonText}>Add to Cart</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+  const startRecording = useCallback(async () => {
+    try {
+      const { status } = await Audio.requestPermissionsAsync();
+      if (status !== 'granted') {
+        setModalState({
+          visible: true,
+          type: 'error',
+          message: 'Permission audio refusée',
+        });
+        return;
+      }
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+        interruptionModeIOS: 1,
+        shouldDuckAndroid: true,
+        interruptionModeAndroid: 1,
+      });
+      const { recording: newRecording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
+      setRecording(newRecording);
+      setIsRecording(true);
+      Vibration.vibrate(100);
+    } catch (err: any) {
+      logger.error('Erreur lors du démarrage de l\'enregistrement', { error: err.message });
+      setModalState({
+        visible: true,
+        type: 'error',
+        message: 'Erreur au démarrage de l\'enregistrement',
+      });
+     }}, []);
+
+  const stopRecording = useCallback(async () => {
+    if (!recording) { return; }
+    try {
+      await recording.stopAndUnloadAsync();
+      const uri = recording.getURI();
+      setIsRecording(false);
+      setRecording(null);
+      setModalState({
+        visible: true,
+        type: 'success',
+        message: 'Enregistrement sauvegardé',
+      });
+
+      if (uri) {
+        const audioContent: AudioContent = { type: 'audio', uri, mimeType: 'audio/m4a' };
+        const interaction: AiInteraction = {
+          id: generateUniqueId(),
+          content: audioContent,
+          isUser: true,
+          timestamp: new Date().toISOString(),
+          type: 'audio',
+          dateCreation: new Date().toISOString(),
+          dateMiseAJour: new Date().toISOString(),
+          conversationId: generateUniqueId(),
+        };
+        navigation.navigate('GeminiChat', { initialInteraction: interaction, promptType: undefined });
+      }
+    } catch (err: any) {
+      logger.error('Erreur lors de l\'arrêt de l\'enregistrement', { error: err.message });
+      setModalState({
+        visible: true,
+        type: 'error',
+        message: 'Erreur à l\'arrêt de l\'enregistrement',
+      });
+    }
+  }, [recording, navigation]);
+
+  const handleMainActionPress = useCallback(() => {
+    const textContent: TextContent = { type: 'text', message: 'Nouvelle conversation' };
+    const interaction: AiInteraction = {
+      id: generateUniqueId(),
+      content: textContent,
+      isUser: true,
+      timestamp: new Date().toISOString(),
+      type: 'text',
+      dateCreation: new Date().toISOString(),
+      dateMiseAJour: new Date().toISOString(),
+      conversationId: generateUniqueId(),
+    };
+    navigation.navigate('GeminiChat', { initialInteraction: interaction, promptType: undefined });
+  }, [navigation]);
+
+  const handleMainActionLongPress = useCallback(() => {
+    Vibration.vibrate([0, 100, 50, 100]);
+    startRecording();
+  }, [startRecording]);
+
+  const renderMenuCard = useCallback(
+    ({ item }: { item: Menu }) => (
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => navigation.navigate('MenuDetail', { menuId: item.id })}
+        accessibilityLabel={`Menu: ${item.recettes?.[0]?.nom || 'Menu'}`}
+      >
+        <Image
+          source={item.recettes?.[0]?.imageUrl || require('../assets/images/okok.jpg')}
+          style={styles.cardImage}
+        />
+        <LinearGradient colors={['#00000080', '#00000080']} style={styles.cardGradient}>
+          <Text style={styles.cardTitle}>{item.recettes?.[0]?.nom || 'Menu sans nom'}</Text>
+          <Text style={styles.cardSubtitle} numberOfLines={2}>
+            {item.recettes?.[0]?.instructions?.[0] || 'Aucune description'}
+          </Text>
+          <Text style={styles.cardPrice}>${item.coutTotalEstime?.toFixed(2) || '0.00'}</Text>
+        </LinearGradient>
+      </TouchableOpacity>
+    ),
+    [navigation]
   );
 
-if (authLoading || familyLoading || menusLoading || {/*aiLoading || !aiReady*/} ) {
-  return (
-    <SafeAreaView style={styles.container}>
-      <Text style={styles.loadingText}>Chargement en cours...</Text>
-    </SafeAreaView>
+  const renderStoreCard = useCallback(
+    ({ item }: { item: Store }) => (
+      <TouchableOpacity
+        style={styles.storeCard}
+        onPress={() => navigation.navigate('Store', { storeId: item.id })}
+        accessibilityLabel={`Magasin: ${item.nom}`}
+      >
+        <Text style={styles.storeName}>{item.nom}</Text>
+        <Text style={styles.storeAddress} numberOfLines={2}>
+          {item.localisation?.adresse || 'Aucune adresse'}
+        </Text>
+      </TouchableOpacity>
+    ),
+    [navigation]
   );
-}
 
+  const renderReminderCard = useCallback(
+    ({ item }: { item: Reminder }) => (
+      <TouchableOpacity
+        style={styles.reminderCard}
+        onPress={item.action}
+        accessibilityLabel={item.title}
+      >
+        <LinearGradient colors={['#0288D1', '#4FC3F7']} style={styles.reminderGradient}>
+          <MaterialCommunityIcons name={item.icon} size={20} color="#fff" />
+        </LinearGradient>
+        <Text style={styles.reminderText} numberOfLines={2}>{item.title}</Text>
+      </TouchableOpacity>
+    ),
+    []
+  );
 
-  return (
-    <SafeAreaView style={styles.container}>
-      {/* === SLIDER HEADER === */}
-      <View style={styles.sliderContainer}>
-        <ScrollView
-          ref={scrollViewRef}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          onScroll={handleScroll}
-          scrollEventThrottle={16}>
-          {sliderImages.map((item, index) => (
-            <Image key={index} source={item.image} style={styles.sliderImage} />
-          ))}
-        </ScrollView>
-        <LinearGradient
-          colors={['rgba(0,0,0,0.6)', 'transparent']}
-          style={styles.sliderOverlay}
-        />
-        <View style={styles.sliderTextBox}>
-          <Text style={styles.sliderTitle}>
-            {sliderImages[currentIndex].title}
-          </Text>
-          <Text style={styles.sliderDescription}>
-            {sliderImages[currentIndex].description}
-          </Text>
-        </View>
-      </View>
-      <View style={styles.searchContainer}>
-        <Icon name="magnify" size={24} color="#999" />
-        <TextInput
-          placeholder="Search menus..."
-          value={search}
-          onChangeText={filterMenus}
-          style={styles.searchInput}
-        />
-      </View>
-      <Text style={styles.sectionTitle}>Popular Menus</Text>
-      <FlatList
-        data={menus}
-        renderItem={renderItem}
-        keyExtractor={item => item.id}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.flatListContent}
+  const renderSuggestionCard = useCallback(
+    ({ item }: { item: Menu }) => (
+      <SuggestionCard
+        title={item.recettes?.[0]?.nom || 'Menu sans nom'}
+        description={item.recettes?.[0]?.instructions?.[0] || 'Aucune description disponible'}
+        imageUri={item.recettes?.[0]?.imageUrl || 'okok.jpg'}
+        onPress={() => navigation.navigate('MenuDetail', { menuId: item.id })}
+        onSendToAI={(message) => {
+          const textContent: TextContent = { type: 'text', message };
+          const interaction: AiInteraction = {
+            id: generateUniqueId(),
+            content: textContent,
+            isUser: true,
+            timestamp: new Date().toISOString(),
+            type: 'text',
+            dateCreation: new Date().toISOString(),
+            dateMiseAJour: new Date().toISOString(),
+            conversationId: generateUniqueId(),
+          };
+          navigation.navigate('GeminiChat', { initialInteraction: interaction, promptType: undefined });
+        }}
+        onShare={(content) => logger.info(`Partager: ${content}`)}
       />
-      <Text style={styles.sectionTitle}>All Menus</Text>
+    ),
+    [navigation]
+  );
 
+  if (authLoading || familyLoading || aiLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <Image source={require('../assets/images/koki.jpg')} style={styles.loadingBackground} />
+        <View style={styles.loadingContainer}>
+          <Animated.View style={styles.loadingIcon}>
+            <MaterialCommunityIcons name="food" size={50} color={theme.colors.primary} />
+          </Animated.View>
+          <Text style={styles.loadingText}>Chargement...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
-      <View style={styles.bottomNav}>
-        <TouchableOpacity>
-          <Icon name="home" size={28} color="#999" />
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => setSideMenuVisible(true)}
+          accessibilityLabel="Menu"
+        >
+          <View style={styles.headerButton}>
+            <MaterialCommunityIcons name="menu" size={24} color={theme.colors.textPrimary} />
+          </View>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => navigation.navigate('menu')}>
-          <Icon name="heart-outline" size={28} color="#999" />
-        </TouchableOpacity>
-        <View style={styles.centerButtonContainer}>
-          {showOptions &&
-            options.map((option, index) => {
-              const angle = (index * (2 * Math.PI)) / options.length;
-              const top = -Math.cos(angle) * radius;
-              const left = Math.sin(angle) * radius;
-              return (
-                <TouchableOpacity
-                  key={index}
-                  style={[styles.floatingOption, { top, left }]}
-                  onPress={option.action}>
-                  <Icon name={option.icon} size={24} color="#fff" />
-                </TouchableOpacity>
-              );
-            })}
-          <TouchableOpacity style={styles.plusButton} onPress={toggleOptions}>
-            <Icon name="view-grid" size={30} color="#fff" />
+        <Text style={styles.headerTitle}>Tableau de bord</Text>
+        <View style={styles.headerIcons}>
+          <TouchableOpacity
+            onPress={() => setSearchModalVisible(true)}
+            accessibilityLabel="Rechercher"
+          >
+            <View style={styles.headerButton}>
+              <MaterialCommunityIcons name="magnify" size={24} color={theme.colors.textPrimary} />
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('GeminiAI')}
+            accessibilityLabel="Gemini AI"
+          >
+            <Image source={require('../assets/images/gemini-star.png')} style={styles.geminiIcon} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Profile')}
+            accessibilityLabel="Profil"
+          >
+            <View style={styles.headerButton}>
+              <MaterialCommunityIcons name="account" size={24} color={theme.colors.textPrimary} />
+            </View>
           </TouchableOpacity>
         </View>
-        <TouchableOpacity>
-          <Icon name="bell-outline" size={28} color="#999" />
+      </View>
+
+      <ScrollView contentContainerStyle={styles.scrollViewContent}>
+        <Animated.View style={[styles.contentContainer, contentStyle]}>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Menus en vedette</Text>
+            <LearnMoreCarousel />
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Aperçu de la famille</Text>
+            <FamilySection />
+          </View>
+
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Menus populaires</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Menu')}>
+                <Text style={styles.seeAll}>Voir tout</Text>
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={menus.slice(0, 10)}
+              renderItem={renderMenuCard}
+              keyExtractor={item => item.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.flatListContent}
+              initialNumToRender={5}
+              maxToRenderPerBatch={5}
+            />
+          </View>
+
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Suggestions AI</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('MenuSuggestions')}>
+                <Text style={styles.seeAll}>Voir tout</Text>
+              </TouchableOpacity>
+            </View>
+            {isFetchingSuggestions ? (
+              <ActivityIndicator size="small" color={theme.colors.primary} />
+            ) : aiSuggestions.length > 0 ? (
+              <FlatList
+                data={aiSuggestions}
+                renderItem={renderSuggestionCard}
+                keyExtractor={item => item.id}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.flatListContent}
+                initialNumToRender={5}
+                maxToRenderPerBatch={5}
+              />
+            ) : (
+              <Text style={styles.noSuggestionsText}>Aucune suggestion disponible</Text>
+            )}
+          </View>
+
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Familia</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('MenuSuggestions')}>
+                <Text style={styles.seeAll}>Voir tout</Text>
+              </TouchableOpacity>
+            </View>
+            {isFetchingSuggestions ? (
+              <ActivityIndicator size="small" color={theme.colors.primary} />
+            ) : (
+              <AITemplateCarousel />
+            )}
+          </View>
+
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Magasins à proximité</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Stores')}>
+                <Text style={styles.seeAll}>Voir tout</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Analyse nutritionnelle</Text>
+            <NutritionChart data={nutritionData} style={styles.nutritionChart} />
+          </View>
+
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Liste des magasins</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Stores')}>
+                <Text style={styles.seeAll}>Voir tout</Text>
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={stores.slice(0, 10)}
+              renderItem={renderStoreCard}
+              keyExtractor={item => item.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.flatListContent}
+              initialNumToRender={5}
+              maxToRenderPerBatch={5}
+            />
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Rappels</Text>
+            <FlatList
+              data={reminders}
+              renderItem={renderReminderCard}
+              keyExtractor={item => item.id}
+              numColumns={2}
+              contentContainerStyle={styles.reminderList}
+              initialNumToRender={8}
+              maxToRenderPerBatch={8}
+            />
+          </View>
+        </Animated.View>
+      </ScrollView>
+
+      <View style={styles.bottomInfoBar}>
+        <View style={styles.bottomInfoContent}>
+          <View style={styles.userInfoContainer}>
+            {profileImage ? (
+              <Image source={{ uri: profileImage }} style={styles.bottomProfileImage} />
+            ) : (
+              <MaterialCommunityIcons name="account" size={24} color={theme.colors.primary} />
+            )}
+            <Text style={styles.userName}>
+              {userName ? `Utilisateur: ${userName}` : 'Utilisateur: Utilisateur'}
+            </Text>
+          </View>
+          <Text style={styles.infoText}>Membres de la famille: {familyMembers.length || mockFamilyMembers.length}</Text>
+          <Text style={styles.infoText}>Budget: ${budget}</Text>
+        </View>
+      </View>
+
+      <View style={styles.bottomNavigation}>
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => navigation.navigate('Home')}
+        >
+          <View style={styles.navButton}>
+            <MaterialCommunityIcons name="home-outline" size={28} color={theme.colors.textPrimary} />
+          </View>
+          <Text style={styles.navText}>Accueil</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
-          <Icon name="account-outline" size={28} color="#999" />
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => navigation.navigate('Menu')}
+        >
+          <View style={styles.navButton}>
+            <MaterialCommunityIcons name="silverware-fork-knife" size={28} color={theme.colors.textPrimary} />
+          </View>
+          <Text style={styles.navText}>Menus</Text>
+        </TouchableOpacity>
+        <MainActionButton
+          onPressAction={handleMainActionPress}
+          onLongPressAction={handleMainActionLongPress}
+        />
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => navigation.navigate('RecipeList')}
+        >
+          <View style={styles.navButton}>
+            <MaterialCommunityIcons name="cart-outline" size={28} color={theme.colors.textPrimary} />
+          </View>
+          <Text style={styles.navText}>Courses</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => navigation.navigate('Profile')}
+        >
+          <View style={styles.navButton}>
+            <MaterialCommunityIcons name="account-outline" size={28} color={theme.colors.textPrimary} />
+          </View>
+          <Text style={styles.navText}>Profil</Text>
+        </TouchableOpacity>
+      </View>
+
+      <SideMenu isVisible={sideMenuVisible} onClose={() => setSideMenuVisible(false)} />
+      <SearchModal visible={searchModalVisible} onClose={() => setSearchModalVisible(false)} />
+
+      <View style={styles.modalContent}>
+        <TouchableOpacity
+          style={styles.modalButton}
+          onPress={isRecording ? stopRecording : startRecording}
+          accessibilityLabel={isRecording ? 'Arrêter' : 'Démarrer'}
+        >
+          <LinearGradient
+            colors={[theme.colors.primary, theme.colors.secondary]}
+            style={styles.modalButtonGradient}
+          >
+            <MaterialCommunityIcons
+              name={isRecording ? 'stop' : 'microphone'}
+              size={24}
+              color="#fff"
+            />
+            <Text style={styles.modalButtonText}>
+              {isRecording ? 'Arrêter' : 'Démarrer'}
+            </Text>
+          </LinearGradient>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
 };
 
-export default Dashboard;
-
-function alert(message: string): void {
-  Alert.alert('Info', message);
-}
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: theme.colors.surface,
   },
-  sliderContainer: {
-    height: 200,
-    position: 'relative',
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5E5',
   },
-  sliderImage: {
-    width,
-    height: 200,
-    resizeMode: 'cover',
-  },
-  sliderOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 100,
-  },
-  sliderTextBox: {
-    position: 'absolute',
-    bottom: 20,
-    left: 20,
-    right: 20,
-  },
-  sliderTitle: {
-    color: '#fff',
+  headerTitle: {
+    color: theme.colors.textPrimary,
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: '600',
+    fontFamily: theme.fonts.semiBold,
   },
-  sliderDescription: {
-    color: '#ddd',
-    fontSize: 14,
-  },
-  searchContainer: {
+  headerIcons: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1e1e1e',
-    margin: 16,
-    paddingHorizontal: 10,
-    borderRadius: 10,
+    gap: 12,
   },
-  searchInput: {
-    flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    color: '#fff',
+  headerButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#F5F5F5',
   },
-  sectionTitle: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginHorizontal: 16,
-    marginTop: 10,
+  geminiIcon: {
+    width: 24,
+    height: 24,
   },
-  cardModern: {
-    width: 180,
-    backgroundColor: '#1e1e1e',
+  scrollViewContent: {
+    paddingBottom: 100,
+  },
+  contentContainer: {
+    paddingHorizontal: 16,
+  },
+  section: {
+    marginVertical: 16,
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
-    marginHorizontal: 8,
+    padding: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 5,
+    elevation: 3,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    color: theme.colors.textPrimary,
+    fontSize: 18,
+    fontWeight: '600',
+    fontFamily: theme.fonts.semiBold,
+  },
+  seeAll: {
+    color: theme.colors.primary,
+    fontSize: 14,
+    fontWeight: '500',
+    fontFamily: theme.fonts.medium,
+  },
+  card: {
+    width: screenWidth * 0.45,
+    marginRight: 12,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   cardImage: {
     width: '100%',
-    height: 100,
-    resizeMode: 'cover',
+    height: 120,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
   },
-  cardContent: {
-    padding: 10,
-    alignItems: 'center',
+  cardGradient: {
+    padding: 12,
   },
   cardTitle: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 5,
+    fontWeight: '600',
+    fontFamily: theme.fonts.semiBold,
+  },
+  cardSubtitle: {
+    color: '#E0E0E0',
+    fontSize: 12,
+    fontFamily: theme.fonts.regular,
+    marginTop: 4,
   },
   cardPrice: {
-    color: '#FF6B00',
+    color: '#FFFFFF',
     fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 5,
-  },
-  cardDescription: {
-    color: '#666',
-    fontSize: 12,
-    textAlign: 'center',
-    marginBottom: 10,
-  },
-  addButton: {
-    backgroundColor: '#FF6B00',
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-  },
-  addButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
+    fontWeight: '500',
+    marginTop: 6,
   },
   flatListContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 1,
-    paddingTop: 10,
+    paddingHorizontal: 4,
   },
-  bottomNav: {
+  nutritionChart: {
+    height: 240,
+    borderRadius: 12,
+    backgroundColor: '#F5F5F5',
+    padding: 12,
+  },
+  reminderList: {
+    paddingHorizontal: 4,
+  },
+  reminderCard: {
+    flex: 1,
+    margin: 8,
+    padding: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  reminderGradient: {
+    padding: 8,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  reminderText: {
+    color: theme.colors.textPrimary,
+    fontSize: 12,
+    fontWeight: '500',
+    fontFamily: theme.fonts.medium,
+    textAlign: 'center',
+  },
+  storeCard: {
+    width: screenWidth * 0.4,
+    marginRight: 12,
+    padding: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  storeName: {
+    color: theme.colors.textPrimary,
+    fontSize: 16,
+    fontWeight: '600',
+    fontFamily: theme.fonts.semiBold,
+  },
+  storeAddress: {
+    color: theme.colors.textSecondary,
+    fontSize: 12,
+    fontFamily: theme.fonts.regular,
+    marginTop: 4,
+  },
+  bottomInfoBar: {
+    position: 'absolute',
+    bottom: 60,
+    left: 0,
+    right: 0,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E5E5E5',
+  },
+  bottomInfoContent: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    paddingVertical: 10,
-    backgroundColor: '#1e1e1e',
+    paddingHorizontal: 16,
+  },
+  userInfoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  bottomProfileImage: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.primary,
+  },
+  userName: {
+    color: theme.colors.textPrimary,
+    fontSize: 14,
+    fontWeight: '600',
+    fontFamily: theme.fonts.semiBold,
+  },
+  infoText: {
+    color: theme.colors.textSecondary,
+    fontSize: 12,
+    fontFamily: theme.fonts.regular,
+  },
+  bottomNavigation: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-  },
-  centerButtonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
     alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
+    paddingVertical: 8,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E5E5E5',
   },
-  floatingOption: {
+  navItem: {
+    alignItems: 'center',
+  },
+  navButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#F5F5F5',
+  },
+  navText: {
+    color: theme.colors.textPrimary,
+    fontSize: 12,
+    fontFamily: theme.fonts.regular,
+    marginTop: 4,
+  },
+  loadingBackground: {
     position: 'absolute',
-    backgroundColor: '#FF6B00',
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    elevation: 5,
+    width: '100%',
+    height: '100%',
+    opacity: 0.5,
   },
-  plusButton: {
-    backgroundColor: '#FF6B00',
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    alignItems: 'center',
+  loadingContainer: {
+    flex: 1,
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    elevation: 5,
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.7)',
+  },
+  loadingIcon: {
+    marginBottom: 16,
   },
   loadingText: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: 18,
+    fontWeight: '600',
+    fontFamily: theme.fonts.semiBold,
+  },
+  modalContent: {
+    alignItems: 'center',
+    padding: 16,
+  },
+  modalButton: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  modalButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  modalButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+    fontFamily: theme.fonts.semiBold,
+    marginLeft: 8,
+  },
+  noSuggestionsText: {
+    color: theme.colors.textSecondary,
+    fontSize: 14,
+    fontFamily: theme.fonts.regular,
     textAlign: 'center',
-    marginTop: 20,
+    padding: 16,
   },
 });
+
+export default Dashboard;

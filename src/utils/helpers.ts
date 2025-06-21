@@ -94,3 +94,16 @@ export const isValidEmail = (email: string): boolean => {
    if (typeof error === 'string') {return error;}
    return 'An unknown error occurred';
 }
+
+ export const generateUniqueId = () => {
+    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  };
+
+
+const analytics = {
+  track: (event: string, properties: Record<string, any>) => {
+    console.log(`Analytics: ${event}`, properties);
+  },
+};
+
+export default analytics;

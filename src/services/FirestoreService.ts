@@ -25,25 +25,30 @@ import {
 } from '../utils/dataValidators';
 import { formatDateForFirestore, generateId, getErrorMessage } from '../utils/helpers';
 import { logger } from '../utils/logger';
+import { MenuSuggestionContent } from '../types/messageTypes';
 
 export class FirestoreService {
   private userId: string;
-  private familyId: string;
 
-  constructor(userId: string, familyId: string) {
-    if (!userId || !familyId) {
-      throw new Error('User ID and Family ID are required');
+  constructor(userId: string) {
+    if (!userId) {
+      logger.error('User ID is required to initialize FirestoreService');
+      throw new Error('User ID is required to initialize FirestoreService');
     }
     this.userId = userId;
-    this.familyId = familyId;
+    logger.info('FirestoreService initialized', { userId });
   }
 
-  private getCollectionRef(collectionName: string): FirebaseFirestoreTypes.CollectionReference<FirebaseFirestoreTypes.DocumentData> {
+  getID() {
+    return this.userId;
+  }
+
+  private getCollectionRef(
+    collectionName: string
+  ): FirebaseFirestoreTypes.CollectionReference<FirebaseFirestoreTypes.DocumentData> {
     return firestore()
       .collection('users')
       .doc(this.userId)
-      .collection('families')
-      .doc(this.familyId)
       .collection(collectionName);
   }
 
@@ -64,27 +69,32 @@ export class FirestoreService {
     parentDocId?: string,
     subCollectionName?: string
   ): Promise<string> {
-    if (validator) {
-      const errors = validator(data);
-      if (errors.length > 0) {
-        logger.error(`Validation failed for ${collectionName}`, { errors, data });
-        throw new Error(`Validation failed: ${errors.join(', ')}`);
-      }
-    }
     try {
-      let ref: FirebaseFirestoreTypes.CollectionReference<FirebaseFirestoreTypes.DocumentData>;
-      if (parentDocId && subCollectionName) {
-        ref = this.getSubCollectionRef(collectionName, parentDocId, subCollectionName);
-      } else {
-        ref = this.getCollectionRef(collectionName);
+      if (validator) {
+        const errors = validator(data);
+        if (errors.length > 0) {
+          logger.error(`Validation failed for ${collectionName}`, { errors, data });
+          throw new Error(`Validation failed: ${errors.join(', ')}`);
+        }
       }
 
-      const newDocRef = await ref.add(data);
-      logger.info(`Document added to ${collectionName}` + (parentDocId ? `/${parentDocId}/${subCollectionName}` : ''), { id: newDocRef.id, data });
-      return newDocRef.id;
+      const ref = parentDocId && subCollectionName
+        ? this.getSubCollectionRef(collectionName, parentDocId, subCollectionName)
+        : this.getCollectionRef(collectionName);
+
+      if ((data as any).id) {
+        const docRef = ref.doc((data as any).id);
+        await docRef.set(data);
+        logger.info(`Document set in ${collectionName}${parentDocId ? `/${parentDocId}/${subCollectionName}` : ''}`, { id: (data as any).id });
+        return (data as any).id;
+      } else {
+        const newDocRef = await ref.add(data);
+        logger.info(`Document added to ${collectionName}${parentDocId ? `/${parentDocId}/${subCollectionName}` : ''}`, { id: newDocRef.id });
+        return newDocRef.id;
+      }
     } catch (error) {
-      logger.error(`Error adding document to ${collectionName}` + (parentDocId ? `/${parentDocId}/${subCollectionName}` : ''), { error });
-      throw new Error(`Failed to add document to ${collectionName}`);
+      logger.error(`Error adding document to ${collectionName}`, { error: getErrorMessage(error) });
+      throw error;
     }
   }
 
@@ -96,29 +106,27 @@ export class FirestoreService {
     parentDocId?: string,
     subCollectionName?: string
   ): Promise<void> {
-    if (validator) {
-      const errors = validator(data);
-      if (errors.length > 0) {
-        logger.error(`Validation failed for updating ${collectionName} ${docId}`, { errors, data });
-        throw new Error(`Validation failed: ${errors.join(', ')}`);
-      }
-    }
     try {
-      let docRef: FirebaseFirestoreTypes.DocumentReference<FirebaseFirestoreTypes.DocumentData>;
-      if (parentDocId && subCollectionName) {
-        docRef = this.getSubCollectionRef(collectionName, parentDocId, subCollectionName).doc(docId);
-      } else {
-        docRef = this.getCollectionRef(collectionName).doc(docId);
+      if (validator) {
+        const errors = validator(data);
+        if (errors.length > 0) {
+          logger.error(`Validation failed for updating ${collectionName}/${docId}`, { errors, data });
+          throw new Error(`Validation failed: ${errors.join(', ')}`);
+        }
       }
+
+      const docRef = parentDocId && subCollectionName
+        ? this.getSubCollectionRef(collectionName, parentDocId, subCollectionName).doc(docId)
+        : this.getCollectionRef(collectionName).doc(docId);
 
       await docRef.update({
         ...data,
         dateMiseAJour: formatDateForFirestore(new Date()),
       });
-      logger.info(`Document ${docId} updated in ${collectionName}` + (parentDocId ? `/${parentDocId}/${subCollectionName}` : ''), { data });
+      logger.info(`Document ${docId} updated in ${collectionName}${parentDocId ? `/${parentDocId}/${subCollectionName}` : ''}`, { data });
     } catch (error) {
-      logger.error(`Error updating document ${docId} in ${collectionName}` + (parentDocId ? `/${parentDocId}/${subCollectionName}` : ''), { error });
-      throw new Error(`Failed to update document in ${collectionName}`);
+      logger.error(`Error updating document ${docId} in ${collectionName}`, { error: getErrorMessage(error) });
+      throw error;
     }
   }
 
@@ -129,19 +137,16 @@ export class FirestoreService {
     subCollectionName?: string
   ): Promise<boolean> {
     try {
-      let docRef: FirebaseFirestoreTypes.DocumentReference<FirebaseFirestoreTypes.DocumentData>;
-      if (parentDocId && subCollectionName) {
-        docRef = this.getSubCollectionRef(collectionName, parentDocId, subCollectionName).doc(docId);
-      } else {
-        docRef = this.getCollectionRef(collectionName).doc(docId);
-      }
+      const docRef = parentDocId && subCollectionName
+        ? this.getSubCollectionRef(collectionName, parentDocId, subCollectionName).doc(docId)
+        : this.getCollectionRef(collectionName).doc(docId);
 
       await docRef.delete();
-      logger.info(`Document ${docId} deleted from ${collectionName}` + (parentDocId ? `/${parentDocId}/${subCollectionName}` : ''));
+      logger.info(`Document ${docId} deleted from ${collectionName}${parentDocId ? `/${parentDocId}/${subCollectionName}` : ''}`);
       return true;
     } catch (error) {
-      logger.error(`Error deleting document ${docId} from ${collectionName}` + (parentDocId ? `/${parentDocId}/${subCollectionName}` : ''), { error });
-      throw new Error(`Failed to delete document from ${collectionName}`);
+      logger.error(`Error deleting document ${docId} from ${collectionName}`, { error: getErrorMessage(error) });
+      throw error;
     }
   }
 
@@ -149,158 +154,168 @@ export class FirestoreService {
     collectionName: string,
     onData: (data: T[]) => void,
     onError: (error: Error) => void,
-    queryFn?: (ref: FirebaseFirestoreTypes.Query<FirebaseFirestoreTypes.DocumentData>) => FirebaseFirestoreTypes.Query<FirebaseFirestoreTypes.DocumentData>,
+    queryFn?: (
+      ref: FirebaseFirestoreTypes.Query<FirebaseFirestoreTypes.DocumentData>
+    ) => FirebaseFirestoreTypes.Query<FirebaseFirestoreTypes.DocumentData>,
     parentDocId?: string,
     subCollectionName?: string
   ): () => void {
-    let queryRef: FirebaseFirestoreTypes.Query<FirebaseFirestoreTypes.DocumentData>;
-    if (parentDocId && subCollectionName) {
-      queryRef = this.getSubCollectionRef(collectionName, parentDocId, subCollectionName);
-    } else {
-      queryRef = this.getCollectionRef(collectionName);
-    }
+    try {
+      let queryRef: FirebaseFirestoreTypes.Query<FirebaseFirestoreTypes.DocumentData> = parentDocId && subCollectionName
+        ? this.getSubCollectionRef(collectionName, parentDocId, subCollectionName)
+        : this.getCollectionRef(collectionName);
 
-    if (queryFn) {
-      queryRef = queryFn(queryRef);
-    }
-
-    const unsubscribe = queryRef.onSnapshot(
-      snapshot => {
-        const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as unknown as T[];
-        onData(items);
-      },
-      error => {
-        logger.error(`Error listening to ${collectionName}` + (parentDocId ? `/${parentDocId}/${subCollectionName}` : '') + `:, ${getErrorMessage(error)}`, { error });
-        onError(error as Error);
+      if (queryFn) {
+        queryRef = queryFn(queryRef);
       }
-    );
-    logger.info(`Started listening to ${collectionName}` + (parentDocId ? `/${parentDocId}/${subCollectionName}` : ''));
-    return unsubscribe;
+
+      const unsubscribe = queryRef.onSnapshot(
+        (snapshot) => {
+          const items = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as unknown as T));
+          logger.info(`Data received for ${collectionName}${parentDocId ? `/${parentDocId}/${subCollectionName}` : ''}`, { count: items.length });
+          onData(items);
+        },
+        (error) => {
+          logger.error(`Error listening to ${collectionName}${parentDocId ? `/${parentDocId}/${subCollectionName}` : ''}`, { error: getErrorMessage(error) });
+          onError(error);
+        }
+      );
+
+      logger.info(`Started listening to ${collectionName}${parentDocId ? `/${parentDocId}/${subCollectionName}` : ''}`);
+      return unsubscribe;
+    } catch (error) {
+      logger.error(`Error setting up listener for ${collectionName}`, { error: getErrorMessage(error) });
+      throw error;
+    }
   }
 
-  // --- Création de la famille avec validation et transaction ---
-  async createFamily(familyId: string, familyName?: string): Promise<void> {
-    const familyRef = firestore()
-      .collection('users')
-      .doc(this.userId)
-      .collection('families')
-      .doc(familyId);
-
+  async ensureFamilyExists(): Promise<void> {
     try {
+      const familyRef = firestore()
+        .collection('users')
+        .doc(this.userId)
+        .collection('metadata')
+        .doc('family');
+
       const familyDoc = await familyRef.get();
-      if (familyDoc.exists()) {
-        throw new Error('Une famille avec cet ID existe déjà.');
-      }
-
-
-      await firestore().runTransaction(async (transaction) => {
-        const newFamilyData = {
-          id: familyId,
+      if (!familyDoc.exists) {
+        const currentDate = new Date();
+        const familyData = {
+          id: 'family1',
           creatorId: this.userId,
-          familyName: familyName || `Famille ${generateId('FamilyName')}`,
-          dateCreation: formatDateForFirestore(new Date()),
-          dateMiseAJour: formatDateForFirestore(new Date()),
+          familyName: 'Famille 1',
+          dateCreation: formatDateForFirestore(currentDate),
+          dateMiseAJour: formatDateForFirestore(currentDate),
           membersCount: 0,
           status: 'active',
+          lastModifiedBy: this.userId,
         };
-        transaction.set(familyRef, newFamilyData);
-      });
 
-      logger.info('Family created successfully', { familyId, creatorId: this.userId, familyName });
+        await familyRef.set(familyData);
+        logger.info('Family metadata created', { userId: this.userId, timestamp: currentDate.toISOString() });
+      }
     } catch (error) {
-      logger.error('Error creating family', { error: getErrorMessage(error), familyId });
-      throw new Error(`Failed to create family: ${getErrorMessage(error)}`);
+      logger.error('Error ensuring family exists', { error: getErrorMessage(error) });
+      throw error;
     }
   }
 
-  // --- MembreFamille avec mise à jour de membersCount ---
   async getFamilyMembers(): Promise<MembreFamille[]> {
     try {
       const snapshot = await this.getCollectionRef('familyMembers').get();
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), familyId: this.familyId, userId: this.userId } as MembreFamille));
+      const members = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data(), userId: this.userId } as MembreFamille));
+      logger.info('Family members fetched', { count: members.length });
+      return members;
     } catch (error) {
       logger.error('Error fetching family members', { error: getErrorMessage(error) });
-      throw new Error('Failed to fetch family members');
+      throw error;
     }
   }
 
-  async addFamilyMember(member: Omit<MembreFamille, 'id' | 'dateCreation' | 'dateMiseAJour' | 'familyId' | 'createurId'>): Promise<string> {
-    const newMember: MembreFamille = {
-      ...member,
-      dateCreation: formatDateForFirestore(new Date()),
-      dateMiseAJour: formatDateForFirestore(new Date()),
-      id: generateId('Family'),
-      familyId: this.familyId,
-      createurId: this.userId,
-    };
-
-    const familyRef = firestore()
-      .collection('users')
-      .doc(this.userId)
-      .collection('families')
-      .doc(this.familyId);
-
+  async getFamilyMembersForCurrentUser(): Promise<MembreFamille[]> {
     try {
-      // Utiliser une transaction pour ajouter le membre et incrémenter membersCount atomiquement
-      const memberId = await firestore().runTransaction(async (transaction) => {
-        const memberDocRef = this.getCollectionRef('familyMembers').doc();
+      const snapshot = await this.getCollectionRef('familyMembers').where('familyId', '==', this.userId).get();
+      const members = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data(), userId: this.userId } as MembreFamille));
+      logger.info('Family members for current user fetched', { count: members.length });
+      return members;
+    } catch (error) {
+      logger.error('Error fetching family members for current user', { error: getErrorMessage(error) });
+      throw error;
+    }
+  }
+
+  async addFamilyMember(member: Omit<MembreFamille, 'id' | 'dateCreation' | 'dateMiseAJour' | 'createurId'>): Promise<string> {
+    try {
+      const newMember: MembreFamille = {
+        ...member,
+        id: generateId('Member'),
+        dateCreation: formatDateForFirestore(new Date()),
+        dateMiseAJour: formatDateForFirestore(new Date()),
+        createurId: this.userId,
+      };
+
+      const familyRef = firestore()
+        .collection('users')
+        .doc(this.userId)
+        .collection('metadata')
+        .doc('family');
+
+      return await firestore().runTransaction(async (transaction) => {
+        const memberDocRef = this.getCollectionRef('familyMembers').doc(newMember.id);
         transaction.set(memberDocRef, newMember);
 
         const familyDoc = await transaction.get(familyRef);
         if (!familyDoc.exists) {
-          throw new Error('La famille n\'existe pas.');
+          throw new Error('Family metadata does not exist.');
         }
         const currentCount = familyDoc.data()?.membersCount || 0;
         transaction.update(familyRef, { membersCount: currentCount + 1 });
 
-        return memberDocRef.id;
+        logger.info('Family member added', { memberId: newMember.id, membersCount: currentCount + 1 });
+        return newMember.id;
       });
-
-      await this.getCollectionRef('familyMembers').doc(memberId).get(); // Forcer la mise à jour du cache
-      logger.info('Family member added', { memberId });
-      return memberId;
     } catch (error) {
       logger.error('Error adding family member', { error: getErrorMessage(error) });
-      throw new Error(`Failed to add family member: ${getErrorMessage(error)}`);
+      throw error;
     }
   }
 
   async updateFamilyMember(memberId: string, data: Partial<MembreFamille>): Promise<void> {
-    return this.updateDocument('familyMembers', memberId, data, validateMembreFamille);
+    await this.updateDocument('familyMembers', memberId, data, validateMembreFamille);
   }
 
   async deleteFamilyMember(memberId: string): Promise<boolean> {
-    const familyRef = firestore()
-      .collection('users')
-      .doc(this.userId)
-      .collection('families')
-      .doc(this.familyId);
-
     try {
-      // Utiliser une transaction pour supprimer le membre et décrémenter membersCount
+      const familyRef = firestore()
+        .collection('users')
+        .doc(this.userId)
+        .collection('metadata')
+        .doc('family');
+
       await firestore().runTransaction(async (transaction) => {
         const memberDocRef = this.getCollectionRef('familyMembers').doc(memberId);
         const memberDoc = await transaction.get(memberDocRef);
         if (!memberDoc.exists) {
-          throw new Error('Le membre n\'existe pas.');
+          throw new Error('Member does not exist.');
         }
         transaction.delete(memberDocRef);
 
         const familyDoc = await transaction.get(familyRef);
         if (!familyDoc.exists) {
-          throw new Error('La famille n\'existe pas.');
+          throw new Error('Family metadata does not exist.');
         }
         const currentCount = familyDoc.data()?.membersCount || 0;
         if (currentCount > 0) {
           transaction.update(familyRef, { membersCount: currentCount - 1 });
         }
+
+        logger.info('Family member deleted', { memberId, membersCount: currentCount - 1 });
       });
 
-      logger.info(`Family member ${memberId} deleted`);
       return true;
     } catch (error) {
-      logger.error(`Error deleting family member ${memberId}`, { error: getErrorMessage(error) });
-      throw new Error(`Failed to delete family member: ${getErrorMessage(error)}`);
+      logger.error('Error deleting family member', { error: getErrorMessage(error) });
+      throw error;
     }
   }
 
@@ -308,31 +323,31 @@ export class FirestoreService {
     return this.listenToDocuments('familyMembers', onData, onError);
   }
 
-  // --- Ingrédients ---
   async getIngredients(): Promise<Ingredient[]> {
     try {
       const snapshot = await this.getCollectionRef('ingredients').get();
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), familyId: this.familyId, createurId: this.userId } as Ingredient));
+      const ingredients = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data(), createurId: this.userId } as Ingredient));
+      logger.info('Ingredients fetched', { count: ingredients.length });
+      return ingredients;
     } catch (error) {
       logger.error('Error fetching ingredients', { error: getErrorMessage(error) });
-      throw new Error('Failed to fetch ingredients');
+      throw error;
     }
   }
 
-  async addIngredient(ingredient: Omit<Ingredient, 'id' | 'dateCreation' | 'dateMiseAJour' | 'familyId' | 'createurId'>): Promise<string> {
+  async addIngredient(ingredient: Omit<Ingredient, 'id' | 'dateCreation' | 'dateMiseAJour' | 'createurId'>): Promise<string> {
     const newIngredient: Ingredient = {
       ...ingredient,
+      id: generateId('Ingredient'),
       dateCreation: formatDateForFirestore(new Date()),
       dateMiseAJour: formatDateForFirestore(new Date()),
-      id: generateId('Ingredient'),
-      familyId: this.familyId,
       createurId: this.userId,
     };
     return this.addDocument('ingredients', newIngredient, validateIngredient);
   }
 
   async updateIngredient(ingredientId: string, data: Partial<Ingredient>): Promise<void> {
-    return this.updateDocument('ingredients', ingredientId, data, validateIngredient);
+    await this.updateDocument('ingredients', ingredientId, data, validateIngredient);
   }
 
   async deleteIngredient(ingredientId: string): Promise<boolean> {
@@ -343,31 +358,32 @@ export class FirestoreService {
     return this.listenToDocuments('ingredients', onData, onError);
   }
 
-  // --- Recettes ---
+
   async getRecipes(): Promise<Recette[]> {
     try {
       const snapshot = await this.getCollectionRef('recipes').get();
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), familyId: this.familyId, createurId: this.userId } as Recette));
+      const recipes = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data(), createurId: this.userId } as Recette));
+      logger.info('Recipes fetched', { count: recipes.length });
+      return recipes;
     } catch (error) {
       logger.error('Error fetching recipes', { error: getErrorMessage(error) });
-      throw new Error('Failed to fetch recipes');
+      throw error;
     }
   }
 
-  async addRecipe(recipe: Omit<Recette, 'id' | 'dateCreation' | 'dateMiseAJour' | 'familyId' | 'createurId'>): Promise<string> {
+  async addRecipe(recipe: Omit<Recette, 'id' | 'dateCreation' | 'dateMiseAJour' | 'createurId'>): Promise<string> {
     const newRecipe: Recette = {
       ...recipe,
+      id: generateId('Recette'),
       dateCreation: formatDateForFirestore(new Date()),
       dateMiseAJour: formatDateForFirestore(new Date()),
-      id: generateId('Recette'),
-      familyId: this.familyId,
       createurId: this.userId,
     };
     return this.addDocument('recipes', newRecipe, validateRecette);
   }
 
   async updateRecipe(recipeId: string, data: Partial<Recette>): Promise<void> {
-    return this.updateDocument('recipes', recipeId, data, validateRecette);
+    await this.updateDocument('recipes', recipeId, data, validateRecette);
   }
 
   async deleteRecipe(recipeId: string): Promise<boolean> {
@@ -378,31 +394,31 @@ export class FirestoreService {
     return this.listenToDocuments('recipes', onData, onError);
   }
 
-  // --- Menus ---
   async getMenus(): Promise<Menu[]> {
     try {
       const snapshot = await this.getCollectionRef('menus').get();
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), familyId: this.familyId, createurId: this.userId } as Menu));
+      const menus = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data(), createurId: this.userId } as Menu));
+      logger.info('Menus fetched', { count: menus.length });
+      return menus;
     } catch (error) {
       logger.error('Error fetching menus', { error: getErrorMessage(error) });
-      throw new Error('Failed to fetch menus');
+      throw error;
     }
   }
 
-  async addMenu(menu: Omit<Menu, 'id' | 'dateCreation' | 'dateMiseAJour' | 'familyId' | 'createurId'>): Promise<string> {
+  async addMenu(menu: Omit<Menu, 'id' | 'dateCreation' | 'dateMiseAJour' | 'createurId'>): Promise<string> {
     const newMenu: Menu = {
       ...menu,
+      id: generateId('Menu'),
       dateCreation: formatDateForFirestore(new Date()),
       dateMiseAJour: formatDateForFirestore(new Date()),
-      id: generateId('Menu'),
-      familyId: this.familyId,
       createurId: this.userId,
     };
     return this.addDocument('menus', newMenu, validateMenu);
   }
 
   async updateMenu(menuId: string, data: Partial<Menu>): Promise<void> {
-    return this.updateDocument('menus', menuId, data, validateMenu);
+    await this.updateDocument('menus', menuId, data, validateMenu);
   }
 
   async deleteMenu(menuId: string): Promise<boolean> {
@@ -413,31 +429,31 @@ export class FirestoreService {
     return this.listenToDocuments('menus', onData, onError);
   }
 
-  // --- Listes de Courses ---
   async getShoppingLists(): Promise<ListeCourses[]> {
     try {
       const snapshot = await this.getCollectionRef('shoppingLists').get();
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), familyId: this.familyId, createurId: this.userId } as ListeCourses));
+      const lists = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data(), createurId: this.userId } as ListeCourses));
+      logger.info('Shopping lists fetched', { count: lists.length });
+      return lists;
     } catch (error) {
       logger.error('Error fetching shopping lists', { error: getErrorMessage(error) });
-      throw new Error('Failed to fetch shopping lists');
+      throw error;
     }
   }
 
-  async addShoppingList(list: Omit<ListeCourses, 'id' | 'dateCreation' | 'dateMiseAJour' | 'familyId' | 'createurId'>): Promise<string> {
+  async addShoppingList(list: Omit<ListeCourses, 'id' | 'dateCreation' | 'dateMiseAJour' | 'createurId'>): Promise<string> {
     const newList: ListeCourses = {
       ...list,
+      id: generateId('Shopping'),
       dateCreation: formatDateForFirestore(new Date()),
       dateMiseAJour: formatDateForFirestore(new Date()),
-      id: generateId('Shopping'),
-      familyId: this.familyId,
       createurId: this.userId,
     };
     return this.addDocument('shoppingLists', newList, validateListeCourses);
   }
 
   async updateShoppingList(listId: string, data: Partial<ListeCourses>): Promise<void> {
-    return this.updateDocument('shoppingLists', listId, data, validateListeCourses);
+    await this.updateDocument('shoppingLists', listId, data, validateListeCourses);
   }
 
   async deleteShoppingList(listId: string): Promise<boolean> {
@@ -448,31 +464,31 @@ export class FirestoreService {
     return this.listenToDocuments('shoppingLists', onData, onError);
   }
 
-  // --- Budgets ---
   async getBudgets(): Promise<Budget[]> {
     try {
       const snapshot = await this.getCollectionRef('budgets').get();
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), familyId: this.familyId, createurId: this.userId } as Budget));
+      const budgets = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data(), createurId: this.userId } as Budget));
+      logger.info('Budgets fetched', { count: budgets.length });
+      return budgets;
     } catch (error) {
       logger.error('Error fetching budgets', { error: getErrorMessage(error) });
-      throw new Error('Failed to fetch budgets');
+      throw error;
     }
   }
 
-  async addBudget(budget: Omit<Budget, 'id' | 'dateCreation' | 'dateMiseAJour' | 'familyId' | 'createurId'>): Promise<string> {
+  async addBudget(budget: Omit<Budget, 'id' | 'dateCreation' | 'dateMiseAJour' | 'createurId'>): Promise<string> {
     const newBudget: Budget = {
       ...budget,
+      id: generateId('Budget'),
       dateCreation: formatDateForFirestore(new Date()),
       dateMiseAJour: formatDateForFirestore(new Date()),
-      id: generateId('Budget'),
-      familyId: this.familyId,
       createurId: this.userId,
     };
     return this.addDocument('budgets', newBudget, validateBudget);
   }
 
   async updateBudget(budgetId: string, data: Partial<Budget>): Promise<void> {
-    return this.updateDocument('budgets', budgetId, data, validateBudget);
+    await this.updateDocument('budgets', budgetId, data, validateBudget);
   }
 
   async deleteBudget(budgetId: string): Promise<boolean> {
@@ -483,29 +499,48 @@ export class FirestoreService {
     return this.listenToDocuments('budgets', onData, onError);
   }
 
-  // --- Magasins (Stores) ---
   async getStores(): Promise<Store[]> {
     try {
       const snapshot = await this.getCollectionRef('stores').get();
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), familyId: this.familyId, createurId: this.userId } as unknown as Store));
+      const stores = snapshot.docs.map((doc) => {
+        const data = doc.data() as Store;
+        return {
+          id: doc.id,
+          nom: data.nom || 'Unnamed Store',
+          categorie: data.categorie || 'inconnu',
+          articles: data.articles || [],
+          localisation: data.localisation,
+          horaires: data.horaires,
+          contact: data.contact,
+          promotions: data.promotions,
+          dateCreation: data.dateCreation,
+          dateMiseAJour: data.dateMiseAJour,
+          createurId: this.userId,
+        } as Store;
+      });
+      logger.info('Stores fetched successfully', { count: stores.length });
+      return stores;
     } catch (error) {
       logger.error('Error fetching stores', { error: getErrorMessage(error) });
-      throw new Error('Failed to fetch stores');
+      throw error;
     }
   }
 
-  async addStore(store: Omit<Store, 'id' | 'dateCreation' | 'dateMiseAJour' | 'familyId' | 'createurId'>): Promise<string> {
+  async addStore(store: Omit<Store, 'id' | 'dateCreation' | 'dateMiseAJour' | 'createurId'>): Promise<string> {
     const newStore: Store = {
       ...store,
       id: generateId('Store'),
       dateCreation: formatDateForFirestore(new Date()),
       dateMiseAJour: formatDateForFirestore(new Date()),
+      nom: store.nom || 'Unnamed Store',
+      categorie: store.categorie || 'inconnu',
+      articles: store.articles || [],
     };
     return this.addDocument('stores', newStore, validateStore);
   }
 
   async updateStore(storeId: string, data: Partial<Store>): Promise<void> {
-    return this.updateDocument('stores', storeId, data, validateStore);
+    await this.updateDocument('stores', storeId, data, validateStore);
   }
 
   async deleteStore(storeId: string): Promise<boolean> {
@@ -516,29 +551,30 @@ export class FirestoreService {
     return this.listenToDocuments('stores', onData, onError);
   }
 
-  // --- Articles de Magasin (Store Items) ---
   async getStoreItems(storeId: string): Promise<StoreItem[]> {
     try {
       const snapshot = await this.getSubCollectionRef('stores', storeId, 'storeItems').get();
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), storeId: storeId } as StoreItem));
+      const items = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data(), storeId } as StoreItem));
+      logger.info('Store items fetched', { count: items.length, storeId });
+      return items;
     } catch (error) {
-      logger.error(`Error fetching store items for store ${storeId}`, { error: getErrorMessage(error) });
-      throw new Error(`Failed to fetch store items for store ${storeId}`);
+      logger.error('Error fetching store items', { error: getErrorMessage(error), storeId });
+      throw error;
     }
   }
 
   async addStoreItem(storeId: string, item: Omit<StoreItem, 'id' | 'dateMiseAJour' | 'storeId'>): Promise<string> {
     const newItem: StoreItem = {
       ...item,
-      dateMiseAJour: formatDateForFirestore(new Date()),
       id: generateId('StoreItem'),
-      storeId: storeId,
+      dateMiseAJour: formatDateForFirestore(new Date()),
+      storeId,
     };
     return this.addDocument('stores', newItem, validateStoreItem, storeId, 'storeItems');
   }
 
   async updateStoreItem(storeId: string, itemId: string, data: Partial<StoreItem>): Promise<void> {
-    return this.updateDocument('stores', itemId, data, validateStoreItem, storeId, 'storeItems');
+    await this.updateDocument('stores', itemId, data, validateStoreItem, storeId, 'storeItems');
   }
 
   async deleteStoreItem(storeId: string, itemId: string): Promise<boolean> {
@@ -549,112 +585,261 @@ export class FirestoreService {
     return this.listenToDocuments('stores', onData, onError, undefined, storeId, 'storeItems');
   }
 
-  // --- Historique des Repas ---
   async getHistoriqueRepas(memberId?: string): Promise<HistoriqueRepas[]> {
     try {
       const baseQuery = this.getCollectionRef('historiqueRepas');
       const queryRef = memberId ? baseQuery.where('memberId', '==', memberId) : baseQuery;
       const snapshot = await queryRef.get();
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as HistoriqueRepas));
+      const historiqueRepas = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as HistoriqueRepas));
+      logger.info('Meal history fetched', { count: historiqueRepas.length, memberId: memberId || 'all' });
+      return historiqueRepas;
     } catch (error) {
-      logger.error('Error fetching meal history', { error: getErrorMessage(error) });
-      throw new Error('Failed to fetch meal history');
+      logger.error('Error fetching meal history', { error: getErrorMessage(error), memberId });
+      throw error;
     }
   }
 
   async addHistoriqueRepas(historique: Omit<HistoriqueRepas, 'id' | 'dateCreation' | 'dateMiseAJour'>): Promise<string> {
     const newHistorique: HistoriqueRepas = {
       ...historique,
+      id: generateId('Historique'),
       dateCreation: formatDateForFirestore(new Date()),
       dateMiseAJour: formatDateForFirestore(new Date()),
-      id: generateId('Historique'),
     };
     return this.addDocument('historiqueRepas', newHistorique, validateHistoriqueRepas);
   }
 
   async updateHistoriqueRepas(historiqueId: string, data: Partial<HistoriqueRepas>): Promise<void> {
-    return this.updateDocument('historiqueRepas', historiqueId, data, validateHistoriqueRepas);
+    await this.updateDocument('historiqueRepas', historiqueId, data, validateHistoriqueRepas);
   }
 
   async deleteHistoriqueRepas(historiqueId: string): Promise<boolean> {
     return this.deleteDocument('historiqueRepas', historiqueId);
   }
 
-  listenToHistoriqueRepas(onData: (data: HistoriqueRepas[]) => void, onError: (error: Error) => void, memberId?: string): () => void {
-    const queryFn = (ref: FirebaseFirestoreTypes.Query) => (memberId ? ref.where('memberId', '==', memberId) : ref);
+  listenToHistoriqueRepas(
+    onData: (data: HistoriqueRepas[]) => void,
+    onError: (error: Error) => void,
+    memberId?: string
+  ): () => void {
+    const queryFn = (ref: FirebaseFirestoreTypes.Query<FirebaseFirestoreTypes.DocumentData>) =>
+      memberId ? ref.where('memberId', '==', memberId) : ref;
     return this.listenToDocuments('historiqueRepas', onData, onError, queryFn);
   }
 
-  // --- Conversations ---
   async getConversations(): Promise<Conversation[]> {
     try {
       const snapshot = await this.getCollectionRef('conversations').orderBy('date', 'desc').get();
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as Omit<Conversation, 'messages'>, messages: [] }));
+      const conversations = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data() as Omit<Conversation, 'messages'>,
+        messages: [],
+      }));
+      logger.info('Conversations fetched', { count: conversations.length });
+      return conversations;
     } catch (error) {
       logger.error('Error fetching conversations', { error: getErrorMessage(error) });
-      throw new Error('Failed to fetch conversations');
+      throw error;
     }
   }
 
   async addConversation(conversation: Omit<Conversation, 'id' | 'dateCreation' | 'dateMiseAJour' | 'messages'>): Promise<string> {
     const newConversation: Conversation = {
       ...conversation,
+      id: generateId('Conversation'),
       dateCreation: formatDateForFirestore(new Date()),
       dateMiseAJour: formatDateForFirestore(new Date()),
-      id: generateId('Conv'),
       messages: [],
-      familyId: this.familyId,
       userId: this.userId,
     };
     return this.addDocument('conversations', newConversation);
   }
 
   async updateConversation(conversationId: string, data: Partial<Omit<Conversation, 'messages'>>): Promise<void> {
-    return this.updateDocument('conversations', conversationId, data);
+    await this.updateDocument('conversations', conversationId, data);
   }
 
   async deleteConversation(conversationId: string): Promise<boolean> {
-    logger.warn(`Deleting conversation ${conversationId}. Note: Associated AI Interactions in subcollection will NOT be automatically deleted.`);
+    logger.warn(
+      `Deleting conversation ${conversationId}. Associated AI Interactions in subcollection will NOT be automatically deleted.`
+    );
     return this.deleteDocument('conversations', conversationId);
   }
 
   listenToConversations(onData: (data: Conversation[]) => void, onError: (error: Error) => void): () => void {
-    const queryFn = (ref: FirebaseFirestoreTypes.Query) => ref.orderBy('date', 'desc');
+    const queryFn = (ref: FirebaseFirestoreTypes.Query<FirebaseFirestoreTypes.DocumentData>) => ref.orderBy('date', 'desc');
     return this.listenToDocuments('conversations', onData, onError, queryFn);
   }
 
-  // --- AI Interactions ---
   async getAiInteractionsForConversation(conversationId: string): Promise<AiInteraction[]> {
     try {
       const snapshot = await this.getSubCollectionRef('conversations', conversationId, 'aiInteractions').orderBy('timestamp').get();
-      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AiInteraction));
+      const interactions = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as AiInteraction));
+      logger.info('AI interactions fetched', { count: interactions.length, conversationId });
+      return interactions;
     } catch (error) {
-      logger.error(`Error fetching AI interactions for conversation ${conversationId}`, { error: getErrorMessage(error) });
-      throw new Error(`Failed to fetch AI interactions for conversation ${conversationId}`);
+      logger.error('Error fetching AI interactions', { error: getErrorMessage(error), conversationId });
+      throw error;
     }
   }
 
-  async addAiInteractionToConversation(conversationId: string, interaction: Omit<AiInteraction, 'id' | 'dateCreation' | 'dateMiseAJour' | 'conversationId'>): Promise<string> {
-    const newInteraction: AiInteraction = {
-      ...interaction,
-      dateCreation: formatDateForFirestore(new Date()),
-      dateMiseAJour: formatDateForFirestore(new Date()),
-      id: generateId('AIInt'),
-      conversationId: conversationId,
-    };
-    return this.addDocument('conversations', newInteraction, undefined, conversationId, 'aiInteractions');
+  async addAiInteractionToConversation(
+    conversationId: string,
+    interaction: Omit<AiInteraction, 'id' | 'dateCreation' | 'dateMiseAJour' | 'conversationId'>
+  ): Promise<string> {
+    try {
+      const newInteraction: AiInteraction = {
+        ...interaction,
+        id: generateId('AIInteraction'),
+        dateCreation: formatDateForFirestore(new Date()),
+        dateMiseAJour: formatDateForFirestore(new Date()),
+        conversationId,
+      };
+
+      const interactionId = await this.addDocument('conversations', newInteraction, undefined, conversationId, 'aiInteractions');
+
+      // Log spécifique selon le type d'interaction
+      switch (newInteraction.type) {
+        case 'text':
+          logger.info('AI text interaction added', {
+            interactionId,
+            conversationId,
+            message: (newInteraction.content as { type: 'text'; message: string }).message,
+            isUser: newInteraction.isUser,
+          });
+          break;
+        case 'json':
+          logger.info('AI JSON interaction added', {
+            interactionId,
+            conversationId,
+            dataKeys: Object.keys((newInteraction.content as { type: 'json'; data: object }).data),
+            isUser: newInteraction.isUser,
+          });
+          break;
+        case 'image':
+          logger.info('AI image interaction added', {
+            interactionId,
+            conversationId,
+            uri: (newInteraction.content as { type: 'image'; uri: string; mimeType: string }).uri,
+            mimeType: (newInteraction.content as { type: 'image'; uri: string; mimeType: string }).mimeType,
+            isUser: newInteraction.isUser,
+          });
+          break;
+        case 'menu_suggestion':
+          logger.info('AI menu suggestion interaction added', {
+            interactionId,
+            conversationId,
+            menu: (newInteraction.content as MenuSuggestionContent).menu,
+            recipeCount: (newInteraction.content as MenuSuggestionContent).recipes?.length,
+            isUser: newInteraction.isUser,
+          });
+          break;
+        case 'shopping_list_suggestion':
+          logger.info('AI shopping list suggestion interaction added', {
+            interactionId,
+            conversationId,
+            listId: (newInteraction.content as { type: 'shopping_list_suggestion'; listId: string; items: any[] }).listId,
+            itemCount: (newInteraction.content as { type: 'shopping_list_suggestion'; listId: string; items: any[] }).items.length,
+            isUser: newInteraction.isUser,
+          });
+          break;
+        case 'recipe_analysis':
+          logger.info('AI recipe analysis interaction added', {
+            interactionId,
+            conversationId,
+            recipeId: (newInteraction.content as { type: 'recipe_analysis'; recipeId: string; analysis: any }).recipeId,
+            calories: (newInteraction.content as { type: 'recipe_analysis'; recipeId: string; analysis: any }).analysis.calories,
+            isUser: newInteraction.isUser,
+          });
+          break;
+        case 'recipe_suggestion':
+          logger.info('AI recipe suggestion interaction added', {
+            interactionId,
+            conversationId,
+            recipeId: (newInteraction.content as { type: 'recipe_suggestion'; recipeId: string; name: string }).recipeId,
+            name: (newInteraction.content as { type: 'recipe_suggestion'; recipeId: string; name: string }).name,
+            isUser: newInteraction.isUser,
+          });
+          break;
+        case 'tool_use':
+          logger.info('AI tool use interaction added', {
+            interactionId,
+            conversationId,
+            toolName: (newInteraction.content as { type: 'tool_use'; toolName: string; parameters: object }).toolName,
+            parameterKeys: Object.keys((newInteraction.content as { type: 'tool_use'; toolName: string; parameters: object }).parameters),
+            isUser: newInteraction.isUser,
+          });
+          break;
+        case 'tool_response':
+          logger.info('AI tool response interaction added', {
+            interactionId,
+            conversationId,
+            toolName: (newInteraction.content as { type: 'tool_response'; toolName: string; result: object }).toolName,
+            resultKeys: Object.keys((newInteraction.content as { type: 'tool_response'; toolName: string; result: object }).result),
+            isUser: newInteraction.isUser,
+          });
+          break;
+        case 'error':
+          logger.warn('AI error interaction added', {
+            interactionId,
+            conversationId,
+            message: (newInteraction.content as { type: 'error'; message: string; code?: string }).message,
+            code: (newInteraction.content as { type: 'error'; message: string; code?: string }).code,
+            isUser: newInteraction.isUser,
+          });
+          break;
+      }
+
+      return interactionId;
+    } catch (error) {
+      logger.error('Error adding AI interaction', { error: getErrorMessage(error), conversationId, type: interaction.type });
+      throw error;
+    }
   }
 
-  async updateAiInteractionInConversation(conversationId: string, interactionId: string, data: Partial<AiInteraction>): Promise<void> {
-    return this.updateDocument('conversations', interactionId, data, undefined, conversationId, 'aiInteractions');
+  async updateAiInteractionInConversation(
+    conversationId: string,
+    interactionId: string,
+    data: Partial<AiInteraction>
+  ): Promise<void> {
+    try {
+      await this.updateDocument('conversations', interactionId, data, undefined, conversationId, 'aiInteractions');
+      logger.info('AI interaction updated', {
+        interactionId,
+        conversationId,
+        updatedFields: Object.keys(data),
+        type: data.type || 'unknown',
+      });
+    } catch (error) {
+      logger.error('Error updating AI interaction', { error: getErrorMessage(error), interactionId, conversationId });
+      throw error;
+    }
   }
 
   async deleteAiInteractionFromConversation(conversationId: string, interactionId: string): Promise<boolean> {
-    return this.deleteDocument('conversations', interactionId, conversationId, 'aiInteractions');
+    try {
+      const result = await this.deleteDocument('conversations', interactionId, conversationId, 'aiInteractions');
+      logger.info('AI interaction deleted', { interactionId, conversationId });
+      return result;
+    } catch (error) {
+      logger.error('Error deleting AI interaction', { error: getErrorMessage(error), interactionId, conversationId });
+      throw error;
+    }
   }
 
-  listenToAiInteractionsForConversation(conversationId: string, onData: (data: AiInteraction[]) => void, onError: (error: Error) => void): () => void {
-    const queryFn = (ref: FirebaseFirestoreTypes.Query) => ref.orderBy('timestamp');
-    return this.listenToDocuments('conversations', onData, onError, queryFn, conversationId, 'aiInteractions');
+  listenToAiInteractionsForConversation(
+    conversationId: string,
+    onData: (data: AiInteraction[]) => void,
+    onError: (error: Error) => void
+  ): () => void {
+    const queryFn = (ref: FirebaseFirestoreTypes.Query<FirebaseFirestoreTypes.DocumentData>) => ref.orderBy('timestamp');
+    return this.listenToDocuments('conversations', (data: AiInteraction[]) => {
+      const typeCounts = data.reduce((acc, interaction) => {
+        acc[interaction.type] = (acc[interaction.type] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+      logger.info('AI interactions received', { conversationId, count: data.length, typeCounts });
+      onData(data);
+    }, onError, queryFn, conversationId, 'aiInteractions');
   }
 }

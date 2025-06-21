@@ -1,54 +1,94 @@
 import PushNotification from 'react-native-push-notification';
-import { Budget } from '../constants/entities';
+import { Platform } from 'react-native';
+import PushNotificationIOS from '@react-native-community/push-notification-ios';
 import { BudgetService } from './BudgetService';
+import { Budget } from '../constants/entities';
 import { logger } from '../utils/logger';
 
 export class NotificationService {
   private budgetService: BudgetService;
 
-  constructor(userId: string) {
-    this.budgetService = new BudgetService(userId);
+  constructor(budgetService: BudgetService) {
+    if (!budgetService) {
+      throw new Error('BudgetService is required');
+    }
+    this.budgetService = budgetService;
+    this.configureNotifications();
   }
 
-  configureNotifications() {
+  private configureNotifications() {
     PushNotification.configure({
       onNotification: (notification) => {
         logger.info('Notification received', { notification });
+        if (Platform.OS === 'ios') {
+          notification.finish(PushNotificationIOS.FetchResult.NoData);
+        }
       },
-      requestPermissions: true,
+      requestPermissions: Platform.OS === 'ios',
+      permissions: {
+        alert: true,
+        badge: true,
+        sound: true,
+      },
+      popInitialNotification: true,
     });
   }
 
-  async scheduleBudgetAlert(budget: Budget): Promise<void> {
+  async scheduleBudgetAlert(budget: Budget): Promise<boolean> {
+    if (!budget) {
+      logger.error('Budget is required for scheduling alert');
+      return false;
+    }
+
     try {
       const alerts = await this.budgetService.checkBudgetAlerts(budget);
-      if (alerts) {
-        alerts.forEach(alert => {
+      if (alerts?.length) {
+        alerts.forEach((alert) => {
           PushNotification.localNotificationSchedule({
             message: alert,
-            date: new Date(Date.now() + 1000 * 60), // 1 minute
+            date: new Date(Date.now() + 60 * 1000), // 1 minute delay
             allowWhileIdle: true,
+            userInfo: { budgetId: budget.id },
+            soundName: 'default',
           });
-          logger.info('Budget alert scheduled', { message: alert });
+          logger.info('Budget alert scheduled', { message: alert, budgetId: budget.id });
         });
+        return true;
       }
-    } catch (error) {
-      logger.error('Error scheduling budget alert', { error });
-      throw new Error('Failed to schedule budget alert');
+      logger.info('No budget alerts to schedule', { budgetId: budget.id });
+      return false;
+    } catch (error: any) {
+      const errorMsg = error.message || 'Failed to schedule budget alert';
+      logger.error('Error scheduling budget alert', { error: errorMsg });
+      return false;
     }
   }
 
-  scheduleShoppingReminder(listId: string, date: string): void {
+  async scheduleShoppingReminder(listId: string, date: string): Promise<boolean> {
+    if (!listId || !date) {
+      logger.error('List ID and date are required for shopping reminder');
+      return false;
+    }
+
     try {
+      const reminderDate = new Date(date);
+      if (isNaN(reminderDate.getTime())) {
+        logger.error('Invalid date format for shopping reminder', { date });
+        return false;
+      }
       PushNotification.localNotificationSchedule({
         message: `Rappel : Vérifiez votre liste de courses ${listId}`,
-        date: new Date(date),
+        date: reminderDate,
         allowWhileIdle: true,
+        userInfo: { listId },
+        soundName: 'default',
       });
       logger.info('Shopping reminder scheduled', { listId, date });
-    } catch (error) {
-      logger.error('Error scheduling shopping reminder', { error });
-      throw new Error('Failed to schedule shopping reminder');
+      return true;
+    } catch (error: any) {
+      const errorMsg = error.message || 'Failed to schedule shopping reminder';
+      logger.error('Error scheduling shopping reminder', { error: errorMsg });
+      return false;
     }
   }
 }

@@ -12,14 +12,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../App';
 
-// --- IMPORTANT: Update RootStackParamList in your App.tsx to include these params ---
-// Example:
-// type RootStackParamList = {
-//   RecipeDetail: { recipeId: string; familyId: string; }; // Added familyId here
-//   EditRecipe: { recipeId: string; familyId: string; createurId: string; }; // Ensure these params are expected
-//   RecipeAnalysis: { recipeId: string; familyId: string; }; // If you navigate here, ensure familyId is passed
-//   // ... other routes
-// };
+
 
 type RecipeDetailScreenNavigationProp = StackNavigationProp<RootStackParamList, 'RecipeDetail'>;
 type RecipeDetailScreenRouteProp = RouteProp<RootStackParamList, 'RecipeDetail'>;

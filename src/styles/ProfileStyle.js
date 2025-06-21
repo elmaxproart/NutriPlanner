@@ -129,20 +129,3 @@ export const darkStyles = StyleSheet.create({
   text: { color: '#fff' },
   border: { borderBottomColor: '#444' },
 });
-export const commonStyles = StyleSheet.create({
-  button: {
-    padding: 10,
-    borderRadius: 5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonText: { color: '#fff', fontWeight: 'bold' },
-  inputField: {
-    height: 40,
-    borderColor: '#ccc',
-    borderWidth: 1,
-    borderRadius: 5,
-    paddingHorizontal: 10,
-    marginVertical: 10,
-  },
-});

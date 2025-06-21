@@ -1,29 +1,49 @@
 import { NetworkService } from './NetworkService';
+import { FirestoreService } from './FirestoreService';
 import { GEMINI_API_KEY, GEMINI_API_URL } from '../constants/config';
 import {
   Ingredient,
   MembreFamille,
   Menu,
   Recette,
+  HistoriqueRepas,
   AiInteraction,
+  AiInteractionType,
+  AiInteractionContent,
 } from '../constants/entities';
-import { PREDEFINED_STORES } from '../constants/stores';
+import { mockStores as PREDEFINED_STORES } from '../constants/mockData';
 import { logger } from '../utils/logger';
-import { getErrorMessage, formatDateForFirestore } from '../utils/helpers';
-
-
-interface FunctionCallResponse {
-  type: 'function_call';
-  value: { name: string; args: Record<string, any> };
-}
-
-type AiResponse = string | object | FunctionCallResponse;
+import { formatDateForFirestore, generateId, getErrorMessage } from '../utils/helpers';
+import { prompts, PromptType } from './prompts';
+import {
+  ImageContent,
+  TextContent,
+  JsonContent,
+  MenuSuggestionContent,
+  ShoppingListSuggestionContent,
+  RecipeAnalysisContent,
+  RecipeSuggestionContent,
+  ToolUseContent,
+  ToolResponseContent,
+  ErrorContent,
+  RecipeContent,
+  MenuContent,
+  ShoppingListContent,
+  IngredientAvailabilityContent,
+  FoodTrendsContent,
+  NutritionalInfoContent,
+  TroubleshootProblemContent,
+  CreativeIdeasContent,
+  StoreSuggestionContent,
+  RecipeCompatibilityContent,
+  BudgetContent,
+} from '../types/messageTypes';
 
 export interface Part {
   text?: string;
   inlineData?: {
     mimeType: string;
-    data: string; // Base64 encoded string
+    data: string;
   };
   functionCall?: {
     name: string;
@@ -93,923 +113,1645 @@ export interface GenerateContentResponse {
     content: Content;
     finishReason: string;
     safetyRatings: any[];
-    citationMetadata?: any;
+    citation?: any;
+    metadata?: any;
     tokenCount?: number;
-    groundingAttributions?: any[];
-    groundingMetadata?: any;
+    sourceAttributions?: any;
+    grounding?: any;
     avgLogprobs?: number;
-    logprobsResult?: any;
-    urlRetrievalMetadata?: any;
-    urlContextMetadata?: any;
+    probs?: any;
+    urlRetrieval?: any;
+    urlContext?: any;
     index?: number;
   }[];
   promptFeedback?: {
-    blockReason?: string;
-    safetyRatings?: any[];
+    type?: any;
+    safetyRatings?: any;
   };
   usageMetadata?: {
-    promptTokenCount: number;
-    candidatesTokenCount: number;
-    totalTokenCount: number;
+    metadata?: any;
+    prompt: string;
+    candidates?: number;
+    totalTokens?: number;
   };
   modelVersion?: string;
   responseId?: string;
 }
 
+interface PromptOptions {
+  promptId: PromptType;
+  params?: Record<string, any>;
+  systemInstruction?: string;
+  generationConfig?: Partial<GenerationConfig>;
+  safetySettings?: SafetySetting[];
+  tools?: Tool[];
+  toolConfig?: ToolConfig;
+  conversationId?: string;
+  images?: ImageContent[];
+}
+
+/**
+ * Service avancé pour interagir avec l'API Gemini, gérant la génération de contenu texte,
+ * les interactions multi-modales (texte, image), et les outils externes. Version optimisée
+ * pour le modèle gemini-1.5-flash et intégrée avec NutriPlanner.
+ */
 export class GeminiService {
-  private apiKey: string;
-  private baseUrl: string;
-  private modelName: string;
+  private readonly apiKey: string;
+  private readonly baseUrl: string;
+  private readonly modelName: string = 'gemini-1.5-flash';
+  private readonly firestoreService: FirestoreService;
+  private readonly promptCache: Map<PromptType, string> = new Map();
+  private readonly userId: string;
 
-  constructor(model: string = 'gemini-1.5-flash') {
+  private defaultSafetySettings: SafetySetting[] = [
+    { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_LOW_AND_ABOVE' },
+    { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+    { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+    { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_LOW_AND_ABOVE' },
+  ];
+
+  private defaultGenerationConfig: GenerationConfig = {
+    temperature: 0.85,
+    maxOutputTokens: 4096,
+    topP: 0.95,
+    topK: 40,
+    candidateCount: 1,
+    presencePenalty: 0.2,
+    frequencyPenalty: 0.1,
+    responseMimeType: 'application/json',
+  };
+
+  private defaultTools: Tool[] = [
+    {
+      functionDeclarations: [
+        {
+          name: 'findStoresWithIngredient',
+          description: 'Trouve des magasins à proximité avec un ingrédient spécifique.',
+          parameters: {
+            type: 'object',
+            properties: {
+              ingredient: { type: 'string' },
+              latitude: { type: 'number' },
+              longitude: { type: 'number' },
+            },
+            required: ['ingredient', 'latitude', 'longitude'],
+          },
+        },
+      ],
+    },
+  ];
+
+  constructor(userId: string) {
     if (!GEMINI_API_KEY) {
-      throw new Error('GEMINI_API_KEY est manquant. Vérifiez votre fichier .env ou config.ts.');
+      throw new Error('GEMINI_API_KEY manquant dans la configuration.');
     }
-    this.apiKey = GEMINI_API_KEY;
-    this.baseUrl = GEMINI_API_URL;
-    this.modelName = model;
+    if (!userId) {
+      throw new Error('Utilisateur non authentifié.');
+    }
 
-    if (!this.baseUrl.includes('generativelanguage.googleapis.com')) {
-      logger.warn(`L'URL de l'API Gemini semble incorrecte. Attendu: 'https://generativelanguage.googleapis.com/v1beta', Obtenu: '${this.baseUrl}'`);
+    this.apiKey = GEMINI_API_KEY;
+    this.baseUrl = GEMINI_API_URL || 'https://generativelanguage.googleapis.com/v1beta';
+    this.userId = userId;
+    this.firestoreService = new FirestoreService(userId);
+
+    logger.info('Initialisation de GeminiService avec gemini-1.5-flash', {
+      model: this.modelName,
+      baseUrl: this.baseUrl,
+      userId,
+    });
+  }
+
+  /**
+   * Vérifie la connectivité réseau avec retry.
+   * @throws Error si la connexion échoue après plusieurs tentatives.
+   */
+  private async checkNetwork(): Promise<void> {
+    const retries = 3;
+    const delayMs = 1000;
+
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        const isConnected = await NetworkService.isConnected();
+        if (!isConnected) {
+          throw new Error('Aucune connexion internet disponible.');
+        }
+        return;
+      } catch (error) {
+        if (attempt === retries) {
+          throw new Error(`Échec de la vérification réseau après ${retries} tentatives : ${getErrorMessage(error)}`);
+        }
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
     }
   }
 
-  private async checkNetwork(): Promise<void> {
-    const isConnected = await NetworkService.isConnected();
-    if (!isConnected) {
-      const errorMsg = 'Aucune connexion internet disponible.';
-      logger.error(errorMsg);
+  /**
+   * Construit le contenu pour l'API Gemini à partir des interactions.
+   * Supporte tous les types de contenu définis.
+   * @param interactions Historique des interactions.
+   * @param additionalImages Images supplémentaires à inclure.
+   * @returns Contenus formatés pour l'API Gemini.
+   */
+  private buildGeminiContents(interactions: AiInteraction[], additionalImages: ImageContent[] = []): Content[] {
+    const contents: Content[] = [];
+
+    for (const interaction of interactions) {
+      const parts: Part[] = [];
+      const content = interaction.content;
+
+      switch (content.type as AiInteractionType) {
+        case 'text':
+          parts.push({ text: (content as TextContent).message });
+          break;
+
+        case 'json':
+          parts.push({ text: JSON.stringify((content as JsonContent).data) });
+          break;
+
+        case 'image':
+          const imageContent = content as ImageContent;
+          if (imageContent.data) {
+            parts.push({
+              inlineData: {
+                mimeType: imageContent.mimeType,
+                data: imageContent.data,
+              },
+            });
+          } else {
+            parts.push({ text: `Image: ${imageContent.uri} (${imageContent.description || 'sans description'})` });
+          }
+          break;
+
+        case 'menu_suggestion':
+          parts.push({ text: JSON.stringify((content as MenuSuggestionContent)) });
+          break;
+
+        case 'shopping_list_suggestion':
+          parts.push({ text: JSON.stringify((content as ShoppingListSuggestionContent)) });
+          break;
+
+        case 'recipe_analysis':
+          parts.push({ text: JSON.stringify((content as RecipeAnalysisContent)) });
+          break;
+
+        case 'recipe_suggestion':
+          parts.push({ text: JSON.stringify((content as RecipeSuggestionContent)) });
+          break;
+
+        case 'tool_use':
+          parts.push({
+            functionCall: {
+              name: (content as ToolUseContent).toolName,
+              args: (content as ToolUseContent).parameters,
+            },
+          });
+          break;
+
+        case 'tool_response':
+          parts.push({
+            functionResponse: {
+              name: (content as ToolResponseContent).toolName,
+              response: {
+                name: (content as ToolResponseContent).toolName,
+                content: (content as ToolResponseContent).result,
+              },
+            },
+          });
+          break;
+
+        case 'error':
+          parts.push({ text: `Erreur: ${(content as ErrorContent).message}` });
+          break;
+
+        case 'recipe':
+          parts.push({ text: JSON.stringify((content as RecipeContent).recette) });
+          break;
+
+        case 'menu':
+          parts.push({ text: JSON.stringify((content as MenuContent).menu) });
+          break;
+
+        case 'shopping':
+          parts.push({ text: JSON.stringify((content as ShoppingListContent).listeCourses) });
+          break;
+
+        case 'budget':
+          parts.push({ text: JSON.stringify((content as BudgetContent).budget) });
+          break;
+
+        case 'ingredient_availability':
+          parts.push({ text: JSON.stringify((content as IngredientAvailabilityContent)) });
+          break;
+
+        case 'food_trends':
+          parts.push({ text: JSON.stringify((content as FoodTrendsContent)) });
+          break;
+
+        case 'nutritional_info':
+          parts.push({ text: JSON.stringify((content as NutritionalInfoContent)) });
+          break;
+
+        case 'troubleshoot_problem':
+          parts.push({ text: JSON.stringify((content as TroubleshootProblemContent)) });
+          break;
+
+        case 'creative_ideas':
+          parts.push({ text: JSON.stringify((content as CreativeIdeasContent)) });
+          break;
+
+        case 'stores':
+          parts.push({ text: JSON.stringify((content as StoreSuggestionContent)) });
+          break;
+
+        case 'recipe_compatibility':
+          parts.push({ text: JSON.stringify((content as RecipeCompatibilityContent)) });
+          break;
+
+        default:
+          logger.warn('Type de contenu non supporté', { type: content.type });
+          parts.push({ text: JSON.stringify(content) });
+          break;
+      }
+
+      contents.push({
+        role: interaction.isUser ? 'user' : 'model',
+        parts,
+      });
+    }
+
+    for (const image of additionalImages) {
+      contents.push({
+        role: 'user',
+        parts: [
+          image.data
+            ? {
+                inlineData: {
+                  mimeType: image.mimeType,
+                  data: image.data,
+                },
+              }
+            : { text: `Image: ${image.uri} (${image.description || 'sans description'})` },
+        ],
+      });
+    }
+
+    return contents;
+  }
+
+  /**
+   * Génère un prompt à partir d'un modèle prédéfini.
+   * @param options Options du prompt.
+   * @returns Prompt généré.
+   */
+  private generatePrompt(options: PromptOptions): string {
+    const { promptId, params = {} } = options;
+
+    if (this.promptCache.has(promptId)) {
+      return this.promptCache.get(promptId)!;
+    }
+
+    const promptTemplate = prompts.find((p) => p.id === promptId);
+    if (!promptTemplate) {
+      const errorMsg = `Prompt non trouvé pour l'ID: ${promptId}`;
+      logger.error(errorMsg, { userId: this.userId });
+      throw new Error(errorMsg);
+    }
+
+    try {
+      const generatedPrompt = promptTemplate.generate(params);
+      this.promptCache.set(promptId, generatedPrompt);
+      return generatedPrompt;
+    } catch (error) {
+      const errorMsg = `Erreur lors de la génération du prompt ${promptId}: ${getErrorMessage(error)}`;
+      logger.error(errorMsg, { userId: this.userId });
       throw new Error(errorMsg);
     }
   }
 
-  private buildGeminiContents(interactions: AiInteraction[]): Content[] {
-    return interactions.map(interaction => {
-      const parts: Part[] = [];
-      if (typeof interaction.content === 'string') {
-        parts.push({ text: interaction.content });
-      } else if (interaction.content && typeof interaction.content === 'object') {
-        if (
-          'type' in interaction.content &&
-          interaction.content.type === 'image' &&
-          'data' in interaction.content &&
-          'mimeType' in interaction.content
-        ) {
-          parts.push({
-            inlineData: {
-              mimeType: interaction.content.mimeType as string,
-              data: interaction.content.data as string,
-            },
-          });
-        } else if ('text' in interaction.content) {
-          parts.push({ text: interaction.content.text as string });
-        } else if ('functionCall' in interaction.content) {
-          parts.push({
-            functionCall: interaction.content.functionCall as { name: string; args: Record<string, any> },
-          });
-        } else if ('functionResponse' in interaction.content) {
-          parts.push({
-            functionResponse: interaction.content.functionResponse as {
-              name: string;
-              response: { name: string; content: string | object };
-            },
-          });
-        } else {
-          parts.push({ text: JSON.stringify(interaction.content) });
-        }
-      }
-      return { role: interaction.isUser ? 'user' : 'model', parts };
-    });
-  }
-
-  async generateContent(
-    chatHistory: AiInteraction[],
-    newMessage: { text?: string; imageUrl?: string; imageMimeType?: string; imageDataBase64?: string },
-    options?: {
-      systemInstruction?: string;
-      generationConfig?: Partial<GenerationConfig>;
-      safetySettings?: SafetySetting[];
-      tools?: Tool[];
-      toolConfig?: ToolConfig;
-    }
-  ): Promise<AiResponse> {
+  /**
+   * Envoie une requête à l'API Gemini.
+   * @param request Requête à envoyer.
+   * @returns Réponse de l’API.
+   */
+  private async sendRequest(request: GenerateContentRequest): Promise<GenerateContentResponse> {
     await this.checkNetwork();
-    logger.info('Envoi d\'une requête à l\'API Gemini', {
-      model: this.modelName,
-      newMessage,
-      chatHistoryLength: chatHistory.length,
-    });
+
+    const url = `${this.baseUrl}/models/${this.modelName}:generateContent?key=${this.apiKey}`;
+    const headers = {
+      'Content-Type': 'application/json',
+    };
 
     try {
-      const currentContents: Content[] = this.buildGeminiContents(chatHistory);
-      const newMessageParts: Part[] = [];
-      if (newMessage.text) {newMessageParts.push({ text: newMessage.text });}
-      if (newMessage.imageUrl && newMessage.imageDataBase64 && newMessage.imageMimeType) {
-        newMessageParts.push({
-          inlineData: { mimeType: newMessage.imageMimeType, data: newMessage.imageDataBase64 },
-        });
-      } else if (newMessage.imageUrl && !newMessage.imageDataBase64) {
-        logger.warn('Image fournie avec une URL mais sans données base64. L\'image ne sera pas envoyée.');
-      }
-
-      currentContents.push({ role: 'user', parts: newMessageParts });
-
-      const requestBody: GenerateContentRequest = {
-        contents: currentContents,
-        systemInstruction: options?.systemInstruction
-          ? { role: 'system', parts: [{ text: options.systemInstruction }] }
-          : undefined,
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 1000,
-          ...options?.generationConfig,
-        },
-        safetySettings: options?.safetySettings || [
-          { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
-          { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
-        ],
-        tools: options?.tools,
-        toolConfig: options?.toolConfig,
-      };
-
-      const response = await NetworkService.fetchWithRetry(
-        `${this.baseUrl}/models/${this.modelName}:generateContent?key=${this.apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody),
-        }
-      );
-
-      if (!response.ok) {
-        const errorBody = await response.json();
-        logger.error(`Erreur API Gemini (${response.status}) :`, { errorBody, requestBody });
-        throw new Error(`Erreur API Gemini : ${errorBody.error?.message || 'Erreur inconnue'}`);
-      }
-
-      const data: GenerateContentResponse = await response.json();
-      logger.info('Réponse reçue de l\'API Gemini', { responseId: data.responseId, usage: data.usageMetadata });
-
-      if (data.candidates && data.candidates.length > 0) {
-        const generatedContent = data.candidates[0].content.parts[0];
-        if (generatedContent.text) {
-          if (options?.generationConfig?.responseMimeType === 'application/json') {
-            try {
-              return JSON.parse(generatedContent.text);
-            } catch (jsonErr) {
-              logger.error('Échec de l\'analyse JSON de la réponse Gemini', {
-                text: generatedContent.text,
-                error: jsonErr,
-              });
-              throw new Error('La réponse de l\'IA n\'est pas un JSON valide.');
-            }
-          }
-          return generatedContent.text;
-        } else if (generatedContent.functionCall) {
-          logger.info('Appel de fonction demandé par Gemini', { functionCall: generatedContent.functionCall });
-          return { type: 'function_call', value: generatedContent.functionCall };
-        }
-        return 'Réponse de l\'IA sans texte clair ou appel de fonction.';
-      } else if (data.promptFeedback?.blockReason) {
-        const safetyRatings =
-          data.promptFeedback.safetyRatings?.map(s => `${s.category}: ${s.probability}`).join(', ') || 'N/A';
-        const errorMsg = `Contenu bloqué par les filtres de sécurité de Gemini : ${
-          data.promptFeedback.blockReason
-        }. Détails : ${safetyRatings}`;
-        logger.warn(errorMsg, { promptFeedback: data.promptFeedback });
-        throw new Error(errorMsg);
-      }
-      throw new Error('Aucun contenu généré par l\'API Gemini.');
-    } catch (error) {
-      logger.error('Échec de la génération de contenu avec Gemini API :', {
-        error: getErrorMessage(error),
+      const response = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(request),
       });
-      throw new Error(`Échec de la génération de contenu : ${getErrorMessage(error)}`);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Erreur API Gemini: ${response.status} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      logger.info('Réponse API Gemini reçue', {
+        tokenCount: data.usageMetadata?.totalTokens,
+        userId: this.userId,
+      });
+      return data;
+    } catch (error) {
+      const errorMsg = `Erreur lors de l'appel API Gemini: ${getErrorMessage(error)}`;
+      logger.error(errorMsg, { userId: this.userId });
+      throw new Error(errorMsg);
     }
   }
 
-  async streamGenerateContent(
-    chatHistory: AiInteraction[],
-    newMessage: { text?: string; imageUrl?: string; imageMimeType?: string; imageDataBase64?: string },
-    onChunk: (chunk: string | object) => void,
-    onComplete: (fullResponse: string | object) => void,
-    onError: (error: Error) => void,
-    options?: {
-      systemInstruction?: string;
-      generationConfig?: Partial<GenerationConfig>;
-      safetySettings?: SafetySetting[];
-      tools?: Tool[];
-      toolConfig?: ToolConfig;
+  /**
+   * Mappe la réponse de l’API au type de contenu approprié.
+   * @param promptId ID du prompt.
+   * @param response Réponse brute.
+   * @returns Contenu formaté.
+   */
+  private mapResponseToContent(promptId: PromptType, response: any): AiInteractionContent {
+    switch (promptId) {
+      case PromptType.WEEKLY_MENU:
+      case PromptType.SPECIAL_OCCASION_MENU:
+      case PromptType.BUDGET_MENU:
+      case PromptType.BALANCED_DAILY_MENU:
+        return {
+          type: 'menu_suggestion',
+          menu: {
+            id: response.menuId || generateId('Menu'),
+            createurId: this.userId,
+            dateCreation: formatDateForFirestore(new Date()),
+            dateMiseAJour: formatDateForFirestore(new Date()),
+            date: response.date || new Date().toISOString().slice(0, 10),
+            typeRepas: response.typeRepas || 'dîner',
+            recettes: response.recipes?.map((r: any) => ({
+              id: r.id || generateId('Recette'),
+              nom: r.nom || 'Recette inconnue',
+              createurId: this.userId,
+              dateCreation: formatDateForFirestore(new Date()),
+              dateMiseAJour: formatDateForFirestore(new Date()),
+              ingredients: r.ingredients?.map((i: any) => ({
+                id: i.id || generateId('Ingredient'),
+                nom: i.nom || '',
+                quantite: i.quantite || 0,
+                unite: i.unite || 'unité',
+                createurId: this.userId,
+                dateCreation: formatDateForFirestore(new Date()),
+                dateMiseAJour: formatDateForFirestore(new Date()),
+                perissable: i.perissable ?? false,
+                stockActuel: i.stockActuel ?? 0,
+              })) || [],
+              instructions: r.instructions || [],
+              tempsPreparation: r.tempsPreparation || 0,
+              portions: r.portions || 1,
+              categorie: r.categorie || 'plat principal',
+              difficulte: r.difficulte || 'facile',
+              etapesPreparation: r.etapesPreparation || [],
+            })) || [],
+            statut: 'planifié',
+          },
+          description: response.description || 'Menu généré par IA',
+          recipes: response.recipes?.map((r: any) => ({
+            id: r.id || generateId('Recette'),
+            nom: r.nom || 'Recette inconnue',
+            createurId: this.userId,
+            dateCreation: formatDateForFirestore(new Date()),
+            dateMiseAJour: formatDateForFirestore(new Date()),
+            ingredients: r.ingredients?.map((i: any) => ({
+              id: i.id || generateId('Ingredient'),
+              nom: i.nom || '',
+              quantite: i.quantite || 0,
+              unite: i.unite || 'unité',
+              createurId: this.userId,
+              dateCreation: formatDateForFirestore(new Date()),
+              dateMiseAJour: formatDateForFirestore(new Date()),
+              perissable: i.perissable ?? false,
+              stockActuel: i.stockActuel ?? 0,
+            })) || [],
+            instructions: r.instructions || [],
+            tempsPreparation: r.tempsPreparation || 0,
+            portions: r.portions || 1,
+            categorie: r.categorie || 'plat principal',
+            difficulte: r.difficulte || 'facile',
+            etapesPreparation: r.etapesPreparation || [],
+          })) || [],
+        } as MenuSuggestionContent;
+
+      case PromptType.SHOPPING_LIST:
+        return {
+          type: 'shopping_list_suggestion',
+          listId: response.listId || generateId('ListeCourses'),
+          items: response.items?.map((item: any) => ({
+            name: item.nom || '',
+            quantity: item.quantite || 0,
+            unit: item.unite || 'unité',
+            magasins: item.magasinSuggeré || '',
+          })) || [],
+        } as ShoppingListSuggestionContent;
+
+      case PromptType.RECIPE_NUTRITION_ANALYSIS:
+      case PromptType.MEAL_ANALYSIS:
+        return {
+          type: 'recipe_analysis',
+          recipeId: response.recipeId || generateId('Recette'),
+          analysis: {
+            calories: response.calories || 0,
+            nutrients: response.nutrients?.map((n: any) => ({
+              id: generateId('Nutrient'),
+              name: n.name || '',
+              value: n.value || 0,
+              unit: n.unit || 'g',
+            })) || [],
+            description: response.description || 'Analyse nutritionnelle générée par IA',
+          },
+        } as RecipeAnalysisContent;
+
+      case PromptType.RECIPE_SUGGESTION:
+      case PromptType.RECIPE_PERSONALIZED:
+      case PromptType.QUICK_RECIPE:
+      case PromptType.KIDS_RECIPE:
+      case PromptType.INGREDIENT_BASED_RECIPE:
+      case PromptType.SPECIFIC_DIET_RECIPE:
+      case PromptType.RECIPE_FROM_IMAGE:
+      case PromptType.LEFTOVER_RECIPE:
+      case PromptType.GUEST_RECIPE:
+      case PromptType.INVENTORY_OPTIMIZATION:
+        return {
+          type: 'recipe_suggestion',
+          recipeId: response.id || generateId('Recette'),
+          name: response.nom || 'Recette AI',
+          description: response.description || 'Générée par IA',
+          ingredients: response.ingredients?.map((item: any) => ({
+            id: item.id || generateId('Ingredient'),
+            nom: item.nom || '',
+            quantite: item.quantite || 0,
+            unite: item.unite || 'unité',
+            createurId: this.userId,
+            dateCreation: formatDateForFirestore(new Date()),
+            dateMiseAJour: formatDateForFirestore(new Date()),
+            perissable: item.perissable ?? false,
+            stockActuel: item.stockActuel ?? 0,
+          })) || [],
+        } as RecipeSuggestionContent;
+
+      case PromptType.INGREDIENT_AVAILABILITY:
+        return {
+          type: 'ingredient_availability',
+          stores: response.stores?.map((s: any) => ({
+            id: s.id || generateId('Store'),
+            nom: s.name || '',
+            articles: s.articles || [],
+            dateCreation: formatDateForFirestore(new Date()),
+            dateMiseAJour: formatDateForFirestore(new Date()),
+            categorie: s.categorie || 'marché local',
+          })) || [],
+          ingredients: response.ingredients?.map((i: any) => ({
+            nom: i.nom || '',
+            disponible: i.disponible ?? false,
+            magasin: i.magasin,
+          })) || [],
+        } as IngredientAvailabilityContent;
+
+      case PromptType.FOOD_TREND_ANALYSIS:
+        return {
+          type: 'food_trends',
+          trends: response.trends?.map((t: any) => ({
+            id: generateId('Trend'),
+            name: t.name || '',
+            description: t.description || '',
+            popularity: t.popularity || 0,
+          })) || [],
+        } as FoodTrendsContent;
+
+      case PromptType.NUTRITIONAL_INFO:
+        return {
+          type: 'nutritional_info',
+          recipeId: response.recipeId,
+          analysis: {
+            calories: response.calories || 0,
+            nutrients: response.nutrients?.map((n: any) => ({
+              id: generateId('Nutrient'),
+              name: n.name || '',
+              value: n.value || 0,
+              unit: n.unit || 'g',
+            })) || [],
+            description: response.description,
+          },
+        } as NutritionalInfoContent;
+
+      case PromptType.TROUBLESHOOT_PROBLEM:
+        return {
+          type: 'troubleshoot_problem',
+          question: response.question || '',
+          solution: response.solution || '',
+        } as TroubleshootProblemContent;
+
+      case PromptType.CREATIVE_IDEAS:
+        return {
+          type: 'creative_ideas',
+          ideas: response.ideas?.map((i: any) => ({
+            name: i.name || '',
+            description: i.description || '',
+          })) || [],
+        } as CreativeIdeasContent;
+
+      case PromptType.STORE_SUGGESTION:
+        return {
+          type: 'stores',
+          stores: response.stores?.map((s: any) => ({
+            id: s.id || generateId('Store'),
+            nom: s.name || '',
+            articles: s.articles || [],
+            dateCreation: formatDateForFirestore(new Date()),
+            dateMiseAJour: formatDateForFirestore(new Date()),
+            categorie: s.categorie || 'marché local',
+          })) || [],
+          recommendation: response.recommendation,
+        } as StoreSuggestionContent;
+
+      case PromptType.RECIPE_COMPATIBILITY:
+        return {
+          type: 'recipe_compatibility',
+          recette: {
+            id: response.recipeId || generateId('Recette'),
+            nom: response.nom || 'Recette inconnue',
+            createurId: this.userId,
+            dateCreation: formatDateForFirestore(new Date()),
+            dateMiseAJour: formatDateForFirestore(new Date()),
+            ingredients: response.ingredients?.map((i: any) => ({
+              id: i.id || generateId('Ingredient'),
+              nom: i.nom || '',
+              quantite: i.quantite || 0,
+              unite: i.unite || 'unité',
+              createurId: this.userId,
+              dateCreation: formatDateForFirestore(new Date()),
+              dateMiseAJour: formatDateForFirestore(new Date()),
+              perissable: i.perissable ?? false,
+              stockActuel: i.stockActuel ?? 0,
+            })) || [],
+            instructions: response.instructions || [],
+            tempsPreparation: response.tempsPreparation || 0,
+            portions: response.portions || 1,
+            categorie: response.categorie || 'plat principal',
+            difficulte: response.difficulte || 'facile',
+            etapesPreparation: response.etapesPreparation || [],
+          },
+          compatibility: {
+            isCompatible: response.isCompatible ?? false,
+            reason: response.reason || [],
+            recommendations: response.recommendations || [],
+          },
+        } as RecipeCompatibilityContent;
+
+      case PromptType.BUDGET_PLANNING:
+        return {
+          type: 'budget',
+          budget: {
+            id: response.id || generateId('Budget'),
+            createurId: this.userId,
+            dateCreation: formatDateForFirestore(new Date()),
+            dateMiseAJour: formatDateForFirestore(new Date()),
+            mois: response.mois || new Date().toISOString().slice(0, 7),
+            plafond: response.plafond || 0,
+            depenses: response.depenses || [],
+            devise: response.devise || 'EUR',
+          },
+        } as BudgetContent;
+
+      default:
+        return {
+          type: 'json',
+          data: response,
+        } as JsonContent;
     }
-  ): Promise<void> {
-    await this.checkNetwork();
-    logger.info('Envoi d\'une requête de streaming à l\'API Gemini', {
-      model: this.modelName,
-      newMessage,
-      chatHistoryLength: chatHistory.length,
-    });
+  }
+
+  /**
+   * Génère une réponse IA pour un prompt donné.
+   * @param options Options du prompt.
+   * @returns Interaction AI générée.
+   */
+  private async generatePromptResponse(options: PromptOptions): Promise<AiInteraction> {
+    const {
+      promptId,
+      params,
+      systemInstruction,
+      generationConfig,
+      safetySettings,
+      tools,
+      toolConfig,
+      conversationId,
+      images = [],
+    } = options;
 
     try {
-      const currentContents: Content[] = this.buildGeminiContents(chatHistory);
-      const newMessageParts: Part[] = [];
-      if (newMessage.text) {newMessageParts.push({ text: newMessage.text });}
-      if (newMessage.imageUrl && newMessage.imageDataBase64 && newMessage.imageMimeType) {
-        newMessageParts.push({
-          inlineData: { mimeType: newMessage.imageMimeType, data: newMessage.imageDataBase64 },
-        });
+      let interactions: AiInteraction[] = [];
+      if (conversationId) {
+        interactions = await this.firestoreService.getAiInteractionsForConversation(conversationId);
       }
-      currentContents.push({ role: 'user', parts: newMessageParts });
 
-      const requestBody: GenerateContentRequest = {
-        contents: currentContents,
-        systemInstruction: options?.systemInstruction
-          ? { role: 'system', parts: [{ text: options.systemInstruction }] }
-          : undefined,
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 1000,
-          ...options?.generationConfig,
-        },
-        safetySettings: options?.safetySettings || [
-          { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
-          { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
-        ],
-        tools: options?.tools,
-        toolConfig: options?.toolConfig,
+      const promptText = this.generatePrompt({ promptId, params });
+      const promptContent: Content = {
+        role: 'user',
+        parts: [{ text: promptText }],
       };
 
-      const response = await fetch(
-        `${this.baseUrl}/models/${this.modelName}:streamGenerateContent?key=${this.apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody),
-        }
-      );
+      const contents = [...this.buildGeminiContents(interactions, images), promptContent];
 
-      if (!response.ok) {
-        const errorBody = await response.json();
-        const errorMsg = `Erreur API Gemini Stream (${response.status}) : ${
-          errorBody.error?.message || 'Erreur inconnue'
-        }`;
-        logger.error(errorMsg, { errorBody, requestBody });
-        onError(new Error(errorMsg));
-        return;
+      const request: GenerateContentRequest = {
+        contents,
+        safetySettings: safetySettings || this.defaultSafetySettings,
+        generationConfig: {
+          ...this.defaultGenerationConfig,
+          ...generationConfig,
+        },
+        tools: tools || this.defaultTools,
+        toolConfig,
+        systemInstruction: systemInstruction ? { role: 'system', parts: [{ text: systemInstruction }] } : undefined,
+      };
+
+      const response = await this.sendRequest(request);
+
+      if (!response.candidates?.length) {
+        throw new Error('Aucune réponse valide reçue de l’API Gemini.');
       }
 
-      if (!response.body) {
-        onError(new Error('Le corps de la réponse en streaming est vide.'));
-        return;
-      }
+      const candidate = response.candidates[0];
+      const responseParts = candidate.content.parts;
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder('utf-8');
-      let fullResponseText = '';
+      let content: AiInteractionContent;
 
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) {break;}
-
-        const chunk = decoder.decode(value, { stream: true });
+      if (responseParts[0].functionCall) {
+        const functionCall = responseParts[0].functionCall;
+        content = {
+          type: 'tool_use',
+          toolName: functionCall.name,
+          parameters: functionCall.args,
+        } as ToolUseContent;
+      } else if (responseParts[0].text) {
         try {
-          const parsedChunk: GenerateContentResponse = JSON.parse(chunk);
-          if (parsedChunk.candidates && parsedChunk.candidates.length > 0) {
-            const part = parsedChunk.candidates[0].content.parts[0];
-            if (part.text) {
-              fullResponseText += part.text;
-              onChunk(part.text);
-            } else if (part.functionCall) {
-              onChunk({ type: 'function_call', value: part.functionCall });
-              fullResponseText = JSON.stringify({ type: 'function_call', value: part.functionCall });
-              break;
-            }
-          } else if (parsedChunk.promptFeedback?.blockReason) {
-            const safetyRatings =
-              parsedChunk.promptFeedback.safetyRatings?.map(s => `${s.category}: ${s.probability}`).join(', ') ||
-              'N/A';
-            const errorMsg = `Contenu bloqué par les filtres de sécurité : ${
-              parsedChunk.promptFeedback.blockReason
-            }. Détails : ${safetyRatings}`;
-            logger.warn(errorMsg, { promptFeedback: parsedChunk.promptFeedback });
-            onError(new Error(errorMsg));
-            return;
-          }
-        } catch (parseError) {
-          logger.warn('Échec de l\'analyse d\'un chunk en streaming', { chunk, error: parseError });
+          const parsedResponse = JSON.parse(responseParts[0].text);
+          content = this.mapResponseToContent(promptId, parsedResponse);
+        } catch {
+          content = {
+            type: 'text',
+            message: responseParts[0].text,
+          } as TextContent;
         }
+      } else {
+        throw new Error('Format de réponse non supporté.');
       }
-      onComplete(fullResponseText);
-    } catch (error) {
-      logger.error('Échec du streaming avec Gemini API :', { error: getErrorMessage(error) });
-      onError(new Error(`Échec du streaming : ${getErrorMessage(error)}`));
-    }
-  }
 
-  async getMenuSuggestionsFromAI(
-    ingredients: Ingredient[],
-    familyData: MembreFamille[],
-    numDays: number = 3,
-    numMealsPerDay: number = 3
-  ): Promise<Menu[]> {
-    if (!ingredients || !familyData) {
-      throw new Error('Les ingrédients et les données de la famille sont requis pour générer des suggestions de menus.');
-    }
-
-    const familyDetails = familyData
-      .map(
-        m =>
-          `${m.nom} (${m.role}) : Préférences=${m.preferencesAlimentaires.join(', ')}, Allergies=${m.allergies.join(
-            ', '
-          )}, Restrictions=${m.restrictionsMedicales.join(', ')}, Niveau d'épices=${m.aiPreferences.niveauEpices}, Apport calorique=${
-            m.aiPreferences.apportCaloriqueCible
-          } kcal, Cuisines préférées=${m.aiPreferences.cuisinesPreferees.join(', ')}`
-      )
-      .join('\n');
-
-    const ingredientsList = ingredients.map(i => `${i.nom} (${i.quantite} ${i.unite})`).join(', ');
-
-    const prompt = `
-      Vous êtes un assistant culinaire expert spécialisé dans la planification de repas pour les familles. 
-      Créez un plan de repas sur ${numDays} jours adapté aux membres de la famille et aux ingrédients disponibles. 
-      Chaque jour doit inclure ${numMealsPerDay} repas (par exemple : petit-déjeuner, déjeuner, dîner). 
-      Pour chaque repas, proposez une recette spécifique en utilisant les ingrédients disponibles. 
-      Prenez en compte toutes les restrictions alimentaires, préférences, allergies et niveaux d'épices de chaque membre. 
-      Visez un régime équilibré avec une variété de repas sur les jours. 
-      Si des ingrédients manquent pour une recette, listez-les sous 'ingredientsManquants' pour ce menu.
-
-      Détails des membres de la famille :
-      ${familyDetails}
-
-      Ingrédients disponibles :
-      ${ingredientsList}
-
-      Répondez exclusivement au format JSON sous forme de tableau d'objets 'Menu'. 
-      Assurez-vous que les champs 'dateCreation' et 'dateMiseAJour' contiennent des horodatages ISO 8601 actuels. 
-      Incluez les détails complets des recettes, pas seulement leurs identifiants.
-      Structure attendue (tableau d'objets Menu) :
-      [
-        {
-          "date": "YYYY-MM-DD",
-          "typeRepas": "Petit-déjeuner",
-          "recettes": [
-            {
-              "nom": "Omelette aux légumes",
-              "ingredients": [{"nom": "Œufs", "quantite": 2, "unite": "unité"}, ...],
-              "instructions": "Étape 1 : Battre les œufs...",
-              "tempsPreparation": 15,
-              "portions": 4,
-              "categorie": "Petit-déjeuner",
-              "difficulte": "facile",
-              "aiAnalysis": {
-                "caloriesTotales": 350,
-                "niveauEpices": 1,
-                "adequationMembres": {"membreId1": "adapté", "membreId2": "adapté"}
-              }
-            }
-          ],
-          "foodName": "Omelette aux légumes",
-          "statut": "planifié",
-          "notes": "Riche en protéines.",
-          "aiSuggestions": {
-            "recettesAlternatives": [],
-            "ingredientsManquants": []
-          }
-        },
-        // ... (autres jours et repas)
-      ]
-      Générez le plan pour les ${numDays} prochains jours à partir d'aujourd'hui.
-    `;
-
-    try {
-      const systemInstruction =
-        'Vous êtes un expert culinaire IA. Votre tâche est de générer des plans de repas personnalisés et structurés au format JSON, en respectant strictement les besoins alimentaires de la famille.';
-      const generatedContent = (await this.generateContent(
-        [],
-        { text: prompt },
-        {
-          systemInstruction,
-          generationConfig: {
-            responseMimeType: 'application/json',
-            temperature: 0.6,
-            maxOutputTokens: 3000,
-          },
-        }
-      )) as object[];
-
-      const menus: Menu[] = (generatedContent as any[]).map(item => ({
-        ...item,
-        id: `menu_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+      const interaction: AiInteraction = {
+        id: generateId('Interaction'),
+        content,
+        isUser: false,
+        type: content.type as AiInteractionType,
+        timestamp: new Date().toISOString(),
         dateCreation: formatDateForFirestore(new Date()),
         dateMiseAJour: formatDateForFirestore(new Date()),
-      }));
-
-      menus.forEach(menu => {
-        if (!menu.id) {menu.id = `menu_${Date.now()}_${Math.random().toString(36).substring(7)}`;}
-        if (!menu.dateCreation) {menu.dateCreation = formatDateForFirestore(new Date());}
-        if (!menu.dateMiseAJour) {menu.dateMiseAJour = formatDateForFirestore(new Date());}
-        menu.recettes.forEach((rec: Recette) => {
-          if (!rec.id) {rec.id = `recette_${Date.now()}_${Math.random().toString(36).substring(7)}`;}
-          if (!rec.dateCreation) {rec.dateCreation = formatDateForFirestore(new Date());}
-          if (!rec.dateMiseAJour) {rec.dateMiseAJour = formatDateForFirestore(new Date());}
-        });
-      });
-
-      logger.info('Suggestions de menus générées par l\'IA', { count: menus.length });
-      return menus;
-    } catch (error) {
-      logger.error('Erreur lors de la génération des suggestions de menus', {
-        error: getErrorMessage(error),
-      });
-      throw new Error(`Échec de la génération des suggestions de menus : ${getErrorMessage(error)}`);
-    }
-  }
-
-  async generateShoppingListFromAI(
-    menu: Menu,
-    currentIngredients: Ingredient[]
-  ): Promise<{ nom: string; quantite: number; unite: string; magasinSuggeré?: string }[]> {
-    if (!menu || !currentIngredients) {
-      throw new Error('Le menu et les ingrédients actuels sont requis pour générer une liste de courses.');
-    }
-
-    const menuDetails = JSON.stringify(menu, null, 2);
-    const existingIngredients = currentIngredients.map(i => `${i.nom} (${i.quantite} ${i.unite})`).join(', ') || 'Aucun';
-
-    const prompt = `
-      Basé sur le plan de repas suivant et les ingrédients actuellement disponibles, 
-      générez une liste de courses détaillée incluant uniquement les ingrédients manquants. 
-      Pour chaque article, spécifiez son 'nom', 'quantite' (quantité nécessaire), 'unite', 
-      et, si possible, un 'magasinSuggeré' (ex. : supermarché, boulangerie, boucherie). 
-      Répondez exclusivement au format JSON sous forme de tableau d'objets :
-      [
-        {"nom": "Lait", "quantite": 1, "unite": "litre", "magasinSuggeré": "supermarché"},
-        {"nom": "Farine", "quantite": 500, "unite": "gramme", "magasinSuggeré": "supermarché"},
-        // ...
-      ]
-
-      Plan de repas :
-      ${menuDetails}
-
-      Ingrédients actuels :
-      ${existingIngredients}
-    `;
-
-    try {
-      const systemInstruction =
-        'Vous êtes un assistant précis pour la gestion des stocks et la création de listes de courses. Votre réponse doit être un tableau JSON valide d\'ingrédients manquants.';
-      const generatedContent = (await this.generateContent(
-        [],
-        { text: prompt },
-        {
-          systemInstruction,
-          generationConfig: { responseMimeType: 'application/json', temperature: 0.3 },
-        }
-      )) as { nom: string; quantite: number; unite: string; magasinSuggeré?: string }[];
-
-      logger.info('Liste de courses générée par l\'IA', { menuId: menu.id, itemCount: generatedContent.length });
-      return generatedContent;
-    } catch (error) {
-      logger.error('Erreur lors de la génération de la liste de courses', {
-        error: getErrorMessage(error),
-      });
-      throw new Error(`Échec de la génération de la liste de courses : ${getErrorMessage(error)}`);
-    }
-  }
-
-  async analyzeRecipeWithAI(
-    recipe: Recette,
-    familyData: MembreFamille[]
-  ): Promise<{ calories: number; spicesLevel: number; suitability: { [membreId: string]: 'adapté' | 'non adapté' | 'modifié' } }> {
-    if (!recipe || !familyData) {
-      throw new Error('La recette et les données de la famille sont requises pour l\'analyse.');
-    }
-
-    const recipeDetails = JSON.stringify(recipe, null, 2);
-    const familyDetails = familyData
-      .map(
-        m =>
-          `${m.nom} (${m.role}) : Préférences=${m.preferencesAlimentaires.join(', ')}, Allergies=${m.allergies.join(
-            ', '
-          )}, Restrictions=${m.restrictionsMedicales.join(', ')}`
-      )
-      .join('\n');
-
-    const prompt = `
-      Analysez la recette suivante pour déterminer sa teneur totale en calories, son niveau d'épices (sur une échelle de 1 à 5, où 1 est doux et 5 est très épicé), 
-      et son adéquation pour chaque membre de la famille en fonction de leurs besoins et préférences alimentaires. 
-      Si une recette est 'modifié', précisez pourquoi (ex. : "adapté avec substitution de lactose"). 
-      Répondez exclusivement au format JSON :
-      {
-        "calories": 500,
-        "spicesLevel": 3,
-        "suitability": {
-          "membreId1": "adapté",
-          "membreId2": "non adapté",
-          "membreId3": "modifié: sans gluten"
-        }
-      }
-
-      Recette à analyser :
-      ${recipeDetails}
-
-      Membres de la famille pour l'évaluation de l'adéquation :
-      ${familyDetails}
-    `;
-
-    try {
-      const systemInstruction =
-        'Vous êtes un expert en analyse alimentaire. Fournissez des évaluations nutritionnelles et d\'adéquation précises au format JSON.';
-      const generatedContent = (await this.generateContent(
-        [],
-        { text: prompt },
-        {
-          systemInstruction,
-          generationConfig: { responseMimeType: 'application/json', temperature: 0.2 },
-        }
-      )) as { calories: number; spicesLevel: number; suitability: { [membreId: string]: 'adapté' | 'non adapté' | 'modifié' } };
-
-      logger.info('Recette analysée par l\'IA', { recipeId: recipe.id, analysis: generatedContent });
-      return generatedContent;
-    } catch (error) {
-      logger.error('Erreur lors de l\'analyse de la recette', { error: getErrorMessage(error) });
-      throw new Error(`Échec de l'analyse de la recette : ${getErrorMessage(error)}`);
-    }
-  }
-
-  async generateRecipeSuggestionsFromAI(
-    ingredients: Ingredient[],
-    preferences: { niveauEpices: number; cuisinesPreferees: string[]; mealType?: string }
-  ): Promise<Recette[]> {
-    if (!ingredients || !preferences) {
-      throw new Error('Les ingrédients et les préférences sont requis pour générer des suggestions de recettes.');
-    }
-
-    const ingredientsList = ingredients.map(i => `${i.nom} (${i.quantite} ${i.unite})`).join(', ');
-
-    const prompt = `
-      Proposez 3 suggestions de recettes uniques basées sur les ingrédients disponibles et les préférences de l'utilisateur. 
-      Privilégiez les recettes réalisables avec les ingrédients listés. 
-      Si une recette nécessite un ingrédient manquant, mentionnez-le clairement dans la description ou les notes. 
-      Assurez-vous que les recettes correspondent au niveau d'épices et aux cuisines préférées spécifiés. 
-      Si un 'typeRepas' est fourni, concentrez-vous sur des recettes adaptées à ce type de repas.
-
-      Ingrédients disponibles :
-      ${ingredientsList}
-
-      Préférences :
-      - Niveau d'épices : ${preferences.niveauEpices} (1 = doux, 5 = très épicé)
-      - Cuisines préférées : ${preferences.cuisinesPreferees.join(', ')}
-      ${preferences.mealType ? `- Type de repas : ${preferences.mealType}` : ''}
-
-      Répondez exclusivement au format JSON sous forme de tableau d'objets 'Recette'. 
-      Assurez-vous que les champs 'dateCreation' et 'dateMiseAJour' contiennent des horodatages ISO 8601 actuels. 
-      Incluez tous les détails pour chaque recette, conformément à l'interface 'Recette'.
-      Structure attendue (tableau d'objets Recette) :
-      [
-        {
-          "nom": "Poulet au curry",
-          "ingredients": [{"nom": "Poulet", "quantite": 500, "unite": "gramme"}, ...],
-          "instructions": "Étape 1 : Faire revenir le poulet...",
-          "tempsPreparation": 30,
-          "portions": 4,
-          "categorie": "Plat principal",
-          "difficulte": "moyen",
-          "aiAnalysis": {
-            "caloriesTotales": 600,
-            "niveauEpices": 3,
-            "adequationMembres": {}
-          }
-        },
-        // ... (autres recettes)
-      ]
-    `;
-
-    try {
-      const systemInstruction =
-        'Vous êtes une IA créative spécialisée dans la génération de recettes. Proposez des recettes variées et appétissantes au format JSON strict.';
-      const generatedContent = (await this.generateContent(
-        [],
-        { text: prompt },
-        {
-          systemInstruction,
-          generationConfig: { responseMimeType: 'application/json', temperature: 0.7, candidateCount: 3, maxOutputTokens: 2000 },
-        }
-      )) as object[];
-
-     const recipes: Recette[] = (generatedContent as any[]).map(item => ({
-        ...item,
-        id: `recette_${Date.now()}_${Math.random().toString(36).substring(7)}`,
-        dateCreation: formatDateForFirestore(new Date()),
-        dateMiseAJour: formatDateForFirestore(new Date()),
-      }));
-
-
-      recipes.forEach(recipe => {
-        if (!recipe.id) {recipe.id = `recette_${Date.now()}_${Math.random().toString(36).substring(7)}`;}
-        if (!recipe.dateCreation) {recipe.dateCreation = formatDateForFirestore(new Date());}
-        if (!recipe.dateMiseAJour) {recipe.dateMiseAJour = formatDateForFirestore(new Date());}
-      });
-
-      logger.info('Suggestions de recettes générées par l\'IA', { count: recipes.length });
-      return recipes;
-    } catch (error) {
-      logger.error('Erreur lors de la génération des suggestions de recettes', {
-        error: getErrorMessage(error),
-      });
-      throw new Error(`Échec de la génération des suggestions de recettes : ${getErrorMessage(error)}`);
-    }
-  }
-
-  /**
-   * Calcule la distance entre deux points géographiques (en kilomètres) en utilisant la formule de Haversine.
-   * @param lat1 Latitude du point 1
-   * @param lon1 Longitude du point 1
-   * @param lat2 Latitude du point 2
-   * @param lon2 Longitude du point 2
-   * @returns Distance en kilomètres
-   */
-  private calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-    const toRadians = (degrees: number) => (degrees * Math.PI) / 180;
-    const R = 6371; // Rayon de la Terre en kilomètres
-
-    const dLat = toRadians(lat2 - lat1);
-    const dLon = toRadians(lon2 - lon1);
-
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-  }
-
-  /**
-   * Vérifie si un magasin est ouvert à la date et l'heure actuelles.
-   * @param store Le magasin à vérifier
-   * @returns true si le magasin est ouvert, false sinon
-   */
-  private isStoreOpen(store: typeof PREDEFINED_STORES[0]): boolean {
-    const now = new Date();
-    const day = now.toLocaleString('fr-FR', { weekday: 'long' }).replace(/^\w/, c => c.toUpperCase()); // Ex: "Vendredi"
-    const currentTime = now.toTimeString().slice(0, 5); // Ex: "16:32"
-
-    const todaySchedule = store.horaires?.find(h => h.jour === day);
-    if (!todaySchedule || todaySchedule.ouverture === 'fermé') {
-      return false;
-    }
-
-    return currentTime >= todaySchedule.ouverture && currentTime <= todaySchedule.fermeture;
-  }
-
-  async checkIngredientAvailability(
-    ingredientName: string,
-    location: { latitude: number; longitude: number }
-  ): Promise<{ message: string; rawToolResponse: Array<any> }> {
-    if (!ingredientName) {
-      throw new Error('Le nom de l\'ingrédient est requis.');
-    }
-    if (!location || typeof location.latitude !== 'number' || typeof location.longitude !== 'number') {
-      throw new Error('Les coordonnées de localisation doivent être des nombres valides.');
-    }
-
-    const prompt = `Vérifiez la disponibilité de l'ingrédient "${ingredientName}" dans les magasins proches des coordonnées latitude ${location.latitude}, longitude ${location.longitude}.`;
-
-    const tools: Tool[] = [
-      {
-        functionDeclarations: [
-          {
-            name: 'findStoresWithIngredient',
-            description: 'Trouve les magasins à proximité qui ont un ingrédient en stock.',
-            parameters: {
-              type: 'object',
-              properties: {
-                ingredient: { type: 'string', description: 'Nom de l\'ingrédient à rechercher.' },
-                latitude: { type: 'number', description: "Latitude de la position actuelle de l'utilisateur." },
-                longitude: { type: 'number', description: "Longitude de la position actuelle de l'utilisateur." },
-              },
-              required: ['ingredient', 'latitude', 'longitude'],
-            },
-          },
-        ],
-      },
-    ];
-
-    try {
-      const systemInstruction =
-        'Vous êtes un assistant intelligent capable de vérifier la disponibilité des ingrédients dans les magasins proches. Vous avez accès à un outil appelé \'findStoresWithIngredient\'.';
-      const response = (await this.generateContent(
-        [],
-        { text: prompt },
-        {
-          systemInstruction,
-          tools,
-          toolConfig: { functionCallingConfig: { mode: 'AUTO' } },
-          generationConfig: { temperature: 0.1 },
-        }
-      )) as AiResponse;
-
-      if (typeof response === 'object' && 'type' in response && response.type === 'function_call') {
-        const functionCall = (response as FunctionCallResponse).value;
-        logger.info('Appel de fonction demandé par Gemini :', functionCall);
-
-        if (functionCall.name === 'findStoresWithIngredient') {
-          const { ingredient, latitude, longitude } = functionCall.args;
-
-          const storesWithIngredient: Array<{
-            name: string;
-            distance: string;
-            inStock: boolean;
-            price?: number;
-            stock?: number;
-            address: string;
-            isOpen: boolean;
-            contact?: { telephone?: string; email?: string; siteWeb?: string };
-          }> = [];
-
-          for (const store of PREDEFINED_STORES) {
-            if (store.localisation?.latitude === 0 && store.localisation?.longitude === 0) {
-              continue;
-            }
-
-            const distance = this.calculateDistance(
-              latitude,
-              longitude,
-              store.localisation?.latitude || 0,
-              store.localisation?.longitude || 0
-            ).toFixed(2);
-
-            const isOpen = this.isStoreOpen(store);
-
-            const matchingItem = store.articles.find(
-              item => item.nom.toLowerCase().includes(ingredient.toLowerCase()) && item.stockDisponible > 0
-            );
-
-            storesWithIngredient.push({
-              name: store.nom,
-              distance: `${distance} km`,
-              inStock: !!matchingItem,
-              price: matchingItem ? matchingItem.prixUnitaire : undefined,
-              stock: matchingItem ? matchingItem.stockDisponible : undefined,
-              address: store.localisation?.adresse || 'Adresse non disponible',
-              isOpen,
-              contact: store.contact,
-            });
-          }
-
-          storesWithIngredient.sort((a, b) => {
-            if (a.inStock !== b.inStock) {return a.inStock ? -1 : 1;}
-            return parseFloat(a.distance) - parseFloat(b.distance);
-          });
-
-          if (storesWithIngredient.length === 0) {
-            throw new Error('Aucun magasin trouvé à proximité pour cet ingrédient.');
-          }
-
-          const toolResponse = `Ingrédient : ${ingredient}. Magasins trouvés : ${JSON.stringify(storesWithIngredient)}.`;
-
-          const functionResponseContent: AiInteraction[] = [
-            {
-              content: prompt,
-              isUser: true,
-              timestamp: formatDateForFirestore(new Date()),
-              type: 'text',
-            },
-            {
-              content: { functionCall },
-              isUser: false,
-              timestamp: formatDateForFirestore(new Date()),
-              type: 'tool_use',
-            },
-            {
-              content: {
-                functionResponse: {
-                  name: functionCall.name,
-                  response: { name: functionCall.name, content: toolResponse },
-                },
-              },
-              isUser: false,
-              timestamp: formatDateForFirestore(new Date()),
-              type: 'tool_response',
-            },
-          ];
-
-          const finalResponse = await this.generateContent(
-            functionResponseContent.slice(0, -1),
-            { text: JSON.stringify(toolResponse) },
-            { systemInstruction, tools, toolConfig: { functionCallingConfig: { mode: 'NONE' } } }
-          );
-
-          return {
-            message: typeof finalResponse === 'string' ? finalResponse : JSON.stringify(finalResponse),
-            rawToolResponse: storesWithIngredient,
-          };
-        }
-      }
-      return {
-        message: typeof response === 'string' ? response : JSON.stringify(response),
-        rawToolResponse: [],
+        conversationId: options.conversationId || generateId('Conversation'),
       };
+
+      if (conversationId) {
+        await this.firestoreService.addAiInteractionToConversation(conversationId, interaction);
+      }
+
+      return interaction;
     } catch (error) {
-      logger.error('Erreur lors de la vérification de la disponibilité des ingrédients', {
-        error: getErrorMessage(error),
-      });
-      throw new Error(`Échec de la vérification de la disponibilité : ${getErrorMessage(error)}`);
+      const errorMsg = `Erreur lors de la génération de la réponse: ${getErrorMessage(error)}`;
+      logger.error(errorMsg, { userId: this.userId });
+
+      const errorInteraction: AiInteraction = {
+        id: generateId('Interaction'),
+        content: {
+          type: 'error',
+          message: errorMsg,
+          code: 'GENERATION_FAILED',
+        } as ErrorContent,
+        isUser: false,
+        type: 'error',
+        timestamp: new Date().toISOString(),
+        dateCreation: formatDateForFirestore(new Date()),
+        dateMiseAJour: formatDateForFirestore(new Date()),
+        conversationId: conversationId || generateId('Conversation'),
+      };
+
+      if (conversationId) {
+        await this.firestoreService.addAiInteractionToConversation(conversationId, errorInteraction);
+      }
+
+      return errorInteraction;
     }
   }
 
-  async askGeneralQuestion(
-    message: string,
-    imageDataBase64?: string,
-    imageMimeType?: string,
-    chatHistory: AiInteraction[] = [],
-    systemInstruction?: string
-  ): Promise<string> {
-    if (!message) {
-      throw new Error('Le message est requis pour poser une question générale.');
-    }
-
+  /**
+   * Génère du contenu avec l'API Gemini.
+   * @param messages Historique des messages.
+   * @param userInput Input utilisateur.
+   * @param options Options supplémentaires.
+   * @returns Réponse générée.
+   */
+  async generateContent(
+    messages: AiInteraction[],
+    userInput: {
+      text?: string;
+      imageUrl?: string;
+      imageDataBase64?: string;
+      imageMimeType?: string;
+    },
+    options: { systemInstruction?: string; conversationId?: string } = {}
+  ): Promise<AiInteraction> {
     try {
-      const response = await this.generateContent(
-        chatHistory,
-        { text: message, imageDataBase64, imageMimeType },
-        {
-          systemInstruction:
-            systemInstruction || 'Vous êtes un assistant familial amical et informatif. Répondez avec clarté et bienveillance.',
+      const { systemInstruction, conversationId } = options;
+      const promptContent: Content = {
+        role: 'user',
+        parts: [],
+      };
+
+      if (userInput.text) {
+        promptContent.parts.push({ text: userInput.text });
+      }
+
+      if (userInput.imageDataBase64 && userInput.imageMimeType) {
+        promptContent.parts.push({
+          inlineData: {
+            mimeType: userInput.imageMimeType,
+            data: userInput.imageDataBase64,
+          },
+        });
+      }
+
+      const contents = [
+        ...this.buildGeminiContents(messages, [
+          {
+            type: 'image',
+            uri: userInput.imageUrl,
+            data: userInput.imageDataBase64,
+            mimeType: userInput.imageMimeType,
+          } as ImageContent,
+        ]),
+        promptContent,
+      ];
+
+      const request: GenerateContentRequest = {
+        contents,
+        safetySettings: this.defaultSafetySettings,
+        generationConfig: this.defaultGenerationConfig,
+        tools: this.defaultTools,
+        systemInstruction: systemInstruction ? { role: 'system', parts: [{ text: systemInstruction }] } : undefined,
+      };
+
+      const response = await this.sendRequest(request);
+
+      if (!response.candidates?.length) {
+        throw new Error('Aucune réponse valide reçue de l’API Gemini.');
+      }
+
+      const candidate = response.candidates[0];
+      const responseParts = candidate.content.parts;
+
+      let content: AiInteractionContent;
+
+      if (responseParts[0].functionCall) {
+        const functionCall = responseParts[0].functionCall;
+        content = {
+          type: 'tool_use',
+          toolName: functionCall.name,
+          parameters: functionCall.args,
+        } as ToolUseContent;
+      } else if (responseParts[0].text) {
+        try {
+          const parsedResponse = JSON.parse(responseParts[0].text);
+          content = {
+            type: 'json',
+            data: parsedResponse,
+          } as JsonContent;
+        } catch {
+          content = {
+            type: 'text',
+            message: responseParts[0].text,
+          } as TextContent;
         }
-      );
-      if (typeof response === 'string') {return response;}
-      if (typeof response === 'object' && 'message' in response && typeof response.message === 'string')
-        {return response.message;}
-      throw new Error('Réponse inattendue ou non textuelle de l\'IA.');
+      } else {
+        throw new Error('Format de réponse non supporté.');
+      }
+
+      const interaction: AiInteraction = {
+        id: generateId('Interaction'),
+        content,
+        isUser: false,
+        type: content.type as AiInteractionType,
+        timestamp: new Date().toISOString(),
+        dateCreation: formatDateForFirestore(new Date()),
+        dateMiseAJour: formatDateForFirestore(new Date()),
+        conversationId: conversationId || generateId('Conversation'),
+      };
+
+      if (conversationId) {
+        await this.firestoreService.addAiInteractionToConversation(conversationId, interaction);
+      }
+
+      return interaction;
     } catch (error) {
-      logger.error('Erreur lors de la question générale à l\'IA', { error: getErrorMessage(error) });
-      throw new Error(`Échec de la question à l'IA : ${getErrorMessage(error)}`);
+      const errorMsg = `Erreur lors de la génération de contenu: ${getErrorMessage(error)}`;
+      logger.error(errorMsg, { userId: this.userId });
+
+      const errorInteraction: AiInteraction = {
+        id: generateId('Interaction'),
+        content: {
+          type: 'error',
+          message: errorMsg,
+          code: 'GENERATION_FAILED',
+        } as ErrorContent,
+        isUser: false,
+        type: 'error',
+        timestamp: new Date().toISOString(),
+        dateCreation: formatDateForFirestore(new Date()),
+        dateMiseAJour: formatDateForFirestore(new Date()),
+        conversationId: options.conversationId || generateId('Conversation'),
+      };
+
+      if (options.conversationId) {
+        await this.firestoreService.addAiInteractionToConversation(options.conversationId, errorInteraction);
+      }
+
+      return errorInteraction;
     }
   }
 
-  async getNutritionalInfo(query: string): Promise<object> {
-    if (!query) {
-      throw new Error('La requête est requise pour obtenir des informations nutritionnelles.');
+  /**
+   * Génère des suggestions de menus.
+   * @param userId ID de l’utilisateur.
+   * @param ingredients Ingrédients disponibles.
+   * @param members Membres de la famille.
+   * @param numDays Nombre de jours.
+   * @param numMealsPerDay Nombre de repas par jour.
+   * @param conversationId ID de la conversation.
+   * @returns Interaction AI avec MenuSuggestionContent.
+   */
+  async generateMenuSuggestionsFromAI(
+    userId: string,
+    ingredients: Ingredient[],
+    members: MembreFamille[],
+    numDays: number = 7,
+    numMealsPerDay: number = 2,
+    conversationId?: string
+  ): Promise<AiInteraction> {
+    if (userId !== this.userId) {
+      throw new Error('Utilisateur non autorisé.');
     }
 
-    const prompt = `Fournissez des informations nutritionnelles détaillées (calories, protéines, glucides, lipides, fibres) pour "${query}". Répondez au format JSON.`;
+    return this.generatePromptResponse({
+      promptId: PromptType.WEEKLY_MENU,
+      params: { ingredients, members, numDays, numMealsPerDay },
+      conversationId,
+      generationConfig: {
+        temperature: 0.9,
+        maxOutputTokens: 5000,
+      },
+    });
+  }
+
+  /**
+   * Génère une liste de courses optimisée.
+   * @param userId ID de l’utilisateur.
+   * @param menu Menu sélectionné.
+   * @param currentIngredients Ingrédients disponibles.
+   * @param conversationId ID de la conversation.
+   * @returns Interaction AI avec ShoppingListSuggestionContent.
+   */
+  async generateShoppingListFromAI(
+    userId: string,
+    menu: Menu,
+    currentIngredients: Ingredient[],
+    conversationId?: string
+  ): Promise<AiInteraction> {
+    if (userId !== this.userId) {
+      throw new Error('Utilisateur non autorisé.');
+    }
+
+    return this.generatePromptResponse({
+      promptId: PromptType.SHOPPING_LIST,
+      params: { menu, currentIngredients },
+      conversationId,
+    });
+  }
+
+  /**
+   * Analyse une recette pour ses valeurs nutritionnelles et son adéquation familiale.
+   * @param userId ID de l’utilisateur.
+   * @param recipe Recette à analyser.
+   * @param familyData Données familiales.
+   * @param conversationId ID de la conversation.
+   * @returns Interaction AI avec RecipeAnalysisContent.
+   */
+  async analyzeRecipeWithAI(
+    userId: string,
+    recipe: Recette,
+    familyData: MembreFamille[],
+    conversationId?: string
+  ): Promise<AiInteraction> {
+    if (userId !== this.userId) {
+      throw new Error('Utilisateur non autorisé.');
+    }
+
+    return this.generatePromptResponse({
+      promptId: PromptType.RECIPE_NUTRITION_ANALYSIS,
+      params: { recipe, family: familyData },
+      conversationId,
+    });
+  }
+
+  /**
+   * Génère des suggestions de recettes.
+   * @param userId ID de l’utilisateur.
+   * @param ingredients Ingrédients disponibles.
+   * @param preferences Préférences utilisateur.
+   * @param conversationId ID de la conversation.
+   * @returns Interaction AI avec RecipeSuggestionContent.
+   */
+  async generateRecipeSuggestionsFromAI(
+    userId: string,
+    ingredients: Ingredient[],
+    preferences: { niveauEpices: number; cuisinesPreferees: string[]; mealType?: string },
+    conversationId?: string
+  ): Promise<AiInteraction> {
+    if (userId !== this.userId) {
+      throw new Error('Utilisateur non autorisé.');
+    }
+
+    return this.generatePromptResponse({
+      promptId: PromptType.RECIPE_SUGGESTION,
+      params: { ingredients, preferences },
+      conversationId,
+    });
+  }
+
+  /**
+   * Vérifie la disponibilité d’un ingrédient dans les magasins à proximité.
+   * @param userId ID de l’utilisateur.
+   * @param ingredientName Nom de l’ingrédient.
+   * @param location Localisation utilisateur.
+   * @param conversationId ID de la conversation.
+   * @returns Interaction AI avec IngredientAvailabilityContent.
+   */
+  async checkIngredientAvailability(
+    userId: string,
+    ingredientName: string,
+    location: { latitude: number; longitude: number },
+    conversationId?: string
+  ): Promise<AiInteraction> {
+    if (userId !== this.userId) {
+      throw new Error('Utilisateur non autorisé.');
+    }
+
     try {
-      const systemInstruction =
-        'Vous êtes un expert en nutrition. Fournissez des données nutritionnelles précises au format JSON.';
-      const response = await this.generateContent(
-        [],
-        { text: prompt },
-        { systemInstruction, generationConfig: { responseMimeType: 'application/json', temperature: 0.2 } }
+      const suggestedStores = PREDEFINED_STORES.filter((store) =>
+        store.articles.some((article) => article.nom.toLowerCase().includes(ingredientName.toLowerCase()))
       );
-      if (typeof response === 'object') {return response;}
-      throw new Error('Réponse nutritionnelle non structurée de l\'IA.');
+
+      const distance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+        const R = 6371;
+        const dLat = ((lat2 - lat1) * Math.PI) / 180;
+        const dLon = ((lon2 - lon1) * Math.PI) / 180;
+        const a =
+          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+      };
+
+      const nearbyStores = suggestedStores
+        .filter((store) => {
+          if (!store.localisation) {return false;}
+          const dist = distance(
+            location.latitude,
+            location.longitude,
+            store.localisation.latitude,
+            store.localisation.longitude
+          );
+          return dist <= 10;
+        })
+        .map((store) => ({
+          id: store.id,
+          nom: store.nom,
+          articles: store.articles,
+          dateCreation: formatDateForFirestore(new Date()),
+          dateMiseAJour: formatDateForFirestore(new Date()),
+          categorie: store.categorie || 'marché local',
+        }));
+
+      const interaction: AiInteraction = {
+        id: generateId('Interaction'),
+        content: {
+          type: 'ingredient_availability',
+          stores: nearbyStores,
+          ingredients: [{ nom: ingredientName, disponible: nearbyStores.length > 0 }],
+        } as IngredientAvailabilityContent,
+        isUser: false,
+        type: 'ingredient_availability',
+        timestamp: new Date().toISOString(),
+        dateCreation: formatDateForFirestore(new Date()),
+        dateMiseAJour: formatDateForFirestore(new Date()),
+        conversationId: conversationId || generateId('Conversation'),
+      };
+
+      if (conversationId) {
+        await this.firestoreService.addAiInteractionToConversation(conversationId, interaction);
+      }
+
+      return interaction;
     } catch (error) {
-      logger.error('Erreur lors de l\'obtention des informations nutritionnelles', {
-        error: getErrorMessage(error),
-      });
-      throw new Error(`Échec des informations nutritionnelles : ${getErrorMessage(error)}`);
+      const errorMsg = `Erreur lors de la vérification de la disponibilité: ${getErrorMessage(error)}`;
+      logger.error(errorMsg, { userId: this.userId });
+
+      const errorInteraction: AiInteraction = {
+        id: generateId('Interaction'),
+        content: {
+          type: 'error',
+          message: errorMsg,
+          code: 'AVAILABILITY_CHECK_FAILED',
+        } as ErrorContent,
+        isUser: false,
+        type: 'error',
+        timestamp: new Date().toISOString(),
+        dateCreation: formatDateForFirestore(new Date()),
+        dateMiseAJour: formatDateForFirestore(new Date()),
+        conversationId: conversationId || generateId('Conversation'),
+      };
+
+      if (conversationId) {
+        await this.firestoreService.addAiInteractionToConversation(conversationId, errorInteraction);
+      }
+
+      return errorInteraction;
     }
   }
 
-  async troubleshootProblem(problem: string): Promise<string> {
-    if (!problem) {
-      throw new Error('Le problème est requis pour le dépannage.');
+  /**
+   * Génère une recette personnalisée pour un membre.
+   * @param userId ID de l’utilisateur.
+   * @param member Membre de la famille.
+   * @param conversationId ID de la conversation.
+   * @returns Interaction AI avec RecipeSuggestionContent.
+   */
+  async generatePersonalizedRecipe(
+    userId: string,
+    member: MembreFamille,
+    conversationId?: string
+  ): Promise<AiInteraction> {
+    if (userId !== this.userId) {
+      throw new Error('Utilisateur non autorisé.');
     }
 
-    const prompt = `Aidez-moi à résoudre le problème suivant : "${problem}". Proposez une solution claire et concise, avec des étapes si nécessaire.`;
+    return this.generatePromptResponse({
+      promptId: PromptType.RECIPE_PERSONALIZED,
+      params: { member },
+      conversationId,
+      generationConfig: { temperature: 0.9, maxOutputTokens: 3000 },
+    });
+  }
+
+  /**
+   * Génère une recette à partir d’une image.
+   * @param userId ID de l’utilisateur.
+   * @param imageUrl URL de l’image.
+   * @param member Membre de la famille.
+   * @param conversationId ID de la conversation.
+   * @returns Interaction AI avec RecipeSuggestionContent.
+   */
+  async generateRecipeFromImage(
+    userId: string,
+    imageUrl: string,
+    member: MembreFamille,
+    conversationId?: string
+  ): Promise<AiInteraction> {
+    if (userId !== this.userId) {
+      throw new Error('Utilisateur non autorisé.');
+    }
+
+    const imageContent: ImageContent = {
+      type: 'image',
+      uri: imageUrl,
+      mimeType: 'image/jpeg',
+      description: 'Photo pour génération de recette',
+    };
+    return this.generatePromptResponse({
+      promptId: PromptType.RECIPE_FROM_IMAGE,
+      params: { imageUri: imageUrl, member },
+      conversationId,
+      images: [imageContent],
+      generationConfig: { temperature: 1.0, maxOutputTokens: 2500 },
+    });
+  }
+
+  /**
+   * Génère un menu hebdomadaire pour la famille.
+   * @param userId ID de l’utilisateur.
+   * @param members Membres de la famille.
+   * @param dateStart Date de début.
+   * @param conversationId ID de la conversation.
+   * @returns Interaction AI avec MenuSuggestionContent.
+   */
+  async generateWeeklyMenu(
+    userId: string,
+    members: MembreFamille[],
+    dateStart: string,
+    conversationId?: string
+  ): Promise<AiInteraction> {
+    if (userId !== this.userId) {
+      throw new Error('Utilisateur non autorisé.');
+    }
+
+    return this.generatePromptResponse({
+      promptId: PromptType.WEEKLY_MENU,
+      params: { members, dateStart },
+      conversationId,
+      generationConfig: { temperature: 0.8, maxOutputTokens: 5000 },
+    });
+  }
+
+  /**
+   * Génère un menu pour une occasion spéciale.
+   * @param userId ID de l’utilisateur.
+   * @param members Membres de la famille.
+   * @param occasion Type d’occasion.
+   * @param date Date de l’occasion.
+   * @param conversationId ID de la conversation.
+   * @returns Interaction AI avec MenuSuggestionContent.
+   */
+  async generateSpecialOccasionMenu(
+    userId: string,
+    members: MembreFamille[],
+    occasion: string,
+    date: string,
+    conversationId?: string
+  ): Promise<AiInteraction> {
+    if (userId !== this.userId) {
+      throw new Error('Utilisateur non autorisé.');
+    }
+
+    return this.generatePromptResponse({
+      promptId: PromptType.SPECIAL_OCCASION_MENU,
+      params: { members, occasion, date },
+      conversationId,
+    });
+  }
+
+  /**
+   * Génère un menu économique.
+   * @param userId ID de l’utilisateur.
+   * @param members Membres de la famille.
+   * @param budget Budget disponible.
+   * @param conversationId ID de la conversation.
+   * @returns Interaction AI avec MenuSuggestionContent.
+   */
+  async generateBudgetMenu(
+    userId: string,
+    members: MembreFamille[],
+    budget: number,
+    conversationId?: string
+  ): Promise<AiInteraction> {
+    if (userId !== this.userId) {
+      throw new Error('Utilisateur non autorisé.');
+    }
+
+    return this.generatePromptResponse({
+      promptId: PromptType.BUDGET_MENU,
+      params: { members, budget },
+      conversationId,
+      generationConfig: { temperature: 0.7, maxOutputTokens: 4000 },
+    });
+  }
+
+  /**
+   * Génère un menu équilibré pour une journée.
+   * @param userId ID de l’utilisateur.
+   * @param member Membre de la famille.
+   * @param date Date du menu.
+   * @param conversationId ID de la conversation.
+   * @returns Interaction AI avec MenuSuggestionContent.
+   */
+  async generateBalancedDailyMenu(
+    userId: string,
+    member: MembreFamille,
+    date: string,
+    conversationId?: string
+  ): Promise<AiInteraction> {
+    if (userId !== this.userId) {
+      throw new Error('Utilisateur non autorisé.');
+    }
+
+    return this.generatePromptResponse({
+      promptId: PromptType.BALANCED_DAILY_MENU,
+      params: { member, date },
+      conversationId,
+    });
+  }
+
+  /**
+   * Génère une recette rapide.
+   * @param userId ID de l’utilisateur.
+   * @param member Membre de la famille.
+   * @param conversationId ID de la conversation.
+   * @returns Interaction AI avec RecipeSuggestionContent.
+   */
+  async generateQuickRecipe(userId: string, member: MembreFamille, conversationId?: string): Promise<AiInteraction> {
+    if (userId !== this.userId) {
+      throw new Error('Utilisateur non autorisé.');
+    }
+
+    return this.generatePromptResponse({
+      promptId: PromptType.QUICK_RECIPE,
+      params: { member },
+      conversationId,
+    });
+  }
+
+  /**
+   * Génère une recette pour enfants.
+   * @param userId ID de l’utilisateur.
+   * @param member Membre de la famille.
+   * @param conversationId ID de la conversation.
+   * @returns Interaction AI avec RecipeSuggestionContent.
+   */
+  async generateKidsRecipe(userId: string, member: MembreFamille, conversationId?: string): Promise<AiInteraction> {
+    if (userId !== this.userId) {
+      throw new Error('Utilisateur non autorisé.');
+    }
+
+    return this.generatePromptResponse({
+      promptId: PromptType.KIDS_RECIPE,
+      params: { member },
+      conversationId,
+    });
+  }
+
+  /**
+   * Génère une recette basée sur un ingrédient principal.
+   * @param userId ID de l’utilisateur.
+   * @param ingredient Ingrédient principal.
+   * @param member Membre de la famille.
+   * @param conversationId ID de la conversation.
+   * @returns Interaction AI avec RecipeSuggestionContent.
+   */
+  async generateIngredientBasedRecipe(
+    userId: string,
+    ingredient: Ingredient,
+    member: MembreFamille,
+    conversationId?: string
+  ): Promise<AiInteraction> {
+    if (userId !== this.userId) {
+      throw new Error('Utilisateur non autorisé.');
+    }
+
+    return this.generatePromptResponse({
+      promptId: PromptType.INGREDIENT_BASED_RECIPE,
+      params: { ingredient, member },
+      conversationId,
+    });
+  }
+
+  /**
+   * Génère une recette pour un régime spécifique.
+   * @param userId ID de l’utilisateur.
+   * @param member Membre de la famille.
+   * @param diet Type de régime.
+   * @param conversationId ID de la conversation.
+   * @returns Interaction AI avec RecipeSuggestionContent.
+   */
+  async generateSpecificDietRecipe(
+    userId: string,
+    member: MembreFamille,
+    diet: string,
+    conversationId?: string
+  ): Promise<AiInteraction> {
+    if (userId !== this.userId) {
+      throw new Error('Utilisateur non autorisé.');
+    }
+
+    return this.generatePromptResponse({
+      promptId: PromptType.SPECIFIC_DIET_RECIPE,
+      params: { member, diet },
+      conversationId,
+    });
+  }
+
+  /**
+   * Génère une recette à partir de restes.
+   * @param userId ID de l’utilisateur.
+   * @param ingredients Ingrédients disponibles.
+   * @param conversationId ID de la conversation.
+   * @returns Interaction AI avec RecipeSuggestionContent.
+   */
+  async generateLeftoverRecipe(
+    userId: string,
+    ingredients: Ingredient[],
+    conversationId?: string
+  ): Promise<AiInteraction> {
+    if (userId !== this.userId) {
+      throw new Error('Utilisateur non autorisé.');
+    }
+
+    return this.generatePromptResponse({
+      promptId: PromptType.LEFTOVER_RECIPE,
+      params: { ingredients },
+      conversationId,
+    });
+  }
+
+  /**
+   * Génère une recette pour des invités.
+   * @param userId ID de l’utilisateur.
+   * @param members Membres de la famille.
+   * @param guestCount Nombre d’invités.
+   * @param conversationId ID de la conversation.
+   * @returns Interaction AI avec RecipeSuggestionContent.
+   */
+  async generateGuestRecipe(
+    userId: string,
+    members: MembreFamille[],
+    guestCount: number,
+    conversationId?: string
+  ): Promise<AiInteraction> {
+    if (userId !== this.userId) {
+      throw new Error('Utilisateur non autorisé.');
+    }
+
+    return this.generatePromptResponse({
+      promptId: PromptType.GUEST_RECIPE,
+      params: { members, guestCount },
+      conversationId,
+    });
+  }
+
+  /**
+   * Génère un plan budgétaire alimentaire.
+   * @param userId ID de l’utilisateur.
+   * @param budgetLimit Budget limite.
+   * @param month Mois concerné.
+   * @param conversationId ID de la conversation.
+   * @returns Interaction AI avec BudgetContent.
+   */
+  async generateBudgetPlan(
+    userId: string,
+    budgetLimit: number,
+    month: string,
+    conversationId?: string
+  ): Promise<AiInteraction> {
+    if (userId !== this.userId) {
+      throw new Error('Utilisateur non autorisé.');
+    }
+
+    return this.generatePromptResponse({
+      promptId: PromptType.BUDGET_PLANNING,
+      params: { budgetLimit, month },
+      conversationId,
+    });
+  }
+
+  /**
+   * Suggère un magasin pour un ingrédient.
+   * @param userId ID de l’utilisateur.
+   * @param ingredient Ingrédient concerné.
+   * @param conversationId ID de la conversation.
+   * @returns Interaction AI avec StoreSuggestionContent.
+   */
+  async suggestStore(userId: string, ingredient: Ingredient, conversationId?: string): Promise<AiInteraction> {
+    if (userId !== this.userId) {
+      throw new Error('Utilisateur non autorisé.');
+    }
+
     try {
-      const systemInstruction = 'Vous êtes un expert en résolution de problèmes culinaires et domestiques.';
-      const response = await this.generateContent(
-        [],
-        { text: prompt },
-        { systemInstruction, generationConfig: { temperature: 0.5 } }
+      const suggestedStores = PREDEFINED_STORES.filter((store) =>
+        store.articles.some((article) => article.nom.toLowerCase().includes(ingredient.nom.toLowerCase()))
       );
-      if (typeof response === 'string') {return response;}
-      throw new Error('Réponse de dépannage inattendue de l\'IA.');
+
+      const content: StoreSuggestionContent = {
+        type: 'stores',
+        stores: suggestedStores.map((s) => ({
+          id: s.id || generateId('Store'),
+          nom: s.nom,
+          articles: s.articles,
+          dateCreation: formatDateForFirestore(new Date()),
+          dateMiseAJour: formatDateForFirestore(new Date()),
+          categorie: s.categorie || 'marché local',
+        })),
+        recommendation: suggestedStores.length
+          ? `Magasins suggérés pour ${ingredient.nom}`
+          : `Aucun magasin trouvé pour ${ingredient.nom}`,
+      };
+
+      const interaction: AiInteraction = {
+        id: generateId('Interaction'),
+        content,
+        isUser: false,
+        type: 'stores',
+        timestamp: new Date().toISOString(),
+        dateCreation: formatDateForFirestore(new Date()),
+        dateMiseAJour: formatDateForFirestore(new Date()),
+        conversationId: conversationId || generateId('Conversation'),
+      };
+
+      if (conversationId) {
+        await this.firestoreService.addAiInteractionToConversation(conversationId, interaction);
+      }
+
+      return interaction;
     } catch (error) {
-      logger.error('Erreur lors du dépannage avec l\'IA', { error: getErrorMessage(error) });
-      throw new Error(`Échec du dépannage : ${getErrorMessage(error)}`);
+      const errorMsg = `Erreur lors de la suggestion de magasin: ${getErrorMessage(error)}`;
+      logger.error(errorMsg, { userId: this.userId });
+
+      const errorInteraction: AiInteraction = {
+        id: generateId('Interaction'),
+        content: {
+          type: 'error',
+          message: errorMsg,
+          code: 'STORE_SUGGESTION_FAILED',
+        } as ErrorContent,
+        isUser: false,
+        type: 'error',
+        timestamp: new Date().toISOString(),
+        dateCreation: formatDateForFirestore(new Date()),
+        dateMiseAJour: formatDateForFirestore(new Date()),
+        conversationId: conversationId || generateId('Conversation'),
+      };
+
+      if (conversationId) {
+        await this.firestoreService.addAiInteractionToConversation(conversationId, errorInteraction);
+      }
+
+      return errorInteraction;
     }
   }
 
-  async getCreativeIdeas(context: string): Promise<string[]> {
-    if (!context) {
-      throw new Error('Le contexte est requis pour générer des idées créatives.');
+  /**
+   * Vérifie la compatibilité d’une recette avec la famille.
+   * @param userId ID de l’utilisateur.
+   * @param recipe Recette à vérifier.
+   * @param members Membres de la famille.
+   * @param conversationId ID de la conversation.
+   * @returns Interaction AI avec RecipeCompatibilityContent.
+   */
+  async checkRecipeCompatibility(
+    userId: string,
+    recipe: Recette,
+    members: MembreFamille[],
+    conversationId?: string
+  ): Promise<AiInteraction> {
+    if (userId !== this.userId) {
+      throw new Error('Utilisateur non autorisé.');
     }
 
-    const prompt = `Générez 5 idées créatives basées sur le contexte suivant : "${context}". Présentez-les sous forme de liste numérotée claire et inspirante.`;
-    try {
-      const systemInstruction = 'Vous êtes une source d\'idées créatives et utiles pour la cuisine et la maison.';
-      const response = await this.generateContent(
-        [],
-        { text: prompt },
-        { systemInstruction, generationConfig: { temperature: 0.9, candidateCount: 1 } }
-      );
-      if (typeof response === 'string') {return response.split('\n').filter(line => line.trim().length > 0);}
-      throw new Error('Réponse créative inattendue de l\'IA.');
-    } catch (error) {
-      logger.error('Erreur lors de l\'obtention des idées créatives', { error: getErrorMessage(error) });
-      throw new Error(`Échec des idées créatives : ${getErrorMessage(error)}`);
+    return this.generatePromptResponse({
+      promptId: PromptType.RECIPE_COMPATIBILITY,
+      params: { recipe, members },
+      conversationId,
+    });
+  }
+
+  /**
+   * Optimise l’inventaire en suggérant des recettes.
+   * @param userId ID de l’utilisateur.
+   * @param ingredients Ingrédients disponibles.
+   * @param conversationId ID de la conversation.
+   * @returns Interaction AI avec RecipeSuggestionContent.
+   */
+  async optimizeInventory(
+    userId: string,
+    ingredients: Ingredient[],
+    conversationId?: string
+  ): Promise<AiInteraction> {
+    if (userId !== this.userId) {
+      throw new Error('Utilisateur non autorisé.');
     }
+
+    return this.generatePromptResponse({
+      promptId: PromptType.INVENTORY_OPTIMIZATION,
+      params: { ingredients },
+      conversationId,
+    });
+  }
+
+  /**
+   * Analyse un repas consommé.
+   * @param userId ID de l’utilisateur.
+   * @param historiqueRepas Repas historique.
+   * @param member Membre de la famille.
+   * @param conversationId ID de la conversation.
+   * @returns Interaction AI avec RecipeAnalysisContent.
+   */
+  async analyzeMeal(
+    userId: string,
+    historiqueRepas: HistoriqueRepas,
+    member: MembreFamille,
+    conversationId?: string
+  ): Promise<AiInteraction> {
+    if (userId !== this.userId) {
+      throw new Error('Utilisateur non autorisé.');
+    }
+
+    return this.generatePromptResponse({
+      promptId: PromptType.MEAL_ANALYSIS,
+      params: { historiqueRepas, member },
+      conversationId,
+    });
+  }
+
+  /**
+   * Analyse les tendances alimentaires de la famille.
+   * @param userId ID de l’utilisateur.
+   * @param members Membres de la famille.
+   * @param conversationId ID de la conversation.
+   * @returns Interaction AI avec FoodTrendsContent.
+   */
+  async analyzeFoodTrends(
+    userId: string,
+    members: MembreFamille[],
+    conversationId?: string
+  ): Promise<AiInteraction> {
+    if (userId !== this.userId) {
+      throw new Error('Utilisateur non autorisé.');
+    }
+
+    return this.generatePromptResponse({
+      promptId: PromptType.FOOD_TREND_ANALYSIS,
+      params: { members },
+      conversationId,
+    });
+  }
+
+  /**
+   * Fournit des informations nutritionnelles pour un aliment.
+   * @param userId ID de l’utilisateur.
+   * @param query Requête nutritionnelle.
+   * @param conversationId ID de la conversation.
+   * @returns Interaction AI avec NutritionalInfoContent.
+   */
+  async getNutritionalInfo(
+    userId: string,
+    query: string,
+    conversationId?: string
+  ): Promise<AiInteraction> {
+    if (userId !== this.userId) {
+      throw new Error('Utilisateur non autorisé.');
+    }
+
+    return this.generatePromptResponse({
+      promptId: PromptType.NUTRITIONAL_INFO,
+      params: { query },
+      conversationId,
+    });
+  }
+
+  /**
+   * Résout un problème culinaire.
+   * @param userId ID de l’utilisateur.
+   * @param problem Description du problème.
+   * @param conversationId ID de la conversation.
+   * @returns Interaction AI avec TroubleshootProblemContent.
+   */
+  async troubleshootProblem(
+    userId: string,
+    problem: string,
+    conversationId?: string
+  ): Promise<AiInteraction> {
+    if (userId !== this.userId) {
+      throw new Error('Utilisateur non autorisé.');
+    }
+
+    return this.generatePromptResponse({
+      promptId: PromptType.TROUBLESHOOT_PROBLEM,
+      params: { problem },
+      conversationId,
+    });
+  }
+
+  /**
+   * Génère des idées créatives pour un contexte.
+   * @param userId ID de l’utilisateur.
+   * @param context Contexte des idées.
+   * @param conversationId ID de la conversation.
+   * @returns Interaction AI avec CreativeIdeasContent.
+   */
+  async getCreativeIdeas(
+    userId: string,
+    context: string,
+    conversationId?: string
+  ): Promise<AiInteraction> {
+    if (userId !== this.userId) {
+      throw new Error('Utilisateur non autorisé.');
+    }
+
+    return this.generatePromptResponse({
+      promptId: PromptType.CREATIVE_IDEAS,
+      params: { context },
+      conversationId,
+    });
   }
 }
+

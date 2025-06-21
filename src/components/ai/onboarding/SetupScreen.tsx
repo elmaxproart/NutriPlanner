@@ -1,39 +1,75 @@
-import React, { useEffect } from 'react';
-import { Text, StyleSheet } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Animated } from 'react-native';
+import FontAwesome from 'react-native-vector-icons/FontAwesome';
+
+// Configuration
+const COLORS = {
+  text: '#FFFFFF',
+  textSecondary: '#CCCCCC',
+  secondary: '#F2A03D',
+};
+
+const FONTS = {
+  title: 20,
+  description: 14,
+};
+
+const SPACING = {
+  xs: 4,
+  s: 8,
+  m: 16,
+};
 
 const SetupScreenContent: React.FC = () => {
-  const opacity = useSharedValue(0);
-  const translateY = useSharedValue(20);
+  const fadeAnimIcon = useRef(new Animated.Value(0)).current;
+  const fadeAnimTitle = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    opacity.value = withTiming(1, { duration: 600 });
-    translateY.value = withTiming(0, { duration: 600 });
-  }, [opacity, translateY]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-    transform: [{ translateY: translateY.value }],
-  }));
+    Animated.sequence([
+      Animated.timing(fadeAnimIcon, {
+        toValue: 1,
+        duration: 500,
+        delay: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fadeAnimTitle, {
+        toValue: 1,
+        duration: 500,
+        delay: 200,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [fadeAnimIcon, fadeAnimTitle]);
 
   return (
-    <Animated.View style={[styles.textContainer, animatedStyle]}>
-      <Text style={styles.title}>Configuration Facile</Text>
-    </Animated.View>
+    <View style={styles.container}>
+      <Animated.View style={[styles.iconContainer, { opacity: fadeAnimIcon }]}>
+        <FontAwesome name="cogs" size={30} color={COLORS.secondary} />
+      </Animated.View>
+      <Animated.View style={{ opacity: fadeAnimTitle }}>
+        <Text style={styles.title}>
+          Configurez Famil<Text style={styles.iaText}>IA</Text>
+        </Text>
+      </Animated.View>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  textContainer: {
+  container: {
     alignItems: 'center',
-    width: '100%',
+  },
+  iconContainer: {
+    marginBottom: SPACING.s,
   },
   title: {
-    fontSize: 24,
-    color: '#fff',
-    fontWeight: 'bold',
+    fontSize: FONTS.title,
+    color: COLORS.text,
+    fontWeight: '700',
     textAlign: 'center',
-    marginBottom: 10,
+  },
+  iaText: {
+    color: COLORS.secondary,
   },
 });
 

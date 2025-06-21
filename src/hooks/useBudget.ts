@@ -4,23 +4,32 @@ import { validateBudget } from '../utils/dataValidators';
 import { formatDate } from '../utils/helpers';
 import { logger } from '../utils/logger';
 import { FirestoreService } from '../services/FirestoreService';
+import { useAuth } from './useAuth';
 
-export const useBudget = (userId: string, familyId: string) => {
+export const useBudget = () => {
+  const { userId } = useAuth();
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
 
-  const firestoreService = useState(() => new FirestoreService(userId, familyId))[0];
+  const [firestoreService, setFirestoreService] = useState<FirestoreService | null>(null);
+
+  useEffect(() => {
+    if (userId) {
+      setFirestoreService(new FirestoreService(userId));
+    } else {
+      setFirestoreService(null);
+    }
+  }, [userId]);
 
   const fetchBudgets = useCallback(async () => {
-    if (!userId || !familyId) {
-      logger.warn('fetchBudgets: userId ou familyId manquant, impossible de récupérer les budgets.');
-      setLoading(false); // S'assurer que le loading est désactivé
+    if (!firestoreService) {
+      setError('FirestoreService non initialisé.');
       return;
     }
     setLoading(true);
-    setError(null); // Réinitialiser les erreurs avant la récupération
+    setError(null);
     try {
       const data = await firestoreService.getBudgets();
       setBudgets(data);
@@ -31,7 +40,7 @@ export const useBudget = (userId: string, familyId: string) => {
     } finally {
       setLoading(false);
     }
-  }, [userId, familyId, firestoreService]); // Dépendances pour useCallback
+  }, [firestoreService]);
 
   // Exécuter fetchBudgets au montage du composant
   useEffect(() => {
@@ -48,10 +57,15 @@ export const useBudget = (userId: string, familyId: string) => {
       dateMiseAJour: formatDate(new Date()),
     };
 
+    // Validation
     const errors = validateBudget(newBudgetWithDates);
     if (errors.length > 0) {
-      logger.error('Validation échouée pour l’ajout du budget', { errors });
       setError(`Validation échouée : ${errors.join(', ')}`);
+      return null;
+    }
+
+    if (!firestoreService) {
+      setError('FirestoreService non initialisé.');
       return null;
     }
 
@@ -91,3 +105,6 @@ export const useBudget = (userId: string, familyId: string) => {
 
   return { budgets, loading, error, fetchBudgets, addBudget, checkBudgetAlerts };
 };
+
+
+

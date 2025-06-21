@@ -110,17 +110,13 @@ interface HistorySwipeProps {
 }
 
 export const HistorySwipe = ({ onLoadConversation }: HistorySwipeProps) => {
-  const { conversations, selectConversation, deleteConversation } = useAIConversation({
-    userId: '',
-    familyId: 'family1',
-  });
+  const { conversations, selectConversation, deleteConversation } = useAIConversation();
 
   // Map conversations to ensure type safety
   const formattedConversations: Conversation[] = useMemo(() => {
     return conversations.map((conv: Conversation) => ({
       id: conv.id || `conv-${Date.now()}`,
       userId: conv.userId || '',
-      familyId: conv.familyId || 'family1',
       date: conv.date || new Date().toISOString(),
       messages: conv.messages || [],
       title: conv.title || 'Conversation sans titre',

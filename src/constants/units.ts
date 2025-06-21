@@ -9,4 +9,5 @@ export type Unit =
   | 'pincée'
   | 'tranche'
   | 'boîte'
-  | 'paquet';
+  | 'paquet'
+  | 'Kcal';

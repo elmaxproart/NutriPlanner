@@ -1,134 +1,136 @@
 import { Dimensions, StyleSheet } from 'react-native';
 
-export const { width } = Dimensions.get("window");
+export const { width } = Dimensions.get('window');
+
+
 const CARD_WIDTH = width * 0.6;
 const SLIDER_HEIGHT = 200;
 export const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0d0d0d", // noir foncé pour le fond
+    backgroundColor: '#0d0d0d',
   },
   sliderContainer: {
     height: SLIDER_HEIGHT,
-    position: "relative",
+    position: 'relative',
   },
   sliderImage: {
     width,
     height: SLIDER_HEIGHT,
-    resizeMode: "cover",
+    resizeMode: 'cover',
   },
   sliderOverlay: {
-    position: "absolute",
-    width: "100%",
+    position: 'absolute',
+    width: '100%',
     height: SLIDER_HEIGHT,
     top: 0,
     left: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.4)", // assombrit les images
+    backgroundColor: 'rgba(0, 0, 0, 0.4)', // assombrit les images
   },
   sliderTextBox: {
-    position: "absolute",
+    position: 'absolute',
     bottom: 16,
     left: 16,
   },
   sliderTitle: {
-    color: "#fff",
+    color: '#fff',
     fontSize: 22,
-    fontWeight: "bold",
+    fontWeight: 'bold',
   },
   sliderDescription: {
-    color: "#ccc",
+    color: '#ccc',
     fontSize: 14,
     marginTop: 4,
   },
   topImageContainer: {
     height: 180,
-    position: "relative",
+    position: 'relative',
   },
   topImage: {
-    width: "100%",
-    height: "100%",
-    resizeMode: "cover",
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
   },
   gradientOverlay: {
-    position: "absolute",
-    width: "100%",
-    height: "100%",
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
     top: 0,
     left: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
   },
   headerText: {
-    position: "absolute",
+    position: 'absolute',
     bottom: 20,
     left: 16,
     fontSize: 22,
-    color: "#fff",
-    fontWeight: "bold",
+    color: '#fff',
+    fontWeight: 'bold',
   },
   searchContainer: {
     margin: 16,
-    flexDirection: "row",
-    backgroundColor: "#1a1a1a", // champ sombre
+    flexDirection: 'row',
+    backgroundColor: '#1a1a1a', // champ sombre
     borderRadius: 12,
-    alignItems: "center",
+    alignItems: 'center',
     paddingHorizontal: 10,
   },
   searchInput: {
     flex: 1,
     marginLeft: 8,
     paddingVertical: 8,
-    color: "#fff", // texte clair
+    color: '#fff', // texte clair
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: "bold",
+    fontWeight: 'bold',
     marginHorizontal: 16,
     marginTop: 10,
-    color: "#fff",
+    color: '#fff',
   },
   card: {
     width: CARD_WIDTH,
-    backgroundColor: "#1a1a1a",
+    backgroundColor: '#1a1a1a',
     borderRadius: 16,
     elevation: 3,
     marginRight: 16,
     marginTop: 10,
-    alignItems: "center",
+    alignItems: 'center',
     padding: 10,
-    shadowColor: "#000",
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    overflow: "hidden",
+    overflow: 'hidden',
     height: 280,
   },
   cardImage: {
-    width: "100%",
+    width: '100%',
     height: 120,
     borderRadius: 12,
   },
   cardTitle: {
-    fontWeight: "bold",
+    fontWeight: 'bold',
     fontSize: 16,
     marginTop: 8,
-    color: "#fff",
+    color: '#fff',
   },
   cardPrice: {
-    color: "#aaa",
+    color: '#aaa',
     fontSize: 14,
   },
   bottomNav: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
     height: 60,
     borderTopWidth: 1,
-    borderColor: "#333",
-    backgroundColor: "#0d0d0d",
+    borderColor: '#333',
+    backgroundColor: '#0d0d0d',
   },
   bottomNavItem: {
     flex: 1,
-    alignItems: "center",
+    alignItems: 'center',
     paddingVertical: 10,
   },
 

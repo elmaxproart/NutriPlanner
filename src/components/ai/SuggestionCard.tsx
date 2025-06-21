@@ -3,7 +3,6 @@ import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Clipboard from '@react-native-clipboard/clipboard';
-import { styles as geminiStyles } from '../../styles/geminiStyle';
 
 interface SuggestionCardProps {
   title: string;
@@ -52,47 +51,40 @@ export const SuggestionCard = ({
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       onPress={onPress}
-      style={[geminiStyles.suggestionCard, localStyles.cardContainer]}
+      style={styles.cardContainer}
     >
-      <Animated.View style={animatedStyle}>
+      <Animated.View style={[styles.card, animatedStyle]}>
         {imageUri ? (
-          <Image
-            source={{ uri: `../assets/images/${imageUri}` }}
-            style={geminiStyles.cardImage}
-            resizeMode="cover"
-          />
+          <Image source={{ uri: `assets/images/${imageUri}` }} style={styles.cardImage} resizeMode="cover" />
         ) : (
-          <View style={localStyles.placeholderImage}>
+          <View style={styles.placeholderImage}>
             <Icon name="image-off" size={40} color="#b0b0b0" />
-            <Text style={localStyles.placeholderText}>Aucune image</Text>
+            <Text style={styles.placeholderText}>Aucune image</Text>
           </View>
         )}
-        <Text style={geminiStyles.cardTitle}>{title}</Text>
-        <Text style={geminiStyles.cardDescription}>{description}</Text>
-        <View style={localStyles.actionsContainer}>
+        <Text style={styles.cardTitle}>{title}</Text>
+        <Text style={styles.cardDescription}>{description}</Text>
+        <View style={styles.actionsContainer}>
           <TouchableOpacity
             onPress={() => onSendToAI?.(`Suggérer plus sur ${title}`)}
-            style={localStyles.actionButton}
+            style={styles.actionButton}
           >
-            <Icon name="send" size={20} color="#2980b9" />
-            <Text style={localStyles.actionText}>Suggérer</Text>
+            <Icon name="send" size= {20} color="#2980b9" />
+            <Text style={styles.actionText}>Suggérer</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={handleCopy} style={localStyles.actionButton}>
+          <TouchableOpacity onPress={handleCopy} style={styles.actionButton}>
             <Icon name={copied ? 'check' : 'content-copy'} size={20} color={copied ? '#27AE60' : '#2980b9'} />
-
-            <Text style={[localStyles.actionText, copied &&  localStyles.colorperso]}>
-              {copied ? 'Copié !' : 'Copier'}
-            </Text>
+            <Text style={[styles.actionText, copied && styles.copiedText]}>{copied ? 'Copié !' : 'Copier'}</Text>
           </TouchableOpacity>
           {onShare && (
-            <TouchableOpacity onPress={handleShare} style={localStyles.actionButton}>
+            <TouchableOpacity onPress={handleShare} style={styles.actionButton}>
               <Icon name="share-variant" size={20} color="#2980b9" />
-              <Text style={localStyles.actionText}>Partager</Text>
+              <Text style={styles.actionText}>Partager</Text>
             </TouchableOpacity>
           )}
-          <TouchableOpacity onPress={onPress} style={localStyles.actionButton}>
+          <TouchableOpacity onPress={onPress} style={styles.actionButton}>
             <Icon name="eye" size={20} color="#2980b9" />
-            <Text style={localStyles.actionText}>Voir</Text>
+            <Text style={styles.actionText}>Voir</Text>
           </TouchableOpacity>
         </View>
       </Animated.View>
@@ -100,32 +92,56 @@ export const SuggestionCard = ({
   );
 };
 
-const localStyles = StyleSheet.create({
-
-    colorperso: {
-        color: '#27AE60',
-    },
+const styles = StyleSheet.create({
   cardContainer: {
-    padding: 16,
+    marginVertical: 4,
+    marginHorizontal: 8,
+  },
+  card: {
+    backgroundColor: '#2A2A2A',
+    borderRadius: 12,
+    padding: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  cardImage: {
+    width: '100%',
+    height: 160,
+    borderRadius: 12,
+    marginBottom: 12,
   },
   placeholderImage: {
     width: '100%',
     height: 160,
     borderRadius: 12,
-    backgroundColor: '#2a2a2a',
+    backgroundColor: '#333',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 12,
   },
   placeholderText: {
     color: '#b0b0b0',
     fontSize: 14,
     marginTop: 8,
   },
+  cardTitle: {
+    color: '#FFF',
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  cardDescription: {
+    color: '#b0b0b0',
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 12,
+  },
   actionsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 12,
     flexWrap: 'wrap',
   },
   actionButton: {
@@ -139,6 +155,9 @@ const localStyles = StyleSheet.create({
     marginLeft: 6,
     fontWeight: '500',
   },
+  copiedText: {
+    color: '#27AE60',
+  },
 });
 
-export default SuggestionCard;
+export default React.memo(SuggestionCard);

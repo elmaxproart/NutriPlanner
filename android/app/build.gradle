@@ -3,6 +3,9 @@ apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 apply plugin: 'com.google.gms.google-services'
 
+project.ext.react = [
+    enableHermes: true
+]
 /**
  * This is the configuration block to customize your React Native Android app.
  */

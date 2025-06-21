@@ -1,0 +1,56 @@
+Modal Flow Implementation
+
+The renderModal function in AITemplateCarousel.tsx implements the exact modal sequences specified in the schema:
+
+    generatePersonalizedRecipe(member: MembreFamille):
+        AIActionModal → SelectFamilyMemberModal (isFinalStep: true)
+        Selects a single family member and submits to generatePersonalizedRecipe.
+    generateWeeklyMenu(members: MembreFamille[], dateStart: string):
+        AIActionModal → SelectFamilyMembersModal → SelectDateModal (isFinalStep: true)
+        Selects multiple members, then a date.
+    generateShoppingList(menu: Menu, currentIngredients: Ingredient[]):
+        AIActionModal → SelectMenuModal → SelectIngredientsModal (isFinalStep: true)
+        Selects a menu, then ingredients.
+    generateRecipeSuggestions(ingredients: Ingredient[], preferences: { niveauEpices: number; cuisinesPreferees: string[]; mealType?: string }):
+        AIActionModal → SelectIngredientsModal → SelectPreferencesModal (isFinalStep: true)
+        Selects ingredients, then preferences.
+    generateQuickRecipe(member: MembreFamille):
+        AIActionModal → SelectFamilyMemberModal (isFinalStep: true)
+    generateKidsRecipe(member: MembreFamille):
+        AIActionModal → SelectFamilyMemberModal (isFinalStep: true)
+    generateSpecialOccasionMenu(members: MembreFamille[], occasion: string, date: string):
+        AIActionModal → SelectFamilyMembersModal → SelectOccasionModal → SelectDateModal (isFinalStep: true)
+    generateBudgetMenu(members: MembreFamille[], budget: number):
+        AIActionModal → SelectFamilyMembersModal → SelectBudgetModal (isFinalStep: true)
+    generateBalancedDailyMenu(member: MembreFamille, date: string):
+        AIActionModal → SelectFamilyMemberModal → SelectDateModal (isFinalStep: true)
+    generateIngredientBasedRecipe(ingredient: Ingredient, member: MembreFamille):
+        AIActionModal → SelectFamilyMemberModal → SelectIngredientModal (isFinalStep: true)
+    generateSpecificDietRecipe(member: MembreFamille, diet: string):
+        AIActionModal → SelectFamilyMemberModal → SelectDietModal (isFinalStep: true)
+    generateLeftoverRecipe(ingredients: Ingredient[]):
+        AIActionModal → SelectIngredientsModal (isFinalStep: true)
+    generateGuestRecipe(members: MembreFamille[], guestCount: number):
+        AIActionModal → SelectFamilyMembersModal → SelectGuestCountModal (isFinalStep: true)
+    generateBudgetPlan(budgetLimit: number, month: string):
+        AIActionModal → SelectBudgetModal → SelectMonthModal (isFinalStep: true)
+    suggestStore(ingredient: Ingredient):
+        AIActionModal → SelectIngredientModal (isFinalStep: true)
+    checkRecipeCompatibility(recipe: Recette, members: MembreFamille[]):
+        AIActionModal → SelectFamilyMembersModal → SelectRecipeModal (isFinalStep: true)
+    optimizeInventory(ingredients: Ingredient[]):
+        AIActionModal → SelectIngredientsModal (isFinalStep: true)
+    analyzeMeal(historiqueRepas: HistoriqueRepas, member: MembreFamille):
+        AIActionModal → SelectFamilyMemberModal → SelectMealModal (isFinalStep: true)
+    analyzeFoodTrends(members: MembreFamille[]):
+        AIActionModal → SelectFamilyMembersModal (isFinalStep: true)
+    getNutritionalInfo(query: string):
+        AIActionModal → InputQueryModal (isFinalStep: true)
+    troubleshootProblem(problem: string):
+        AIActionModal → InputQueryModal (isFinalStep: true)
+    getCreativeIdeas(context: string):
+        AIActionModal → InputQueryModal (isFinalStep: true)
+    generateRecipeFromImage(imageUrl: string, member: MembreFamille):
+        AIActionModal → SelectFamilyMemberModal → SelectImageModal (isFinalStep: true)
+    checkIngredientAvailability(ingredientName: string, location: { latitude: number; longitude: number }):
+        AIActionModal → SelectIngredientModal → SelectLocationModal (isFinalStep: true)
