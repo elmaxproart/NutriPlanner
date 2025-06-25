@@ -1,100 +1,143 @@
-// src/hooks/useGeolocation.ts
-import { useState, useEffect } from 'react';
-import { PermissionsAndroid, Platform } from 'react-native';
+// src/hooks/useGeolocation.ts - Version améliorée avec suivi temps réel
+import { useState, useEffect, useRef } from 'react';
+import { GeolocationService } from '../services/geolocation.service';
+import { Location } from '../types/location.types';
 
-export interface Location {
-  latitude: number;
-  longitude: number;
+interface UseGeolocationReturn {
+  location: Location | null;
+  loading: boolean;
+  error: string | null;
+  lastUpdate: Date | null;
+  isWatching: boolean;
+  refreshLocation: () => void;
+  startWatching: () => void;
+  stopWatching: () => void;
 }
 
-export const useGeolocation = () => {
+export const useGeolocation = (): UseGeolocationReturn => {
   const [location, setLocation] = useState<Location | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [isWatching, setIsWatching] = useState(false);
+  const watchIdRef = useRef<number | null>(null);
 
-  const requestLocationPermission = async (): Promise<boolean> => {
-    if (Platform.OS === 'android') {
-      try {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-          {
-            title: 'Permission de localisation',
-            message: 'Cette application a besoin d\'accéder à votre position pour trouver les marchés à proximité.',
-            buttonNeutral: 'Demander plus tard',
-            buttonNegative: 'Annuler',
-            buttonPositive: 'Autoriser',
-          }
-        );
-        return granted === PermissionsAndroid.RESULTS.GRANTED;
-      } catch (err) {
-        console.warn('Erreur permission:', err);
-        return false;
-      }
-    }
-    return true; // iOS ou autres plateformes
+  // Fonction pour mettre à jour la location
+  const updateLocation = (newLocation: Location) => {
+    setLocation(newLocation);
+    setLastUpdate(new Date());
+    setError(null);
   };
 
-  const getCurrentPosition = (): Promise<Location> => {
-    return new Promise((resolve, reject) => {
-      // Pour l'émulateur, on simule une position à Yaoundé
+  // Fonction pour obtenir la position actuelle
+  const getCurrentPosition = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Demander les permissions
+      const hasPermission = await GeolocationService.requestLocationPermission();
+      if (!hasPermission) {
+        throw new Error('Permission de géolocalisation refusée');
+      }
+
+      // En mode développement, utiliser une position fixe pour Yaoundé
       if (__DEV__) {
-        setTimeout(() => {
-          resolve({
-            latitude: 3.848,
-            longitude: 11.502,
-          });
-        }, 1500);
+        const simulatedLocation: Location = {
+          latitude: 3.8480,
+          longitude: 11.5021,
+        };
+        updateLocation(simulatedLocation);
+        setLoading(false);
         return;
       }
 
-      // Pour un vrai device, utilisez la géolocalisation native
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          resolve({
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-          });
-        },
-        (error) => {
-          reject(new Error(`Erreur géolocalisation: ${error.message}`));
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 15000,
-          maximumAge: 10000,
-        }
-      );
-    });
-  };
-
-  const getCurrentLocation = async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const hasPermission = await requestLocationPermission();
-      if (!hasPermission) {
-        throw new Error('Permission de localisation refusée');
-      }
-
-      const position = await getCurrentPosition();
-      setLocation(position);
+      // Obtenir la position réelle
+      const position = await GeolocationService.getCurrentPosition();
+      updateLocation(position);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur de géolocalisation');
-      console.error('Erreur géolocalisation:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Erreur de géolocalisation';
+      setError(errorMessage);
+      console.error('Geolocation error:', err);
     } finally {
       setLoading(false);
     }
   };
 
+  // Fonction pour démarrer le suivi de position
+  const startWatching = () => {
+    if (isWatching || watchIdRef.current !== null) {
+      return; // Déjà en cours de suivi
+    }
+
+    try {
+      // En mode développement, ne pas utiliser le suivi réel
+      if (__DEV__) {
+        console.log('Mode développement: suivi de position simulé');
+        setIsWatching(true);
+        return;
+      }
+
+      // Démarrer le suivi de position réel
+      const watchId = GeolocationService.watchPosition((newLocation) => {
+        updateLocation(newLocation);
+        console.log('Position mise à jour:', newLocation);
+      });
+
+      watchIdRef.current = watchId;
+      setIsWatching(true);
+      console.log('Suivi de position démarré');
+    } catch (err) {
+      console.error('Erreur lors du démarrage du suivi:', err);
+      setError('Impossible de démarrer le suivi de position');
+    }
+  };
+
+  // Fonction pour arrêter le suivi de position
+  const stopWatching = () => {
+    if (watchIdRef.current !== null) {
+      GeolocationService.clearWatch?.(watchIdRef.current);
+      watchIdRef.current = null;
+    }
+    setIsWatching(false);
+    console.log('Suivi de position arrêté');
+  };
+
+  // Fonction pour rafraîchir manuellement la position
+  const refreshLocation = () => {
+    getCurrentPosition();
+  };
+
+  // Effet pour obtenir la position initiale
   useEffect(() => {
-    getCurrentLocation();
+    getCurrentPosition();
+
+    // Démarrer automatiquement le suivi
+    const timer = setTimeout(() => {
+      startWatching();
+    }, 1000); // Attendre 1 seconde après la position initiale
+
+    return () => {
+      clearTimeout(timer);
+      stopWatching();
+    };
+  }, []);
+
+  // Nettoyage à la destruction du composant
+  useEffect(() => {
+    return () => {
+      stopWatching();
+    };
   }, []);
 
   return {
     location,
     loading,
     error,
-    refreshLocation: getCurrentLocation,
+    lastUpdate,
+    isWatching,
+    refreshLocation,
+    startWatching,
+    stopWatching,
   };
 };

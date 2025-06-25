@@ -17,7 +17,7 @@ import EditScreen from './screens/EditScreen';
 import MenuPlanifiesScreen from './screens/MenuScreen';
 // Changement ici : import nommé au lieu d'import par défaut
 import { MapScreen } from './screens/MapScreen';
-
+import { test } from './screens/test';
 const Stack = createStackNavigator();
 
 const App = () => {

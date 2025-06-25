@@ -1,4 +1,4 @@
-//src/services/geolocation.service.ts
+//src/services/geolocation.service.ts - Version améliorée
 import Geolocation from 'react-native-geolocation-service';
 import { PermissionsAndroid, Platform } from 'react-native';
 import { Location, GeolocationPosition } from '../types/location.types';
@@ -33,7 +33,10 @@ export class GeolocationService {
     });
   }
 
-  static watchPosition(callback: (location: Location) => void) {
+  static watchPosition(
+    callback: (location: Location) => void,
+    errorCallback?: (error: any) => void
+  ): number {
     return Geolocation.watchPosition(
       (position: GeolocationPosition) => {
         callback({
@@ -41,11 +44,26 @@ export class GeolocationService {
           longitude: position.coords.longitude,
         });
       },
-      (error) => console.error('Watch position error:', error),
+      (error) => {
+        console.error('Watch position error:', error);
+        if (errorCallback) {
+          errorCallback(error);
+        }
+      },
       {
         enableHighAccuracy: true,
         distanceFilter: 100, // Mise à jour tous les 100m
+        interval: 30000, // Vérifier toutes les 30 secondes
+        fastestInterval: 10000, // Intervalle le plus rapide : 10 secondes
       }
     );
+  }
+
+  static clearWatch(watchId: number): void {
+    Geolocation.clearWatch(watchId);
+  }
+
+  static stopObserving(): void {
+    Geolocation.stopObserving();
   }
 }
