@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">nutriPlanner</string>
+    <string name="google_maps_api_key">AIzaSyDqJtH6hpF1i1ct9qHzKsqHh4wzMwZTzfw</string>
 </resources>

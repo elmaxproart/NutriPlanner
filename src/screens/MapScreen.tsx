@@ -1,4 +1,3 @@
-// src/screens/MapScreen.tsx - Version améliorée avec carte et filtre 30km
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -9,82 +8,103 @@ import {
   ScrollView,
   Modal,
   Dimensions,
+  Platform,
 } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+
+// Import conditionnel pour éviter les erreurs
+let MapView: any = null;
+let Marker: any = null;
+let PROVIDER_GOOGLE: any = null;
+
+try {
+  const RNMaps = require('react-native-maps');
+  MapView = RNMaps.default;
+  Marker = RNMaps.Marker;
+  PROVIDER_GOOGLE = RNMaps.PROVIDER_GOOGLE;
+} catch (error) {
+  console.warn('react-native-maps not available:', error);
+}
+
 import { useGeolocation } from '../hooks/useGeolocation';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { Market } from '../types/market.types';
 
 const { width, height } = Dimensions.get('window');
 
-// Données de test des marchés de Yaoundé (étendue pour les tests)
-const TEST_MARKETS: Market[] = [
-  {
-    id: '1',
-    name: 'Marché Central',
-    latitude: 3.8480,
-    longitude: 11.5021,
-    address: 'Centre-ville, Yaoundé',
-    category: 'central',
-  },
-  {
-    id: '2',
-    name: 'Marché Mokolo',
-    latitude: 3.8690,
-    longitude: 11.5194,
-    address: 'Mokolo, Yaoundé',
-    category: 'local',
-  },
-  {
-    id: '3',
-    name: 'Marché Mfoundi',
-    latitude: 3.8420,
-    longitude: 11.4980,
-    address: 'Mfoundi, Yaoundé',
-    category: 'local',
-  },
-  {
-    id: '4',
-    name: 'Marché de la Briqueterie',
-    latitude: 3.8560,
-    longitude: 11.5240,
-    address: 'Briqueterie, Yaoundé',
-    category: 'local',
-  },
-  {
-    id: '5',
-    name: 'Marché de Tsinga',
-    latitude: 3.8320,
-    longitude: 11.5120,
-    address: 'Tsinga, Yaoundé',
-    category: 'local',
-  },
-  {
-    id: '6',
-    name: 'Marché de Mendong',
-    latitude: 3.8180,
-    longitude: 11.4850,
-    address: 'Mendong, Yaoundé',
-    category: 'local',
-  },
-  {
-    id: '7',
-    name: 'Marché de Nlongkak',
-    latitude: 3.8780,
-    longitude: 11.5350,
-    address: 'Nlongkak, Yaoundé',
-    category: 'local',
-  },
-  // Marché éloigné pour tester le filtre de 30km
-  {
-    id: '8',
-    name: 'Marché d\'Mbalmayo',
-    latitude: 3.5167,
-    longitude: 11.5000,
-    address: 'Mbalmayo, Région du Centre',
-    category: 'regional',
-  },
-];
+// Simulation d'une fonction pour récupérer les marchés dynamiquement
+const fetchMarkets = async (): Promise<Market[]> => {
+  // Dans une vraie application, ceci serait une requête API
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve([
+        {
+          id: '1',
+          name: 'Marché Central',
+          latitude: 3.8480,
+          longitude: 11.5021,
+          address: 'Centre-ville, Yaoundé',
+          category: 'central',
+        },
+        {
+          id: '2',
+          name: 'Marché Mokolo',
+          latitude: 3.8690,
+          longitude: 11.5194,
+          address: 'Mokolo, Yaoundé',
+          category: 'local',
+        },
+        {
+          id: '3',
+          name: 'Marché Mfoundi',
+          latitude: 3.8420,
+          longitude: 11.4980,
+          address: 'Mfoundi, Yaoundé',
+          category: 'local',
+        },
+        {
+          id: '4',
+          name: 'Marché de la Briqueterie',
+          latitude: 3.8560,
+          longitude: 11.5240,
+          address: 'Briqueterie, Yaoundé',
+          category: 'local',
+        },
+        {
+          id: '5',
+          name: 'Marché de Tsinga',
+          latitude: 3.8320,
+          longitude: 11.5120,
+          address: 'Tsinga, Yaoundé',
+          category: 'local',
+        },
+        {
+          id: '6',
+          name: 'Marché de Mendong',
+          latitude: 3.8180,
+          longitude: 11.4850,
+          address: 'Mendong, Yaoundé',
+          category: 'local',
+        },
+        {
+          id: '7',
+          name: 'Marché de Nlongkak',
+          latitude: 3.8780,
+          longitude: 11.5350,
+          address: 'Nlongkak, Yaoundé',
+          category: 'local',
+        },
+        {
+          id: '8',
+          name: 'Marché d\'Mbalmayo',
+          latitude: 3.5167,
+          longitude: 11.5000,
+          address: 'Mbalmayo, Région du Centre',
+          category: 'regional',
+        },
+      ]);
+    }, 1000);
+  });
+};
 
 interface MarketWithDistance extends Market {
   distance: number;
@@ -99,14 +119,15 @@ export const MapScreen: React.FC = () => {
     isWatching,
     refreshLocation,
     startWatching,
-    stopWatching
+    stopWatching,
   } = useGeolocation();
   const [markets, setMarkets] = useState<MarketWithDistance[]>([]);
   const [loadingMarkets, setLoadingMarkets] = useState(false);
   const [selectedMarket, setSelectedMarket] = useState<MarketWithDistance | null>(null);
   const [showMap, setShowMap] = useState(false);
+  const [mapError, setMapError] = useState<string | null>(null);
 
-  // Formule de Haversine pour calculer la distance précise
+  // Formule de Haversine pour calculer la distance
   const calculateHaversineDistance = (
     lat1: number,
     lon1: number,
@@ -134,24 +155,28 @@ export const MapScreen: React.FC = () => {
 
     setLoadingMarkets(true);
 
-    // Simulation d'une requête API avec calcul des distances
-    setTimeout(() => {
-      const marketsWithDistance: MarketWithDistance[] = TEST_MARKETS
-        .map(market => ({
+    try {
+      const allMarkets = await fetchMarkets();
+      const marketsWithDistance: MarketWithDistance[] = allMarkets
+        .map((market) => ({
           ...market,
           distance: calculateHaversineDistance(
             location.latitude,
             location.longitude,
             market.latitude,
             market.longitude
-          )
+          ),
         }))
-        .filter(market => market.distance <= 30) // Filtrer dans un rayon de 30km
-        .sort((a, b) => a.distance - b.distance); // Trier par distance croissante
+        .filter((market) => market.distance <= 30)
+        .sort((a, b) => a.distance - b.distance);
 
       setMarkets(marketsWithDistance);
+    } catch (error) {
+      console.error('Erreur lors du chargement des marchés:', error);
+      Alert.alert('Erreur', 'Impossible de charger les marchés');
+    } finally {
       setLoadingMarkets(false);
-    }, 1000);
+    }
   };
 
   useEffect(() => {
@@ -169,7 +194,23 @@ export const MapScreen: React.FC = () => {
   };
 
   const handleMarketPress = (market: MarketWithDistance) => {
+    console.log('Marché sélectionné:', market.name);
+
+    if (!MapView) {
+      Alert.alert(
+        'Carte non disponible',
+        `Nom: ${market.name}\nAdresse: ${market.address}\nDistance: ${formatDistance(market.distance)}`
+      );
+      return;
+    }
+
+    if (!market.latitude || !market.longitude || !location) {
+      Alert.alert('Erreur', 'Coordonnées invalides pour afficher la carte');
+      return;
+    }
+
     setSelectedMarket(market);
+    setMapError(null);
     setShowMap(true);
   };
 
@@ -194,58 +235,60 @@ export const MapScreen: React.FC = () => {
   };
 
   const renderMapModal = () => {
-    if (!selectedMarket || !location) return null;
+    if (!selectedMarket || !location || !MapView) return null;
 
     return (
-      <Modal
-        visible={showMap}
-        animationType="slide"
-        onRequestClose={() => setShowMap(false)}
-      >
+      <Modal visible={showMap} animationType="slide" onRequestClose={() => setShowMap(false)}>
         <View style={styles.mapContainer}>
           <View style={styles.mapHeader}>
             <Text style={styles.mapTitle}>{selectedMarket.name}</Text>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setShowMap(false)}
-            >
+            <TouchableOpacity style={styles.closeButton} onPress={() => setShowMap(false)}>
               <Text style={styles.closeButtonText}>✕</Text>
             </TouchableOpacity>
           </View>
 
-          <MapView
-            provider={PROVIDER_GOOGLE}
-            style={styles.map}
-            initialRegion={{
-              latitude: selectedMarket.latitude,
-              longitude: selectedMarket.longitude,
-              latitudeDelta: 0.01,
-              longitudeDelta: 0.01,
-            }}
-            showsUserLocation={true}
-            showsMyLocationButton={true}
-          >
-            {/* Marqueur pour votre position */}
-            <Marker
-              coordinate={{
-                latitude: location.latitude,
-                longitude: location.longitude,
-              }}
-              title="Votre position"
-              pinColor="blue"
-            />
-
-            {/* Marqueur pour le marché sélectionné */}
-            <Marker
-              coordinate={{
+          {mapError ? (
+            <View style={styles.mapErrorContainer}>
+              <Text style={styles.mapErrorText}>Erreur: {mapError}</Text>
+              <TouchableOpacity
+                style={styles.retryMapButton}
+                onPress={() => setShowMap(false)}
+              >
+                <Text style={styles.retryMapButtonText}>Fermer</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <MapView
+              provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+              style={styles.map}
+              initialRegion={{
                 latitude: selectedMarket.latitude,
                 longitude: selectedMarket.longitude,
+                latitudeDelta: 0.02,
+                longitudeDelta: 0.02,
               }}
-              title={selectedMarket.name}
-              description={`${selectedMarket.address} - ${formatDistance(selectedMarket.distance)}`}
-              pinColor={getMarkerColor(selectedMarket.category)}
-            />
-          </MapView>
+              showsUserLocation={true}
+              showsMyLocationButton={true}
+            >
+              <Marker
+                coordinate={{
+                  latitude: location.latitude,
+                  longitude: location.longitude,
+                }}
+                title="Votre position"
+                pinColor="blue"
+              />
+              <Marker
+                coordinate={{
+                  latitude: selectedMarket.latitude,
+                  longitude: selectedMarket.longitude,
+                }}
+                title={selectedMarket.name}
+                description={`${selectedMarket.address} - ${formatDistance(selectedMarket.distance)}`}
+                pinColor={getMarkerColor(selectedMarket.category)}
+              />
+            </MapView>
+          )}
 
           <View style={styles.mapInfo}>
             <Text style={styles.mapInfoTitle}>{selectedMarket.name}</Text>
@@ -280,15 +323,38 @@ export const MapScreen: React.FC = () => {
       <View style={styles.container}>
         <Text style={styles.title}>Marchés dans un rayon de 30km</Text>
 
-        {location ? (
-          <View style={styles.locationContainer}>
+        {!MapView && (
+          <View style={styles.warningContainer}>
+            <Text style={styles.warningText}>
+              ⚠️ Carte non configurée - Infos affichées dans une alerte
+            </Text>
+          </View>
+        )}
+
+        {location && MapView ? (
+          <View style={styles.mapSection}>
             <Text style={styles.locationTitle}>📍 Votre position :</Text>
-            <Text style={styles.locationText}>
-              Latitude: {location.latitude.toFixed(6)}
-            </Text>
-            <Text style={styles.locationText}>
-              Longitude: {location.longitude.toFixed(6)}
-            </Text>
+            <MapView
+              provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
+              style={styles.userMap}
+              initialRegion={{
+                latitude: location.latitude,
+                longitude: location.longitude,
+                latitudeDelta: 0.01,
+                longitudeDelta: 0.01,
+              }}
+              showsUserLocation={true}
+              showsMyLocationButton={true}
+            >
+              <Marker
+                coordinate={{
+                  latitude: location.latitude,
+                  longitude: location.longitude,
+                }}
+                title="Votre position"
+                pinColor="blue"
+              />
+            </MapView>
             <Text style={styles.locationNote}>
               {__DEV__ ? '(Position simulée - Yaoundé)' : '(Position réelle)'}
             </Text>
@@ -297,22 +363,16 @@ export const MapScreen: React.FC = () => {
                 Dernière mise à jour: {lastUpdate.toLocaleTimeString()}
               </Text>
             )}
-            <View style={styles.trackingStatus}>
-              <Text style={[styles.trackingText, { color: isWatching ? '#28a745' : '#666' }]}>
-                {isWatching ? '🟢 Suivi actif' : '🔴 Suivi inactif'}
-              </Text>
-            </View>
           </View>
         ) : (
           <Text style={styles.noLocationText}>Aucune position disponible</Text>
         )}
 
-        {/* Section des marchés */}
         {location && (
           <View style={styles.marketsSection}>
             <View style={styles.marketsSectionHeader}>
               <Text style={styles.marketsTitle}>
-                🏪 Marchés proches ({markets.length} trouvés)
+                🏪 Marchés proches encerclés ({markets.length} trouvés)
               </Text>
               {loadingMarkets && <Text style={styles.loadingText}>Chargement...</Text>}
             </View>
@@ -323,17 +383,19 @@ export const MapScreen: React.FC = () => {
                   key={market.id}
                   style={[
                     styles.marketCard,
-                    { borderLeftColor: getMarkerColor(market.category) }
+                    { borderLeftColor: getMarkerColor(market.category) },
                   ]}
                   onPress={() => handleMarketPress(market)}
                 >
                   <View style={styles.marketInfo}>
                     <View style={styles.marketHeader}>
                       <Text style={styles.marketName}>{market.name}</Text>
-                      <View style={[
-                        styles.categoryBadge,
-                        { backgroundColor: getMarkerColor(market.category) }
-                      ]}>
+                      <View
+                        style={[
+                          styles.categoryBadge,
+                          { backgroundColor: getMarkerColor(market.category) },
+                        ]}
+                      >
                         <Text style={styles.categoryText}>
                           {market.category.toUpperCase()}
                         </Text>
@@ -345,7 +407,7 @@ export const MapScreen: React.FC = () => {
                     </Text>
                   </View>
                   <View style={styles.marketArrow}>
-                    <Text style={styles.arrowText}>🗺️</Text>
+                    <Text style={styles.arrowText}>{MapView ? '🗺️' : 'ℹ️'}</Text>
                   </View>
                 </TouchableOpacity>
               ))
@@ -357,7 +419,6 @@ export const MapScreen: React.FC = () => {
           </View>
         )}
 
-        {/* Boutons de test */}
         <View style={styles.buttonsContainer}>
           <TouchableOpacity style={styles.testButton} onPress={handleTestButton}>
             <Text style={styles.testButtonText}>Tester Alert</Text>
@@ -377,18 +438,12 @@ export const MapScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
 
-        {/* Statut */}
         <View style={styles.infoContainer}>
           <Text style={styles.infoTitle}>Statut :</Text>
           <Text style={styles.infoText}>• Hook géolocalisation: ✅</Text>
-          <Text style={styles.infoText}>• LoadingSpinner: ✅</Text>
-          <Text style={styles.infoText}>• Types: ✅</Text>
           <Text style={styles.infoText}>• Position: {location ? '✅' : '❌'}</Text>
           <Text style={styles.infoText}>• Marchés (≤30km): {markets.length > 0 ? `✅ (${markets.length})` : '❌'}</Text>
-          <Text style={styles.infoText}>• Formule Haversine: ✅</Text>
-          <Text style={styles.infoText}>• Tri par distance: ✅</Text>
-          <Text style={styles.infoText}>• Suivi temps réel: {isWatching ? '✅' : '❌'}</Text>
-          <Text style={styles.infoText}>• Seuil de distance: 100m</Text>
+          <Text style={styles.infoText}>• Carte interactive: {MapView ? '✅' : '❌'}</Text>
           {lastUpdate && (
             <Text style={styles.infoText}>
               • Dernière maj: {lastUpdate.toLocaleTimeString()}
@@ -418,16 +473,21 @@ const styles = StyleSheet.create({
     color: '#333',
     textAlign: 'center',
   },
-  locationContainer: {
-    backgroundColor: 'white',
-    padding: 20,
-    borderRadius: 10,
+  warningContainer: {
+    backgroundColor: '#fff3cd',
+    padding: 15,
+    borderRadius: 8,
     marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    borderColor: '#ffeaa7',
+    borderWidth: 1,
+  },
+  warningText: {
+    color: '#856404',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  mapSection: {
+    marginBottom: 20,
   },
   locationTitle: {
     fontSize: 18,
@@ -435,16 +495,20 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     color: '#333',
   },
-  locationText: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 5,
-    fontFamily: 'monospace',
+  userMap: {
+    height: 200,
+    borderRadius: 10,
+    marginBottom: 10,
   },
   locationNote: {
     fontSize: 12,
     color: '#999',
     fontStyle: 'italic',
+    marginTop: 5,
+  },
+  lastUpdateText: {
+    fontSize: 12,
+    color: '#007bff',
     marginTop: 5,
   },
   noLocationText: {
@@ -556,20 +620,11 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     borderRadius: 8,
   },
-  lastUpdateText: {
-    fontSize: 12,
-    color: '#007bff',
-    marginTop: 5,
-  },
-  trackingStatus: {
-    marginTop: 10,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-  },
-  trackingText: {
-    fontSize: 14,
-    fontWeight: '600',
+  refreshButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
   trackingButton: {
     paddingHorizontal: 30,
@@ -629,7 +684,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
   },
-  // Styles pour la carte
   mapContainer: {
     flex: 1,
     backgroundColor: 'white',
@@ -639,7 +693,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 20,
-    paddingTop: 50,
+    paddingTop: Platform.OS === 'ios' ? 50 : 20,
     backgroundColor: '#007bff',
   },
   mapTitle: {
@@ -664,6 +718,29 @@ const styles = StyleSheet.create({
   map: {
     flex: 1,
   },
+  mapErrorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  mapErrorText: {
+    fontSize: 16,
+    color: '#dc3545',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  retryMapButton: {
+    backgroundColor: '#dc3545',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 5,
+  },
+  retryMapButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
   mapInfo: {
     backgroundColor: 'white',
     padding: 20,
@@ -685,5 +762,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#007bff',
     fontWeight: '600',
+    marginBottom: 5,
   },
 });
