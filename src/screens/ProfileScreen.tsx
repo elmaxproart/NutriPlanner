@@ -2,7 +2,6 @@ import React, {useEffect, useState} from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   TouchableOpacity,
   Switch,
   SafeAreaView,
@@ -12,7 +11,6 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import firestore from '@react-native-firebase/firestore';
-import storage from '@react-native-firebase/storage';
 import auth from '@react-native-firebase/auth';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {Alert, Platform} from 'react-native';
@@ -35,7 +33,8 @@ export default function ProfileScreen({navigation}: any) {
       allergies: [],
       doctorNote: false,
       vegan: false,
-      imageUrl: '',
+      imageUrl: 'https://example.com/default-profile.png',
+      email: '',      
     },
   ]);
 
@@ -90,6 +89,7 @@ export default function ProfileScreen({navigation}: any) {
         doctorNote: false,
         vegan: false,
         imageUrl: '',
+        email: '',
       },
     ]);
   };
@@ -395,6 +395,13 @@ export default function ProfileScreen({navigation}: any) {
               keyboardType="numeric"
               value={member.age}
               onChangeText={text => updateMember(index, 'age', text)}
+              placeholderTextColor="#aaa"
+            />
+            <TextInput
+              style={[styles.input, themeStyles.text]}
+              placeholder="Email"
+              value={member.email}
+              onChangeText={text => updateMember(index, 'email', text)}
               placeholderTextColor="#aaa"
             />
             <View style={[styles.optionRow, themeStyles.border]}>

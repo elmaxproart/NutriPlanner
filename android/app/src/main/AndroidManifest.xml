@@ -1,12 +1,27 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
-    <uses-permission android:name="android.permission.CAMERA"/>
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+<!-- Permission pour l'accès à Internet -->
+<uses-permission android:name="android.permission.INTERNET" />
+
+<!-- Permissions pour l'accès aux médias et à la caméra -->
+<uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+<uses-permission android:name="android.permission.CAMERA" />
+
+<!-- Permissions pour la lecture et l'écriture du stockage externe -->
+<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+
+<!-- Permissions pour l'accès à la localisation -->
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+<uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+
+<!-- Permission pour le contrôle de l'état du réseau -->
+<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+<!-- Permission pour l'envoi de notifications -->
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
 
 
 
@@ -30,5 +45,10 @@
             <category android:name="android.intent.category.LAUNCHER" />
         </intent-filter>
       </activity>
+
+       <meta-data
+          android:name="com.google.android.geo.API_KEY"
+          android:value="AIzaSyDqJtH6hpF1i1ct9qHzKsqHh4wzMwZTzfw"/>
+     
     </application>
 </manifest>

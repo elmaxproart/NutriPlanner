@@ -94,10 +94,10 @@ const mockMenus: MenuItem[] = [
 ];
 const Dashboard: React.FC<{navigation: any}> = ({navigation}) => {
   const options = [
-  {icon: 'food', action: () => navigation.navigate('addMenu')},
-  {icon: 'robot', action: () => alert('Planifier avec l’IA')},
-  {icon: 'calendar', action: () => alert('Planifier manuellement')},
-  {icon: 'magnify', action: () => alert('Rechercher menu')},
+  {icon: 'food', action: () => navigation.push('addMenu')},
+  {icon: 'robot', action: () => navigation.push('ia')},
+  {icon: 'package', action: () => navigation.push('HomeTabs')},
+   {icon: 'package', action: () => navigation.push('HomeTabs')}
 ];
   const flatListRef = useRef<FlatList>(null);
   const scrollViewRef = useRef<ScrollView>(null);
@@ -237,6 +237,7 @@ const Dashboard: React.FC<{navigation: any}> = ({navigation}) => {
           paddingHorizontal: 16,
           paddingBottom: 1,
           paddingTop: 10,
+          
         }}
       />
       <Text style={styles.sectionTitle}>All Menus</Text>
@@ -279,10 +280,10 @@ const Dashboard: React.FC<{navigation: any}> = ({navigation}) => {
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity>
-          <Icon name="bell-outline" size={28} color="#999" />
+        <TouchableOpacity onPress={() => navigation.push('Map')}>
+          <Icon name="map" size={28} color="#999" />
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
+        <TouchableOpacity onPress={() => navigation.push('Profile')}>
           <Icon name="account-outline" size={28} color="#999" />
         </TouchableOpacity>
       </View>

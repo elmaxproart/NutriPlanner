@@ -11,22 +11,29 @@ import {
   Alert,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import firestore from '@react-native-firebase/firestore';
+import firestore, { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
 import auth from '@react-native-firebase/auth';
 import {launchImageLibrary} from 'react-native-image-picker';
 import {styles} from '../styles/addPageStyle';
 import AntDesign from 'react-native-vector-icons/AntDesign';
+import Feather from 'react-native-vector-icons/Feather';
 import CustomPopup from '../components/CustumPopup';
 
 import {ToastAndroid} from 'react-native';
 
-type Ingredient = {
+export type Ingredient = {
   ingredientImage?: string;
   ingredientName: string;
   price: string;
+  unite: string;
+  quantity: string;
+  origine?: string;
+  description?: string;
+  otherName?: string;
+  addedAt?: FirebaseFirestoreTypes.Timestamp | string;
 };
 
-type MenuItem = {
+export type MenuItem = {
   id: string;
   foodName: string;
   foodPick: string;
@@ -35,6 +42,8 @@ type MenuItem = {
   price: number;
   forFamilyPrice: number;
   day?: string;
+  origine?: string;
+  otherName?: string;
 };
 
 const AddMenuPage: React.FC<{navigation: any}> = ({navigation}) => {
@@ -53,8 +62,18 @@ const AddMenuPage: React.FC<{navigation: any}> = ({navigation}) => {
   const [planModalVisible, setPlanModalVisible] = useState(false);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [foodOrigine, setFoodOrigine] = useState('');
+  const [foodOtherName, setFoodOtherName] = useState('');
+  const [foodDay, setFoodDay] = useState('');
+
   const [price, setPrice] = useState(0);
   const [forFamilyPrice, setForFamilyPrice] = useState(0);
+  const [searchText, setSearchText] = useState('');
+  const filteredMenus = menus.filter(
+    menu =>
+      menu.foodName.toLowerCase().includes(searchText.toLowerCase()) ||
+      menu.description.toLowerCase().includes(searchText.toLowerCase()),
+  );
 
   const [selectedItemDetail, setSelectedItemDetail] = useState<MenuItem | null>(
     null,
@@ -81,7 +100,13 @@ const AddMenuPage: React.FC<{navigation: any}> = ({navigation}) => {
   const [newIngredient, setNewIngredient] = useState<Ingredient>({
     ingredientName: '',
     price: '',
+    quantity: '',
+    unite: '',
+    origine: '',
+    description: '',
+    otherName: '',
   });
+
   const [familySize, setFamilySize] = useState(1);
   const updatePrice = () => {
     const newPrice = calculatePrice();
@@ -151,7 +176,7 @@ const AddMenuPage: React.FC<{navigation: any}> = ({navigation}) => {
         );
 
         const totalSize = snapshot.size;
-        setFamilySize(totalSize + 2);
+        setFamilySize(totalSize + 1);
       } catch (error) {
         console.error('Erreur lors de la récupération de familySize:', error);
       }
@@ -185,6 +210,8 @@ const AddMenuPage: React.FC<{navigation: any}> = ({navigation}) => {
           .doc(dateForWeek || new Date().toISOString().split('T')[0])
           .set({[selectedItemToPlan.id]: baseData}, {merge: true});
       }
+      await updateCourseList(planningType, dateForWeek || date, selectedItemToPlan);
+
 
       showPopup('success', `Plat planifié pour la ${planningType}`);
     } catch (error) {
@@ -196,6 +223,57 @@ const AddMenuPage: React.FC<{navigation: any}> = ({navigation}) => {
     setSelectedItemToPlan(null);
     setPlanningType(null);
   };
+  const updateCourseList = async (
+  planningType: 'jour' | 'semaine',
+  date: string,
+  menu: MenuItem,
+) => {
+  const planningId = planningType === 'jour' ? date : date; // ou `week-yyyy-mm-dd`
+
+  const courseDocRef = firestore()
+    .collection(`users/${userId}/courses`)
+    .doc(planningId);
+
+  try {
+    const courseDoc = await courseDocRef.get();
+
+    let currentPlats = [];
+    let total = 0;
+
+    if (courseDoc.exists()) {
+      const existingData = courseDoc.data();
+      currentPlats = existingData?.plats || [];
+      total = existingData?.totalPrice || 0;
+    }
+
+    // Ajout du plat planifié
+    const newPlat = {
+      foodName: menu.foodName,
+      foodIngredients: menu.foodIngredients,
+      forFamilyPrice: menu.forFamilyPrice,
+    };
+
+    currentPlats.push(newPlat);
+    total += menu.forFamilyPrice;
+
+    // Mettre à jour la course
+    await courseDocRef.set(
+      {
+        type: planningType,
+        date,
+        plats: currentPlats,
+        totalPrice: total,
+        updatedAt: firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+
+    console.log('Liste de courses mise à jour');
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour de la liste de course :', error);
+  }
+};
+
 
   const pickImage = (onPick: (base64: string) => void) => {
     launchImageLibrary({mediaType: 'photo', includeBase64: true}, response => {
@@ -209,11 +287,35 @@ const AddMenuPage: React.FC<{navigation: any}> = ({navigation}) => {
       }
     });
   };
+  useEffect(() => {
+    const newTotalPrice = calculatePrice();
+    setPrice(newTotalPrice);
+    setForFamilyPrice(newTotalPrice * familySize);
+  }, [familySize, ingredients]);
 
   const addIngredient = () => {
     if (newIngredient.ingredientName && newIngredient.price) {
-      setIngredients([...ingredients, newIngredient]);
-      setNewIngredient({ingredientName: '', price: ''});
+      const updatedIngredients = [...ingredients, newIngredient];
+      setIngredients(updatedIngredients);
+      setNewIngredient({
+        ingredientName: '',
+        price: '',
+        quantity: '',
+        unite: '',
+        origine: '',
+        description: '',
+        otherName: '',
+        ingredientImage: undefined,
+        addedAt: undefined,
+      });
+
+      const newTotalPrice = updatedIngredients.reduce(
+        (sum, ing) => sum + parseFloat(ing.price || '0'),
+        0,
+      );
+
+      setPrice(newTotalPrice);
+      setForFamilyPrice(newTotalPrice * familySize);
     } else {
       Alert.alert(
         'Erreur',
@@ -246,6 +348,9 @@ const AddMenuPage: React.FC<{navigation: any}> = ({navigation}) => {
         foodIngredients: ingredients,
         price,
         addedAt: firestore.FieldValue.serverTimestamp(),
+        origine: foodOrigine,
+        otherName: foodOtherName,
+        day: foodDay,
       });
 
       setModalVisible(false);
@@ -253,6 +358,11 @@ const AddMenuPage: React.FC<{navigation: any}> = ({navigation}) => {
       setFoodPick('');
       setIngredients([]);
       setCurrentStep(1);
+      setDescription('');
+      setFoodOrigine('');
+      setFoodOtherName('');
+      setFoodDay('');
+      setPrice(0);
       showPopup('success', 'Plat enregistré avec succès !');
     } catch (error) {
       showPopup('error', 'Une erreur est survenue lors de l’enregistrement.');
@@ -281,6 +391,15 @@ const AddMenuPage: React.FC<{navigation: any}> = ({navigation}) => {
         <Text style={[styles.cardPrice]}>
           Prix pour votre Famille : {item.forFamilyPrice} FCFA
         </Text>
+        {item.origine && (
+          <Text style={styles.cardDetail}>Origine : {item.origine}</Text>
+        )}
+        {item.otherName && (
+          <Text style={styles.cardDetail}>Autre nom : {item.otherName}</Text>
+        )}
+        {item.day && (
+          <Text style={styles.cardDetail}>Jour prévu : {item.day}</Text>
+        )}
 
         {/* Ingrédients */}
         <View style={{marginTop: 8}}>
@@ -326,38 +445,80 @@ const AddMenuPage: React.FC<{navigation: any}> = ({navigation}) => {
       const snapshot = await firestore()
         .collection(`users/${userId}/mymenu`)
         .get();
-      const data = snapshot.docs.map(
-        doc => ({id: doc.id, ...doc.data()} as MenuItem),
-      );
+      const data = snapshot.docs.map(doc => {
+        const raw = doc.data();
+        return {
+          id: doc.id,
+          foodName: raw.foodName || '',
+          foodPick: raw.foodPick || '',
+          description: raw.description || '',
+          foodIngredients: raw.foodIngredients || [],
+          price: raw.price || 0,
+          forFamilyPrice: (raw.price || 0) * familySize,
+          origine: raw.origine || '',
+          otherName: raw.otherName || '',
+          day: raw.day || '',
+        };
+      });
+
       setMenus(data);
     } catch (error) {
       console.error('Erreur lors du chargement du menu :', error);
     }
   }
+  const [searchVisible, setSearchVisible] = useState(false);
+
+  const toggleSearch = () => {
+    setSearchVisible(!searchVisible);
+    if (!searchVisible) setSearchText('');
+  };
+
+  const renderAppBar = () => (
+    <View style={styles.appBar}>
+      <TouchableOpacity onPress={() => navigation.goBack()}>
+        <AntDesign name="arrowleft" size={24} color="#fff" />
+      </TouchableOpacity>
+
+      <Text style={styles.appBarTitle}>Mes recettes</Text>
+
+      <TouchableOpacity onPress={toggleSearch}>
+        <Feather name={searchVisible ? 'x' : 'search'} size={22} color="#fff" />
+      </TouchableOpacity>
+    </View>
+  );
+  const totalPrice = ingredients.reduce((total, ing) => {
+    const price = parseFloat(ing.price) || 0;
+    return total + price;
+  }, 0);
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          padding: 10,
-          backgroundColor: '#000',
-          borderBottomWidth: 1,
-          borderBottomColor: '#ccc',
-        }}
-        onPress={() => navigation.goBack()}>
-        <AntDesign name="arrowleft" size={24} color="#333" />
-        <Text style={{marginLeft: 8, fontSize: 16, color: '#333'}}>Retour</Text>
-      </TouchableOpacity>
+      {renderAppBar()}
+      {searchVisible && (
+        <TextInput
+          placeholder="Rechercher un plat..."
+          placeholderTextColor="#999"
+          value={searchText}
+          onChangeText={setSearchText}
+          style={[styles.searchInput, {marginTop: 10}]}
+        />
+      )}
 
       <FlatList
-        data={menus}
-        keyExtractor={item => item.id}
+        data={filteredMenus}
         renderItem={renderCard}
-        numColumns={2}
-        columnWrapperStyle={{justifyContent: 'space-between'}}
-        contentContainerStyle={{padding: 10}}
+        keyExtractor={item => item.id}
+        numColumns={1}
+        ListEmptyComponent={() => (
+          <View
+            style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
+            <Text style={{color: '#999'}}>
+              Aucun plat trouvé. Ajoutez-en un !
+            </Text>
+          </View>
+        )}
+        contentContainerStyle={{paddingBottom: 100}}
+        showsVerticalScrollIndicator={false}
       />
 
       <TouchableOpacity
@@ -419,7 +580,22 @@ const AddMenuPage: React.FC<{navigation: any}> = ({navigation}) => {
                     value={description}
                     onChangeText={setDescription}
                   />
-
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Origine du plat (optionnel)"
+                    placeholderTextColor="#999"
+                    value={foodOrigine}
+                    onChangeText={setFoodOrigine}
+                  />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Autre nom du plat (optionnel)"
+                    placeholderTextColor="#999"
+                    value={foodOtherName}
+                    onChangeText={setFoodOtherName}
+                  />
+                
+                 
                   <TouchableOpacity
                     style={styles.saveButton}
                     onPress={() => setCurrentStep(2)}>
@@ -428,7 +604,20 @@ const AddMenuPage: React.FC<{navigation: any}> = ({navigation}) => {
                 </>
               ) : (
                 <>
-                  <Text style={styles.sectionTitle}>Ingrédients</Text>
+                  <Text
+                    style={[
+                      {color: 'white'},
+                      {fontWeight: 'bold'},
+                      {fontSize: 15},
+                    ]}>
+                    Ingrédients
+                  </Text>
+                  <Text style={{color: 'white'}}>
+                    Prix total: {totalPrice} FCFA
+                  </Text>
+                  <Text style={[{color: 'white'}, {marginBottom: 10}]}>
+                    Prix pour votre Famille: {forFamilyPrice} FCFA
+                  </Text>
 
                   {ingredients.map((ing, index) => (
                     <View
@@ -489,6 +678,42 @@ const AddMenuPage: React.FC<{navigation: any}> = ({navigation}) => {
                     value={newIngredient.price}
                     onChangeText={text =>
                       setNewIngredient({...newIngredient, price: text})
+                    }
+                  />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Quantité"
+                    placeholderTextColor="#999"
+                    value={newIngredient.quantity}
+                    onChangeText={text =>
+                      setNewIngredient({...newIngredient, quantity: text})
+                    }
+                  />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Unité (kg, g, etc.)"
+                    placeholderTextColor="#999"
+                    value={newIngredient.unite}
+                    onChangeText={text =>
+                      setNewIngredient({...newIngredient, unite: text})
+                    }
+                  />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Origine de l’ingrédient"
+                    placeholderTextColor="#999"
+                    value={newIngredient.origine}
+                    onChangeText={text =>
+                      setNewIngredient({...newIngredient, origine: text})
+                    }
+                  />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Autre nom de l’ingrédient"
+                    placeholderTextColor="#999"
+                    value={newIngredient.otherName}
+                    onChangeText={text =>
+                      setNewIngredient({...newIngredient, otherName: text})
                     }
                   />
 

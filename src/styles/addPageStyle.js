@@ -39,6 +39,12 @@ addButton: {
   alignItems: 'center',
   marginVertical: 12,
 },
+cardDetail: {
+  color: '#fff',
+  fontSize: 13,
+  marginTop: 2,
+  marginBottom: 2,
+},
 
   sectionTitle: {
     color: '#ffffff',
@@ -197,5 +203,35 @@ MremoveBtn: {
   width: '80%',
   alignItems: 'center',
 },
+appBar: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  backgroundColor: '#1a1a1a',
+  paddingVertical: 14,
+  paddingHorizontal: 16,
+  borderBottomWidth: 1,
+  borderBottomColor: '#333',
+  elevation: 4,
+  borderRadius: 10,
+},
+
+appBarTitle: {
+  fontSize: 18,
+  color: '#fff',
+  fontWeight: '600',
+},
+
+searchInput: {
+  backgroundColor: '#2a2a2a',
+  paddingHorizontal: 16,
+  paddingVertical: 10,
+  borderRadius: 10,
+  marginHorizontal: 16,
+  marginVertical: 10,
+  fontSize: 16,
+  color: '#fff',
+},
+
 
 });
