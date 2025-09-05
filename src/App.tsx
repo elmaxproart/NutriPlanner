@@ -85,7 +85,7 @@ export default function AppNavigation() {
 
   return (
     <NavigationContainer>
-      <Stack.Navigator initialRouteName='Home'  screenOptions={{ headerShown: false }}>
+      <Stack.Navigator   screenOptions={{ headerShown: false }}>
         {/* Écrans avant la tab bar */}
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
         <Stack.Screen name="Redirection" component={Redirection} />

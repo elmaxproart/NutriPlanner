@@ -42,7 +42,7 @@ interface MarketResult {
   vicinity?: string;
   rating?: number;
   user_ratings_total?: number;
-  prix_estime?: number; // Prix estimé en FCFA
+  prix_estime?: number; 
   opening_hours?: {
     open_now?: boolean;
   };

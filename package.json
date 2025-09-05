@@ -10,6 +10,8 @@
     "test": "jest"
   },
   "dependencies": {
+    "@21st-extension/react": "^0.5.10",
+    "@21st-extension/toolbar-react": "^0.5.10",
     "@mapbox/polyline": "^1.2.1",
     "@notifee/react-native": "^9.1.8",
     "@react-native-async-storage/async-storage": "^1.24.0",
